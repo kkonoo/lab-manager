@@ -126,13 +126,16 @@ const rateAt = (p, m) => { const d = degreeAt(p, m); return d ? ratesAt(m)[d] : 
 const partRate = (v, rate) => Math.round(v / rate * 100); // 참여율 = 인건비 ÷ 기준 인건비
 
 // ---------- 연차 ----------
-// 시작월부터 12개월씩, 마지막 연차는 종료월에서 자름. 번호는 firstNo(기본 1)부터
+// 시작월부터 차례로: 연차 끝 월을 고쳐 뒀으면(g.periods[n].to) 거기까지, 아니면 12개월. 다음 연차는 그 다음 달부터.
+// 마지막 연차는 종료월에서 자름. 번호는 firstNo(기본 1)부터
 function periods(g) {
   if (!g.start) return [];
   const out = [], end = mNum(g.end);
-  for (let s = mNum(g.start), i = 0; s <= end; s += 12, i++) {
-    const n = (g.firstNo || 1) + i, info = (g.periods || {})[n] || {};
-    out.push({ n, from: mStr(s), to: mStr(Math.min(s + 11, end)), budget: info.budget ?? null, pay: info.pay ?? null });
+  for (let s = mNum(g.start), n = g.firstNo || 1; s <= end; n++) {
+    const info = (g.periods || {})[n] || {}, to = info.to && mNum(info.to) >= s ? mNum(info.to) : s + 11;
+    const e = Math.min(to, end);
+    out.push({ n, from: mStr(s), to: mStr(e), budget: info.budget ?? null, pay: info.pay ?? null });
+    s = e + 1;
   }
   return out;
 }
@@ -1108,7 +1111,7 @@ function periodTable(g, ps) {
     const st = periodStats(g, pd), left = pd.budget != null ? pd.budget - st.used : null;
     const tr = h('tr', cls('prow', pd.n === selN && 'on'),
       h('td', null, `${pd.n}차년도`, between(NOW, pd.from, pd.to) ? h('span', 'now-tag', '지금') : null),
-      h('td', 'memo', `${mDot(pd.from)}–${mDot(pd.to)}`),
+      h('td', 'memo', periodRange(g, pd, ps)),
       h('td', 'goal', preview(g.periods?.[pd.n]?.goal) || '–'),
       h('td', 'r', inp(pd, 'budget')),
       h('td', 'r', inp(pd, 'pay')),
@@ -1118,11 +1121,38 @@ function periodTable(g, ps) {
     tr.onclick = () => { selN = pd.n; render(); };
     return tr;
   });
-  return h('div', 'panel ptable-panel', h('div', 'panel-head', h('h2', null, '연차별 예산'), h('span', 'hint', '단위 천원 · 줄을 누르면 그 연차를 아래에 펼쳐요 · 배정·계상액은 칸에서 바로 고쳐요')),
+  // + 차년도: 지금 마지막 연차 끝은 그대로 두고 1년 늘림
+  const more = h('button', 'btn small', '+ 차년도');
+  more.onclick = () => { const last = ps.at(-1); ((g.periods ||= {})[last.n] ||= {}).to = last.to; g.end = mAdd(last.to, 12); save(); };
+  return h('div', 'panel ptable-panel', h('div', 'panel-head', h('h2', null, '연차별 예산'),
+    h('span', 'hint', '단위 천원 · 줄을 누르면 그 연차를 아래에 펼쳐요 · 기간·배정·계상액은 칸에서 바로 고쳐요'), h('span', 'spacer'), more),
     h('div', 'tbl-wrap', h('table', 'tbl ptable',
       h('thead', null, h('tr', null, h('th', null, '연차'), h('th', null, '기간'), h('th', null, '목표'), h('th', 'r', '배정 (직접비)'), h('th', 'r', '인건비 계상액'),
         h('th', 'r', '인건비 계획'), h('th', 'r', '세목 계획'), h('th', 'r', '남은 금액'))),
       h('tbody', null, rows))));
+}
+
+// 연차 기간 고치기: 시작 월 = 앞 연차의 끝(첫 연차면 과제 시작), 끝 월 = 이 연차의 끝 (뒤 연차들이 따라 움직임, 마지막 연차면 과제 끝)
+function periodRange(g, pd, ps) {
+  const b = h('button', 'period-btn', `${mDot(pd.from)}–${mDot(pd.to)}`);
+  b.title = '눌러서 이 차년도 기간 고치기';
+  b.onclick = e => {
+    e.stopPropagation();
+    const i = ps.indexOf(pd), prev = ps[i - 1], last = i === ps.length - 1;
+    ask(`${pd.n}차년도 기간`, [[
+      { key: 'from', label: '시작 월', type: 'month', value: pd.from, required: true },
+      { key: 'to', label: '끝 월', type: 'month', value: pd.to, required: true }]], v => {
+      if (v.to < v.from) return alert('끝 월이 시작 월보다 빠를 수 없어요.');
+      if (prev && v.from <= prev.from) return alert(`${prev.n}차년도 시작(${mDot(prev.from)})보다 뒤여야 해요.`);
+      g.periods ||= {};
+      if (prev) (g.periods[prev.n] ||= {}).to = mAdd(v.from, -1); else g.start = v.from;
+      (g.periods[pd.n] ||= {}).to = v.to;
+      if (last || v.to > g.end) g.end = v.to;
+      save();
+    }, [h('p', 'hint', prev ? `시작 월을 바꾸면 ${prev.n}차년도 끝이 같이 바뀌어요. ` : '첫 차년도 시작 월 = 과제 시작 월. ',
+      last ? '마지막 차년도라 끝 월 = 과제 끝 월이에요.' : '끝 월을 바꾸면 뒤 차년도들이 그 다음 달부터 차례로 따라와요 (과제 끝 월은 그대로).')]);
+  };
+  return b;
 }
 
 function editGrant(g) {
@@ -1152,7 +1182,7 @@ function editGrant(g) {
     [{ key: 'start', label: '시작 월', type: 'month', value: base.start },
       { key: 'end', label: '끝 월', type: 'month', value: base.end },
       { key: 'firstNo', label: '첫 연차 번호', type: 'number', value: base.firstNo || 1 }],
-    { key: 'annual', label: '연 예산 (천원)', type: 'number', value: base.annual, placeholder: '간접비 포함 총액 — 같은 묶음 안 정렬 기준' },
+    { key: 'annual', label: '연 예산 (천원)', type: 'number', value: base.annual },
     { key: 'color', label: '색', type: 'color', value: base.color || PALETTE.find(c => !used.has(c)) || PALETTE[0] },
   ], v => {
     if (!!v.start !== !!v.end || (v.start && v.end < v.start)) return alert('시작·끝 월은 둘 다 넣고, 끝이 시작보다 늦어야 해요. 기간 없는 재원(장학·수당)이면 둘 다 비워요.');

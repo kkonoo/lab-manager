@@ -824,3 +824,6 @@ body[data-role="member"] #tabSeg > :not([data-tab="protocol"]):not([data-tab="st
   main { padding: 0 16px 32px; }
   .tl { grid-template-columns: 92px minmax(0, 1fr); }
 }
+/* 연차별 예산: 기간을 눌러 고침 */
+.period-btn { padding: 0; border: none; background: none; color: inherit; font: inherit; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+.period-btn:hover { color: var(--accent); }
