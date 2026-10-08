@@ -788,7 +788,16 @@ dialog h3 { margin: 0 0 14px; font-size: calc(17px * var(--fs)); }
 .set-fold { display: flex; align-items: center; gap: 6px; width: 100%; padding: 0; border: none; background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
 .set-fold .caret { width: 10px; font-size: calc(10px * var(--fs)); color: var(--muted); }
 .set-btns { display: flex; flex-wrap: wrap; gap: 6px; }
-.members { display: grid; gap: 4px; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+.members { margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+/* 접는 칸 (설정의 기준금액·랩 멤버): ▸ 제목 · 요약 */
+details.set-box { display: block; }
+.fold-box > summary { list-style: none; }
+.fold-box > summary::-webkit-details-marker { display: none; }
+.fold-box > summary .caret::before { content: '▸'; }
+.fold-box[open] > summary .caret::before { content: '▾'; }
+.fold-box > summary b { flex-shrink: 0; white-space: nowrap; }
+.fold-box > summary .hint { min-width: 0; font-weight: 400; }
+.fold-body { display: grid; gap: 4px; margin-top: 10px; }
 .member { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 3px 2px; }
 .member-add { display: flex; gap: 6px; margin-top: 4px; }
 .member-input { flex: 1; min-width: 0; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; outline: none; }

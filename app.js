@@ -866,12 +866,19 @@ function field(f) {
   }
   return h('label', 'field', f.label, input);
 }
+// 칸: { key… } 하나 · [ … ] 한 줄에 여럿 · { fold: 제목, hint, fields } 접는 묶음 (접혀 있어도 값은 같이 넘어감) · 화면 요소 그대로
 function ask(title, fields, onOk, extra = []) {
   $('dlgTitle').textContent = title;
-  $('dlgBody').replaceChildren(...fields.map(f => Array.isArray(f) ? h('div', 'row3', f.map(field)) : field(f)), ...extra);
+  const draw = f => f instanceof Node ? f : Array.isArray(f) ? h('div', 'row3', f.map(field))
+    : f.fold ? Object.assign(fold(f.fold, f.hint, ...f.fields.map(draw)), { className: 'fold-box set-box' }) : field(f);
+  $('dlgBody').replaceChildren(...fields.map(draw), ...extra);
   dlg.returnValue = '';
   dlg.onclose = () => { if (dlg.returnValue === 'ok') onOk(Object.fromEntries(new FormData($('dlgForm')))); };
   dlg.showModal();
+}
+// 접는 칸 (처음엔 접힘). hint = 제목 옆에 늘 보이는 요약
+function fold(title, hint, ...kids) {
+  return h('details', 'fold-box', h('summary', 'set-fold', h('span', 'caret'), h('b', null, title), h('span', 'hint', hint || '')), h('div', 'fold-body', ...kids));
 }
 // 묶음 막대의 이름·색 고치기: ✎ (마우스를 올리면 보임) · 오른쪽 클릭 · 폰에선 길게 누르기
 function groupEditable(head, onEdit) {
@@ -2524,16 +2531,17 @@ $('settingsBtn').onclick = () => {
   const resetLayout = btn('패널·열 너비 처음대로', () => { layout = { fs: layout.fs }; saveLayout(); location.reload(); });
   const r = ratesAt(NOW), c = centralAt(NOW); // 화면엔 이번 달 기준
   const month = (key, label) => ({ key, label, type: 'month', value: NOW, placeholder: 'YYYY-MM' });
+  const won = (key, label, v) => ({ key, label, type: 'number', step: 'any', value: v != null ? v / 10 : '' }); // 접혀 있으면 잘못된 값을 못 보니 소수도 받음
   ask('설정', [
     { key: 'fs', label: '글씨 크기', type: 'select', options: FONT_SIZES, value: String(layout.fs || 1) },
-    member ? null : [{ key: '학사', label: '학사 기준 (만원)', type: 'number', value: r.학사 / 10 },
-      { key: '석사', label: '석사 기준', type: 'number', value: r.석사 / 10 },
-      { key: '박사', label: '박사 기준', type: 'number', value: r.박사 / 10 },
-      { key: '포닥', label: '포닥 기준', type: 'number', value: r.포닥 != null ? r.포닥 / 10 : '' }],
-    member ? null : month('rFrom', '↑ 바꾸면 이 달부터 적용 (비우면 처음부터)'),
-    member ? null : [{ key: 'cEquip', label: '중앙구매: 장비·비품 (만원 초과)', type: 'number', value: c.equip / 10 },
-      { key: 'cOther', label: '중앙구매: 소모품·시약 (만원 초과)', type: 'number', value: c.other / 10 }],
-    member ? null : month('cFrom', '↑ 바꾸면 이 달 주문부터 적용 (비우면 처음부터)'),
+    member ? null : { fold: '인건비 기준금액', hint: `${['학사', '석사', '박사', '포닥'].filter(k => r[k] != null).map(k => `${k} ${fmtM(r[k])}`).join(' · ')}만원`, fields: [
+      [won('학사', '학사 (만원)', r.학사), won('석사', '석사', r.석사), won('박사', '박사', r.박사), won('포닥', '포닥', r.포닥)],
+      month('rFrom', '↑ 바꾸면 이 달부터 적용 (비우면 처음부터)'),
+      h('p', 'hint', '참여율 = 월 인건비 ÷ 그 달 과정의 기준 인건비')] },
+    member ? null : { fold: '중앙구매 기준금액', hint: centralText(), fields: [
+      [won('cEquip', '장비·비품 (만원 초과)', c.equip), won('cOther', '소모품·시약 (만원 초과)', c.other)],
+      month('cFrom', '↑ 바꾸면 이 달 주문부터 적용 (비우면 처음부터)'),
+      h('p', 'hint', '기준을 넘는 주문은 재고 주문함에서 규격서를 바로 만들어요')] },
   ].filter(Boolean), v => {
     layout.fs = +v.fs || 1;
     saveLayout();
@@ -2546,7 +2554,6 @@ $('settingsBtn').onclick = () => {
     }
     save();
   }, [
-    member ? null : h('p', 'hint', '참여율 = 월 인건비 ÷ 그 달 과정의 기준 인건비 · 중앙구매 기준을 넘는 주문은 재고 주문함에서 규격서를 바로 만들어요'),
     member ? null : standardHistory(),
     accountPanel(),
     member ? null : h('div', 'set-box', h('b', null, '데이터'), h('p', 'hint', '처음엔 예시 데이터가 들어 있어요. 내 데이터 파일(JSON)을 가져오면 통째로 바뀌어요.'),
@@ -2601,7 +2608,8 @@ function accountPanel() {
 }
 // 랩 멤버: 학생 구글 이메일. 그 계정으로 로그인하면 프로토콜·재고 탭만 보임 (보안 규칙이 이 목록으로 막음)
 function labMembersBox() {
-  const box = h('div', 'members');
+  const box = fold('랩 멤버', ''), count = box.querySelector('summary .hint'), body = box.querySelector('.fold-body');
+  box.classList.add('members');
   const draw = () => {
     const inp = h('input', 'member-input');
     inp.inputMode = 'email';
@@ -2618,7 +2626,8 @@ function labMembersBox() {
     const plus = h('button', 'btn small', '+ 추가');
     plus.type = 'button';
     plus.onclick = add;
-    box.replaceChildren(h('b', null, `랩 멤버 ${db.labMembers.length}명`),
+    count.textContent = `${db.labMembers.length}명`;
+    body.replaceChildren(
       ...db.labMembers.map(e => {
         const x = h('button', 'link-btn', '빼기');
         x.type = 'button';
