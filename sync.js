@@ -134,7 +134,7 @@ async function start() {
   const persistLocal = () => { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { /* 없음 */ } };
 
   function skeleton() { // 서버 값을 받아 채울 빈 틀 (예시 데이터 없이)
-    return { version: VERSION, rates: structuredClone(db.rates), grants: [], people: [], pays: [], lines: [], info: { cats: [], notes: [] }, rows: [], sim: false,
+    return { version: VERSION, rates: structuredClone(db.rates), grants: [], people: [], pays: [], lines: [], info: { cats: [], notes: [] }, rows: [],
       docs: [], trips: [], profile: {}, buySeed: true, miscSeed: true, labMembers: [], orders: [],
       stock: { cats: [], places: [], vendors: { columns: [], rows: [] }, protoGroups: [], protocols: [], items: [] } };
   }

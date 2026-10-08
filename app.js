@@ -47,7 +47,7 @@ function fresh() {
   const pays = [];
   for (const [person, grant, from, to, amount] of s.payRanges)
     for (const month of range(from, to)) pays.push({ person, grant, month, amount });
-  return withDocs({ version: VERSION, rates: s.rates, grants: s.grants, people: s.people, pays, lines: s.lines, info: s.info, rows: [], sim: true });
+  return withDocs({ version: VERSION, rates: s.rates, grants: s.grants, people: s.people, pays, lines: s.lines, info: s.info, rows: [] });
 }
 // 서류·내 정보는 나중에 생긴 칸이라 예전 저장본에도 채워 넣음
 function withDocs(v) {
@@ -79,6 +79,15 @@ function withDocs(v) {
   v.stock.protoGroups ||= []; // 프로토콜·실험 묶음 → 프로토콜 (품목의 protocols 로 이어짐)
   v.stock.protocols ||= [];
   v.labMembers ||= []; // 재고를 같이 쓰는 학생 구글 이메일 (sync.js가 랩 문서에 올림)
+  // 가상 학생(시뮬레이션) 기능을 뺐음 → 남아 있던 가상 학생과 그 인건비는 지움
+  const ghosts = new Set(v.people.filter(p => p.virtual).map(p => p.id));
+  if (ghosts.size) {
+    v.people = v.people.filter(p => !ghosts.has(p.id));
+    v.pays = v.pays.filter(x => !ghosts.has(x.person));
+    if (v.rows) v.rows = v.rows.filter(r => !ghosts.has(r.split('|')[0]));
+  }
+  delete v.sim;
+  v.lineCats ||= ['연구활동비', '연구재료비', '연구시설·장비비', '연구수당', '위탁연구개발비', '국제공동연구개발비', '기타', '간접비']; // 세목 (설정에서 고침)
   return v;
 }
 function load() {
@@ -97,7 +106,6 @@ function save() { persist(); render(); }
 
 const grant = id => db.grants.find(g => g.id === id);
 const person = id => db.people.find(p => p.id === id);
-const shown = x => db.sim || !person(x.person)?.virtual; // 가상 학생 빼고 보기
 const dated = g => !!g.start;
 
 // 재원 정렬: 책임과제 → 참여과제 → BK21 → 기타, 같은 묶음 안에서는 연 예산 큰 순
@@ -142,7 +150,7 @@ function periods(g) {
 const periodAt = (g, m) => periods(g).find(p => between(m, p.from, p.to)) || null;
 const inGrant = (g, m) => !g.start || between(m, g.start, g.end);
 const grantIn = (g, from, to) => !g.start || (g.start <= to && g.end >= from); // 그 구간에 걸친 재원 (기간 없는 재원은 늘)
-const paysOf = (gid, from, to) => db.pays.filter(x => x.grant === gid && shown(x) && between(x.month, from, to));
+const paysOf = (gid, from, to) => db.pays.filter(x => x.grant === gid && between(x.month, from, to));
 const linesOf = (gid, n) => db.lines.filter(l => l.grant === gid && l.n === n);
 const lineOf = id => db.lines.find(l => l.id === id);
 const ordersOf = lid => db.orders.filter(o => o.line === lid);
@@ -170,7 +178,7 @@ function setPeriodValue(g, n, key, value) {
 function alerts() {
   const out = [], missing = [];
   for (const g of sortedGrants()) {
-    const outside = db.pays.filter(x => x.grant === g.id && shown(x) && !inGrant(g, x.month));
+    const outside = db.pays.filter(x => x.grant === g.id && !inGrant(g, x.month));
     if (outside.length) {
       const ms = outside.map(x => x.month).sort();
       const names = [...new Set(outside.map(x => person(x.person).name))].join(', ');
@@ -200,7 +208,6 @@ function alerts() {
   const overs = [];
   const next12 = range(NOW, mAdd(NOW, 11));
   for (const p of db.people) {
-    if (p.virtual && !db.sim) continue;
     const months = next12.filter(m => { const r = rateAt(p, m); return r && monthTotal(p.id, m) > r; });
     if (months.length) overs.push(`${p.name} ${months.length}개월 (${mShort(months[0])}~)`);
   }
@@ -366,7 +373,7 @@ function renderTimeline() {
 function renderThisMonth() {
   $('thisMonthTitle').textContent = `${mKo(NOW)} 학생별 인건비`;
   const order = sortedGrants();
-  const rows = db.people.filter(p => db.sim || !p.virtual)
+  const rows = db.people
     .map(p => ({ p, items: db.pays.filter(x => x.person === p.id && x.month === NOW) }))
     .filter(r => r.items.length)
     .sort((a, b) => sum(b.items) - sum(a.items)); // 이번 달 많이 받는 학생부터
@@ -390,7 +397,7 @@ function renderThisMonth() {
       bar.append(i);
     }
     return h('div', 'sbar-row',
-      h('div', 'sbar-name', p.name, h('small', null, [p.virtual ? '가상' : null, deg || '과정 미정'].filter(Boolean).join(' · '))),
+      h('div', 'sbar-name', p.name, h('small', null, deg || '과정 미정')),
       bar,
       h('div', cls('sbar-total num', part > 100 && 'over'), fmtM(t)),
       h('div', cls('sbar-pct num', part > 100 && 'over'), part == null ? '–' : `${part}%`));
@@ -447,7 +454,6 @@ function rowsOf(p, first, last) {
 
 function renderPay() {
   for (const b of $('viewSeg').children) b.classList.toggle('on', b.dataset.view === payView);
-  $('simToggle').checked = db.sim;
   const sems = paySems();
   const months = sems.flatMap(semMonths), first = months[0], last = months.at(-1);
   $('legend').replaceChildren(...sortedGrants().map(g => chip(g)), ...(payView === 'sem' ? [
@@ -462,7 +468,7 @@ function renderPay() {
 
   // 학생: 이 구간에 인건비가 있거나, 아직 인건비가 하나도 없는 새 학생, 또는 아래에서 꺼낸 학생만
   const people = [], hidden = [];
-  for (const p of [...db.people.filter(p => !p.virtual), ...db.people.filter(p => p.virtual && db.sim)]) {
+  for (const p of db.people) {
     const xs = db.pays.filter(x => x.person === p.id);
     if (!xs.length || xs.some(x => between(x.month, first, last)) || payShow[p.id] === sems[0]) people.push(p); else hidden.push(p);
   }
@@ -533,7 +539,7 @@ $('gridWrap').addEventListener('scroll', () => { cancelAnimationFrame(rangeTick)
 addEventListener('resize', () => { if (tab === 'pay') applyColW($('payGrid'), $('payGrid').querySelectorAll('col.c-data').length); });
 
 function personNameCell(p, first, last) {
-  const td = h('td', 'name', h('span', 'pname', p.name), p.virtual ? h('span', 'tag', '가상') : null);
+  const td = h('td', 'name', h('span', 'pname', p.name));
   if (payView === 'month') {
     const s = h('span', 'deg-sum', degreeSummary(p, first, last));
     s.title = '과정은 학기 보기에서 학기마다 바꿔요';
@@ -542,8 +548,7 @@ function personNameCell(p, first, last) {
   const del = h('button', 'link-btn', '삭제');
   del.onclick = () => {
     const n = db.pays.filter(x => x.person === p.id).length;
-    const msg = p.virtual ? `가상 학생 '${p.name}'을(를) 지울까요?`
-      : `'${p.name}'을(를) 지울까요?${n ? `\n인건비 기록 ${n}건(지난 달 포함)도 같이 지워져서 연차 예산 계산에서 빠져요.\n졸업했으면 지우지 않아도 인건비가 없는 구간에선 안 보여요.` : ''}`;
+    const msg = `'${p.name}'을(를) 지울까요?${n ? `\n인건비 기록 ${n}건(지난 달 포함)도 같이 지워져서 연차 예산 계산에서 빠져요.\n졸업했으면 지우지 않아도 인건비가 없는 구간에선 안 보여요.` : ''}`;
     if (confirm(msg)) removePerson(p.id);
   };
   td.append(del);
@@ -607,7 +612,7 @@ function semTable(sems, people, nData) {
         h('div', 'semhead', sel, h('span', 'sv', sm ? semText(sm) : '·'), sm && rate ? h('small', 'pr', rateText(sm, rate)) : null));
     });
     const total = sum(db.pays.filter(x => x.person === p.id && between(x.month, first, last)));
-    body.append(h('tr', cls('p-head', p.virtual && 'virtual'), personNameCell(p, first, last), cells, h('td', 'sum', fmtM(total))));
+    body.append(h('tr', 'p-head', personNameCell(p, first, last), cells, h('td', 'sum', fmtM(total))));
     for (const g of rowsOf(p, first, last)) {
       const gSum = sum(db.pays.filter(x => x.person === p.id && x.grant === g.id && between(x.month, first, last)));
       body.append(grantRow('g-row', g, grantNameCell(g), sems.map(s => semCell(p, g, s)), h('td', 'sum', gSum ? fmtM(gSum) : '')));
@@ -622,7 +627,7 @@ function semTable(sems, people, nData) {
       sems.map(s => { const t = sum(xs.filter(x => between(x.month, semStart(s), semEnd(s)))); return h('td', s === cur ? 'now' : null, t ? fmtM(t) : ''); }),
       h('td', 'sum', fmtM(sum(xs)))));
   }
-  const all = db.pays.filter(x => shown(x) && between(x.month, first, last));
+  const all = db.pays.filter(x => between(x.month, first, last));
   foot.append(h('tr', 'total', h('td', 'name', '학기 합계 (6개월)'),
     sems.map(s => h('td', s === cur ? 'now' : null, fmtM(sum(all.filter(x => between(x.month, semStart(s), semEnd(s))))))),
     h('td', 'sum', fmtM(sum(all)))));
@@ -672,7 +677,7 @@ function monthTable(sems, months, people, nData) {
       return td;
     });
     const total = sum(db.pays.filter(x => x.person === p.id && between(x.month, first, last)));
-    body.append(h('tr', cls('p-head', p.virtual && 'virtual'), personNameCell(p, first, last), totals, h('td', 'sum', fmtM(total))));
+    body.append(h('tr', 'p-head', personNameCell(p, first, last), totals, h('td', 'sum', fmtM(total))));
     for (const g of rowsOf(p, first, last)) {
       const gSum = sum(db.pays.filter(x => x.person === p.id && x.grant === g.id && between(x.month, first, last)));
       body.append(grantRow('g-row', g, grantNameCell(g), months.map(m => monthCell(p, g, m, ss(m))), h('td', 'sum', gSum ? fmtM(gSum) : '')));
@@ -690,7 +695,7 @@ function monthTable(sems, months, people, nData) {
       }),
       h('td', 'sum', fmtM(sum(xs)))));
   }
-  const all = db.pays.filter(x => shown(x) && between(x.month, first, last));
+  const all = db.pays.filter(x => between(x.month, first, last));
   foot.append(h('tr', 'total', h('td', 'name', '전체'),
     months.map(m => h('td', cls(m === NOW && 'now', ss(m) && 'ss'), fmtM(sum(all.filter(x => x.month === m))))),
     h('td', 'sum', fmtM(sum(all)))));
@@ -942,25 +947,6 @@ $('addPerson').onclick = () => ask('학생 추가', [
   save();
 });
 
-$('addVirtual').onclick = () => {
-  const k = db.people.filter(p => p.virtual).length + 1;
-  ask('가상 학생 (시뮬레이션)', [
-    { key: 'name', label: '이름', value: `가상 ${k}`, required: true },
-    [{ key: 'degree', label: '과정', type: 'select', options: DEGREES.slice(1), value: '박사' },
-      { key: 'start', label: '시작 월', type: 'month', value: semStart(semAdd(semOf(NOW), 1)), required: true },
-      { key: 'months', label: '개월 수', type: 'number', value: 12, required: true }],
-    { key: 'amount', label: '월액 (만원, 비우면 과정 기준 인건비 = 참여율 100%)', type: 'number', step: '0.5', placeholder: '예: 130' },
-    { key: 'grant', label: '어느 재원에서', type: 'select', options: sortedGrants().map(g => [g.id, `${g.emoji} ${g.name}`]), value: sortedGrants()[0]?.id },
-  ], v => {
-    const id = uid(), amount = v.amount ? Math.round(+v.amount * 10) : ratesAt(NOW)[v.degree];
-    db.people.push({ id, name: v.name.trim(), degrees: { [semOf(v.start)]: v.degree }, virtual: true });
-    db.sim = true;
-    payFocus = semStart(semOf(v.start));
-    payScroll = true;
-    setMonths(id, v.grant, range(v.start, mAdd(v.start, Math.max(1, +v.months) - 1)), amount);
-  });
-};
-
 function addGrantRow(p) {
   const sems = paySems(), first = semStart(sems[0]), last = semEnd(sems.at(-1));
   const have = new Set(rowsOf(p, first, last).map(g => g.id));
@@ -972,7 +958,6 @@ function addGrantRow(p) {
   });
 }
 
-$('simToggle').onchange = e => { db.sim = e.target.checked; save(); };
 // ‹ › = 구간을 한 학기씩 옮김
 const payGo = month => { payFocus = month; payScroll = true; render(); };
 $('prevRange').onclick = () => payGo(semStart(semAdd(semOf(payFocus), -1)));
@@ -981,8 +966,8 @@ $('todayRange').onclick = () => payGo(semStart(semOf(NOW)));
 for (const b of $('viewSeg').children) b.onclick = () => setPayView(b.dataset.view);
 
 // ---------- 재원별 예산 (천원) ----------
-const CATS = ['연구활동비', '연구재료비', '연구시설·장비비', '연구수당', '위탁연구개발비', '국제공동연구개발비', '기타', '간접비'];
 const CAT_COLOR = { 인건비: '#F08A4B', 연구활동비: '#5B9BEA', 연구재료비: '#2BB39A', '연구시설·장비비': '#9D7BE0', 연구수당: '#E8B10C', 위탁연구개발비: '#F0727A', 국제공동연구개발비: '#D46FB0', 기타: '#8B93A1', 간접비: '#B39B7A', 미지정: '#C9C5BB' };
+const catColorOf = k => CAT_COLOR[k] || PALETTE[Math.max(0, db.lineCats.indexOf(k)) % PALETTE.length]; // 새로 만든 세목은 순서대로
 const KINDS = ['과제', 'BK21', '기타'];
 const PALETTE = ['#5B9BEA', '#F0727A', '#2BB39A', '#9D7BE0', '#E8B10C', '#8B93A1', '#F08A4B', '#D46FB0', '#4FB3D9', '#B39B7A'];
 
@@ -1029,18 +1014,18 @@ function renderBudget() {
   const parts = [['인건비', st.pay + st.postdoc]];
   const byCat = {};
   for (const l of linesOf(g.id, pd.n)) byCat[l.cat || '미지정'] = (byCat[l.cat || '미지정'] || 0) + (+l.plan || 0);
-  for (const c of [...CATS, '미지정']) if (byCat[c] && c !== '간접비') parts.push([c, byCat[c]]); // 막대 = 직접비 배정 쓰임
+  for (const c of [...db.lineCats, '미지정']) if (byCat[c] && c !== '간접비') parts.push([c, byCat[c]]); // 막대 = 직접비 배정 쓰임
   const base = Math.max(pd.budget || 0, st.used) || 1;
   const stack = h('div', 'stack', parts.map(([k, v]) => {
     const i = h('i');
-    i.style.setProperty('--c', CAT_COLOR[k]);
+    i.style.setProperty('--c', catColorOf(k));
     i.style.width = `${v / base * 100}%`;
     i.title = `${k} ${fmt(v)}천원`;
     return i;
   }));
   const stackLegend = h('div', 'stack-legend', parts.map(([k, v]) => {
     const d = h('span', 'dot');
-    d.style.setProperty('--c', CAT_COLOR[k]);
+    d.style.setProperty('--c', catColorOf(k));
     return h('span', null, d, `${k} ${fmt(v)}`);
   }));
   const summary = `계획 ${fmt(st.used)}${pd.budget != null ? ` / 배정 ${fmt(pd.budget)}` : ''} · 집행 ${fmt(st.spent)}${st.indirect ? ` · 간접비 계획 ${fmt(st.indirect)}` : ''} (천원)`;
@@ -1229,7 +1214,7 @@ function monthsPanel(g, pd) {
     h('thead', null, h('tr', null, h('th', null, '학생'), h('th', null, '기간'), h('th', 'r', '개월'), h('th', 'r', '합계'))),
     h('tbody', null, rows.map(({ p, xs }) => {
       const ms = xs.map(x => x.month).sort();
-      return h('tr', null, h('td', null, p.name, p.virtual ? [' ', h('span', 'tag', '가상')] : null), h('td', 'memo', `${mShort(ms[0])}–${mShort(ms.at(-1))}`),
+      return h('tr', null, h('td', null, p.name), h('td', 'memo', `${mShort(ms[0])}–${mShort(ms.at(-1))}`),
         h('td', 'r', new Set(ms).size), h('td', 'r', fmt(sum(xs))));
     })),
     h('tfoot', null, h('tr', null, h('td', null, '합계'), h('td'), h('td'), h('td', 'r', fmt(sum(totals, x => x))))));
@@ -1303,7 +1288,7 @@ function linesPanel(g, pd) {
     move.title = '끌어서 순서 바꾸기';
     const tr = h('tr', null,
       h('td', null, h('div', 'line-name', move, name)),
-      h('td', null, sel([['', '세목 ?'], ...CATS.map(c => [c, c])], l.cat, v => { l.cat = v || null; save(); }, l.cat ? null : 'no-cat')),
+      h('td', null, sel([['', '세목 ?'], ...db.lineCats.map(c => [c, c])], l.cat, v => { l.cat = v || null; save(); }, l.cat ? null : 'no-cat')),
       h('td', 'r', num(l.plan, v => { l.plan = v; save(); })),
       h('td', 'r', num(l.spent, v => { l.spent = v; save(); }), fromOrders),
       memo, h('td', null, del));
@@ -1331,7 +1316,7 @@ function linesPanel(g, pd) {
   const add = h('button', 'btn small', '+ 항목');
   add.onclick = () => ask(`${g.name} ${pd.n}차년도 — 예산 항목`, [
     { key: 'name', label: '항목', required: true, placeholder: '예: 해외학회' },
-    { key: 'cat', label: '세목', type: 'select', options: [['', '나중에'], ...CATS.map(c => [c, c])], value: '연구활동비' },
+    { key: 'cat', label: '세목', type: 'select', options: [['', '나중에'], ...db.lineCats.map(c => [c, c])], value: '연구활동비' },
     { key: 'plan', label: '계획액 (천원)', type: 'number', required: true },
     { key: 'memo', label: '메모' },
   ], v => { db.lines.push({ id: uid(), grant: g.id, n: pd.n, name: v.name.trim(), cat: v.cat || null, subs: [], plan: +v.plan, memo: v.memo }); save(); });
@@ -1345,12 +1330,12 @@ function linesPanel(g, pd) {
 
 function etcDetail(g) {
   const byPerson = {};
-  for (const x of db.pays.filter(x => x.grant === g.id && shown(x))) (byPerson[x.person] ||= []).push(x);
+  for (const x of db.pays.filter(x => x.grant === g.id)) (byPerson[x.person] ||= []).push(x);
   const rows = Object.entries(byPerson).map(([pid, xs]) => {
     const ms = xs.map(x => x.month).sort();
     return h('tr', null, h('td', null, person(pid).name), h('td', 'memo', `${mShort(ms[0])}–${mShort(ms.at(-1))}`), h('td', 'r', fmt(xs[0].amount)), h('td', 'r', fmt(sum(xs))));
   });
-  return h('div', 'panel', h('div', 'panel-head', h('h2', null, '지급 내역'), h('span', 'hint', '천원 · 기간 없는 재원은 연차 없이 지급 칸만 모아 봐요')),
+  return h('div', 'panel etc-panel', h('div', 'panel-head', h('h2', null, '지급 내역'), h('span', 'hint', '천원 · 기간 없는 재원은 연차 없이 지급 칸만 모아 봐요')),
     rows.length ? h('table', 'tbl', h('thead', null, h('tr', null, h('th', null, '학생'), h('th', null, '기간'), h('th', 'r', '월액'), h('th', 'r', '합계'))), h('tbody', null, rows))
       : h('p', 'hint', '잡힌 지급이 없어요.'));
 }
@@ -2579,7 +2564,7 @@ function editOrder(o, it) {
   const last = it && db.orders.filter(x => x.item === it.id && x !== o).sort((a, b) => b.date.localeCompare(a.date))[0]; // 지난번 주문을 기본값으로
   const name = it?.name ?? o.name, member = isMember();
   const me = window.currentUser?.name || (member ? '' : db.profile?.name) || ''; // 주문자 기본값 = 로그인한 사람
-  const people = [...new Set([me, ...(member ? [] : db.people.filter(p => !p.virtual).map(p => p.name)), ...db.orders.map(x => x.by)].filter(Boolean))];
+  const people = [...new Set([me, ...(member ? [] : db.people.map(p => p.name)), ...db.orders.map(x => x.by)].filter(Boolean))];
   ask(o ? `주문 고치기 — ${name}` : `${name} — 주문`, [
     [{ key: 'vendor', label: '업체', value: o?.vendor ?? last?.vendor ?? '', suggest: vendorList(), placeholder: '업체 연락처에서 고르거나 적기' }, { key: 'qty', label: '수량', value: o?.qty ?? last?.qty ?? '', placeholder: '예: 2 box' }],
     [{ key: 'amount', label: '금액 (천원, VAT 포함)', type: 'number', step: '0.1', value: o?.amount ?? '' }, { key: 'date', label: '주문일', type: 'date', value: o?.date ?? isoToday(), required: true }],
@@ -2656,11 +2641,12 @@ $('settingsBtn').onclick = () => {
     member ? null : { fold: '인건비 기준금액', hint: `${['학사', '석사', '박사', '포닥'].filter(k => r[k] != null).map(k => `${k} ${fmtM(r[k])}`).join(' · ')}만원`, fields: [
       [won('학사', '학사 (만원)', r.학사), won('석사', '석사', r.석사), won('박사', '박사', r.박사), won('포닥', '포닥', r.포닥)],
       month('rFrom', '↑ 바꾸면 이 달부터 적용 (비우면 처음부터)'),
-      h('p', 'hint', '참여율 = 월 인건비 ÷ 그 달 과정의 기준 인건비')] },
+      h('p', 'hint', '참여율 = 월 인건비 ÷ 그 달 과정의 기준 인건비'), standardHistory('rateHist')] },
     member ? null : { fold: '중앙구매 기준금액', hint: centralText(), fields: [
       [won('cEquip', '장비·비품 (만원 초과)', c.equip), won('cOther', '소모품·시약 (만원 초과)', c.other)],
       month('cFrom', '↑ 바꾸면 이 달 주문부터 적용 (비우면 처음부터)'),
-      h('p', 'hint', '기준을 넘는 주문은 재고 주문함에서 규격서를 바로 만들어요')] },
+      h('p', 'hint', '기준을 넘는 주문은 재고 주문함에서 규격서를 바로 만들어요'), standardHistory('centralHist')] },
+    member ? null : lineCatsBox(),
   ].filter(Boolean), v => {
     layout.fs = +v.fs || 1;
     saveLayout();
@@ -2673,7 +2659,6 @@ $('settingsBtn').onclick = () => {
     }
     save();
   }, [
-    member ? null : standardHistory(),
     accountPanel(),
     member ? null : h('div', 'set-box', h('b', null, '데이터'), h('p', 'hint', '처음엔 예시 데이터가 들어 있어요. 내 데이터 파일(JSON)을 가져오면 통째로 바뀌어요.'),
       h('div', 'set-btns', btn('⬇ 내보내기 (JSON)', exportData), btn('⬆ 가져오기', importData))),
@@ -2689,27 +2674,69 @@ function setStandard(baseKey, histKey, from, shown, next) {
   if (same) same.v = next; else hist.push({ from, v: next });
   hist.sort((a, b) => a.from.localeCompare(b.from));
 }
-let histOpen = false; // 설정의 '기준 바뀐 기록' — 처음엔 접힘
-function standardHistory() {
-  const box = h('div', 'set-box');
-  const rateTxt = v => `학사 ${fmtM(v.학사)} · 석사 ${fmtM(v.석사)} · 박사 ${fmtM(v.박사)}${v.포닥 ? ` · 포닥 ${fmtM(v.포닥)}` : ''}만원`;
-  const cenTxt = v => `장비·비품 ${fmtM(v.equip)} · 소모품·시약 ${fmtM(v.other)}만원 초과`;
+// 기준 바뀐 기록: 설정의 인건비·중앙구매 칸 안에 접어 둠 (시행 월부터의 기록, 뺄 수 있음)
+function standardHistory(histKey) {
+  const txt = histKey === 'rateHist' ? v => `학사 ${fmtM(v.학사)} · 석사 ${fmtM(v.석사)} · 박사 ${fmtM(v.박사)}${v.포닥 ? ` · 포닥 ${fmtM(v.포닥)}` : ''}만원`
+    : v => `장비·비품 ${fmtM(v.equip)} · 소모품·시약 ${fmtM(v.other)}만원 초과`;
+  const box = fold('기준 바뀐 기록', ''), count = box.querySelector('summary .hint'), body = box.querySelector('.fold-body');
+  box.classList.add('sub-fold');
   const draw = () => {
-    const rows = [...(db.rateHist || []).map(x => ['rateHist', x, `기준 인건비 · ${rateTxt(x.v)}`]), ...(db.centralHist || []).map(x => ['centralHist', x, `중앙구매 · ${cenTxt(x.v)}`])]
-      .sort((a, b) => a[1].from.localeCompare(b[1].from));
-    const head = h('button', 'set-fold', h('span', 'caret', histOpen ? '▾' : '▸'), h('b', null, '기준 바뀐 기록'), h('span', 'hint', rows.length ? `${rows.length}건` : '없음'));
-    head.type = 'button';
-    head.onclick = () => { histOpen = !histOpen; draw(); };
-    if (!histOpen) { box.replaceChildren(head); return; }
-    box.replaceChildren(head,
-      h('p', 'hint', `처음 기준 — 기준 인건비 ${rateTxt(db.rates)} · 중앙구매 ${cenTxt(db.central)}`),
-      ...rows.map(([k, x, t]) => {
+    const rows = [...(db[histKey] || [])].sort((a, b) => a.from.localeCompare(b.from));
+    count.textContent = rows.length ? `${rows.length}건` : '없음';
+    body.replaceChildren(h('p', 'hint', `처음 기준 — ${txt(histKey === 'rateHist' ? db.rates : db.central)}`),
+      ...rows.map(x => {
         const del = h('button', 'link-btn', '빼기');
         del.type = 'button';
-        del.onclick = () => { if (confirm(`${mDot(x.from)}부터의 기준 기록을 뺄까요?`)) { db[k] = db[k].filter(y => y !== x); persist(); draw(); } };
-        return h('div', 'member', h('span', null, h('b', null, `${mDot(x.from)}부터 `), t), del);
+        del.onclick = () => { if (confirm(`${mDot(x.from)}부터의 기준 기록을 뺄까요?`)) { db[histKey] = db[histKey].filter(y => y !== x); persist(); draw(); } };
+        return h('div', 'member', h('span', null, h('b', null, `${mDot(x.from)}부터 `), txt(x.v)), del);
       }),
-      ...(rows.length ? [] : [h('p', 'hint', '아직 바뀐 적 없어요. 위에서 기준을 고치면 시행 월부터 적용되고 여기에 남아요.')]));
+      rows.length ? null : h('p', 'hint', '아직 바뀐 적 없어요. 위에서 기준을 고치면 시행 월부터 적용되고 여기에 남아요.'));
+  };
+  draw();
+  return box;
+}
+// 세목 (세목 예산의 분류): 이름 바꾸기·추가·빼기. 간접비는 직접비 계산에서 빼는 데 써서 그대로 둠
+function lineCatsBox() {
+  const box = fold('세목', ''), count = box.querySelector('summary .hint'), body = box.querySelector('.fold-body');
+  box.classList.add('set-box');
+  const enterBlur = inp => { inp.onkeydown = e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); inp.blur(); } }; }; // 설정 창이 닫히지 않게
+  const draw = () => {
+    count.textContent = `${db.lineCats.length}개`;
+    const rows = db.lineCats.map((c, i) => {
+      if (c === '간접비') return h('div', 'member', h('span', null, c), h('span', 'hint', '직접비 계산에서 빠지는 세목이라 그대로 둬요'));
+      const inp = h('input', 'member-input');
+      inp.value = c;
+      enterBlur(inp);
+      inp.onchange = () => {
+        const name = inp.value.trim();
+        if (!name || db.lineCats.includes(name)) { inp.value = c; return; }
+        db.lineCats[i] = name;
+        for (const l of db.lines) if (l.cat === c) l.cat = name;
+        save(); draw();
+      };
+      const x = h('button', 'link-btn', '빼기');
+      x.type = 'button';
+      x.onclick = () => {
+        const n = db.lines.filter(l => l.cat === c).length;
+        if (n && !confirm(`'${c}' 세목인 예산 항목 ${n}개는 세목이 비어요. 뺄까요?`)) return;
+        db.lineCats = db.lineCats.filter(y => y !== c);
+        for (const l of db.lines) if (l.cat === c) l.cat = null;
+        save(); draw();
+      };
+      return h('div', 'member', inp, x);
+    });
+    const add = h('input', 'member-input');
+    add.placeholder = '새 세목 이름';
+    const plus = h('button', 'btn small', '+ 추가');
+    plus.type = 'button';
+    plus.onclick = () => {
+      const name = add.value.trim();
+      if (!name || db.lineCats.includes(name)) { add.focus(); return; }
+      db.lineCats.splice(db.lineCats.includes('간접비') ? db.lineCats.indexOf('간접비') : db.lineCats.length, 0, name); // 간접비 앞에
+      save(); draw();
+    };
+    add.onkeydown = e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); plus.click(); } };
+    body.replaceChildren(...rows, h('div', 'member-add', add, plus), h('p', 'hint', '이름을 바꾸면 그 세목인 예산 항목도 같이 바뀌어요.'));
   };
   draw();
   return box;

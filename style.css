@@ -250,7 +250,6 @@ th:hover > .col-grip::after, th > .col-grip:hover::after { background: color-mix
 
 tr.p-head td { padding-top: 11px; background: var(--surface); font-weight: 700; }
 tr.p-head td.name { display: flex; align-items: center; gap: 8px; }
-tr.p-head.virtual td { background: repeating-linear-gradient(135deg, var(--surface) 0 8px, var(--surface-2) 8px 9px); }
 .tag { padding: 1px 6px; border-radius: 5px; font-size: calc(11px * var(--fs)); font-weight: 600; background: var(--accent-soft); color: var(--accent); }
 .degree { padding: 1px 4px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); font-size: calc(12px * var(--fs)); font-weight: 500; color: var(--muted); }
 td.over { color: var(--bad); }
@@ -334,6 +333,7 @@ tfoot td.name { background: var(--surface-2); }
 
 /* 연차별 예산 표 */
 .ptable-panel { margin: 14px 0; }
+.etc-panel { margin-top: 14px; } /* 기간 없는 재원: 과제 개요 바로 아래 지급 내역 */
 
 /* 과제 개요 · 연차 목표 (글 노트와 같은 문법) */
 .text-panel { margin-top: 14px; }
@@ -820,6 +820,7 @@ details.set-box { display: block; }
 .fold-box > summary b { flex-shrink: 0; white-space: nowrap; }
 .fold-box > summary .hint { min-width: 0; font-weight: 400; }
 .fold-body { display: grid; gap: 4px; margin-top: 10px; }
+.sub-fold { margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--line); } /* 접는 칸 안의 접는 칸 (기준 바뀐 기록) */
 .member { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 3px 2px; }
 .member-add { display: flex; gap: 6px; margin-top: 4px; }
 .member-input { flex: 1; min-width: 0; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; outline: none; }
