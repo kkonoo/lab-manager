@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>랩 행정</title>
-<meta name="description" content="연구실 행정 — 과제·인건비·세목 예산·재고·서류">
+<title>랩 매니저</title>
+<meta name="description" content="연구실 매니저 — 프로토콜·재고(학생과 같이) + 과제·인건비·세목 예산·서류">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#F5F4F0">
 <link rel="manifest" href="manifest.webmanifest">
@@ -16,12 +16,15 @@
 <body data-tab="home">
 
 <header class="topbar">
-  <h1 class="app-title">랩 행정</h1>
+  <h1 class="app-title">랩 매니저</h1>
+  <!-- 연구실(학생과 같이 씀) │ 행정(PI만) -->
   <div class="seg" id="tabSeg">
+    <button type="button" data-tab="protocol">프로토콜</button>
+    <button type="button" data-tab="stock">재고</button>
+    <span class="seg-sep" aria-hidden="true"></span>
     <button type="button" data-tab="home">한눈에</button>
     <button type="button" data-tab="budget">재원별 예산</button>
     <button type="button" data-tab="pay">인건비</button>
-    <button type="button" data-tab="stock">재고</button>
     <button type="button" data-tab="docs">서류</button>
     <button type="button" data-tab="info">정보</button>
   </div>
@@ -78,6 +81,14 @@
     <div class="budget-layout" id="budgetLayout">
       <nav class="grant-list" id="grantList"></nav>
       <div class="grant-detail" id="grantDetail"></div>
+    </div>
+  </section>
+
+  <!-- 프로토콜 (묶음 → 프로토콜: 본문 노트 + 재료는 재고와 연결) -->
+  <section class="tab" id="tab-protocol">
+    <div class="proto-layout">
+      <nav class="note-list" id="protoList"></nav>
+      <div class="proto-main" id="protoMain"></div>
     </div>
   </section>
 

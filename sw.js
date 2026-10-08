@@ -1,7 +1,7 @@
 // 오프라인에서도 열리게 하는 서비스 워커 (살림노트와 같은 방식).
 // 온라인이면 항상 새 파일을 받고(업데이트 바로 반영), 오프라인이면 저장해 둔 파일을 씀.
 // 같은 주소(kkonoo.github.io)의 다른 앱과 캐시 저장소를 같이 쓰므로 이름을 다르게, 남의 캐시는 지우지 않기
-const CACHE = 'lab-admin-v1';
+const CACHE = 'lab-manager-v1';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'style.css', 'letterhead-knu.jpg',
   'data.js', 'forms.js', 'forms-trip.js', 'forms-buy.js', 'forms-misc.js', 'app.js', 'sync.js', 'firebase-config.js',

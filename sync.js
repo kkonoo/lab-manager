@@ -4,15 +4,16 @@
 //   users/{uid}/admin/{칸}        PI 전용: 과제·인건비·세목·정보·출장·내 정보 등 db의 나머지 칸 (칸 하나 = 문서 하나)
 //   users/{uid}/adminDocs/{id}    서류 한 건 = 문서 하나
 //   labs/{PI uid}                 랩 문서 { owner, ownerEmail, ownerName, members: [학생 구글 이메일] } — 보안 규칙이 이 목록으로 멤버 확인
-//   labs/{PI uid}/meta/stock      재고의 묶음·보관 위치·업체·프로토콜
+//   labs/{PI uid}/meta/stock      재고의 묶음·보관 위치·업체, 프로토콜 묶음
+//   labs/{PI uid}/protocols/{id}  프로토콜 하나 = 문서 하나 (본문 노트를 여럿이 동시에 고쳐도 안 겹치게)
 //   labs/{PI uid}/items/{id}      재고 품목 하나 = 문서 하나 (학생 여럿이 동시에 고쳐도 안 겹치게)
 //   labs/{PI uid}/orders/{id}     주문 하나 = 문서 하나
-// 랩 멤버(학생)로 로그인하면 랩 쪽만 주고받고 db.member 를 켬 → app.js가 재고 탭만 보여 줌
+// 랩 멤버(학생)로 로그인하면 랩 쪽만 주고받고 db.member 를 켬 → app.js가 연구실 탭(프로토콜·재고)만 보여 줌
 // app.js 의 db, persist, render, withDocs, fresh, VERSION 을 그대로 씀
 import { firebaseConfig } from './firebase-config.js';
 
 const SDK = 'https://www.gstatic.com/firebasejs/12.19.0';
-const LAB_META = ['cats', 'places', 'vendors', 'protoGroups', 'protocols']; // db.stock 안에서 랩이 같이 쓰는 목록
+const LAB_META = ['cats', 'places', 'vendors', 'protoGroups']; // db.stock 안에서 랩이 같이 쓰는 목록 (프로토콜·품목은 한 건씩 따로)
 const NOT_ADMIN = new Set(['docs', 'stock', 'orders', 'owner', 'member']); // users/{uid}/admin 으로 안 가는 칸
 
 if (firebaseConfig) start();
@@ -44,7 +45,7 @@ async function start() {
   }
 
   // ---------- 동기화 단위: 키 → JSON 글 ----------
-  // a:칸 / d:서류 id / m (랩 메타) / i:품목 id / o:주문 id / L (랩 문서의 멤버 목록)
+  // a:칸 / d:서류 id / m (랩 메타) / p:프로토콜 id / i:품목 id / o:주문 id / L (랩 문서의 멤버 목록)
   function units() {
     const out = new Map();
     if (mode === 'pi') {
@@ -53,6 +54,7 @@ async function start() {
       out.set('L', JSON.stringify([...new Set((db.labMembers || []).map(e => e.toLowerCase()))].sort()));
     }
     out.set('m', JSON.stringify(Object.fromEntries(LAB_META.map(k => [k, db.stock[k]]))));
+    for (const pr of db.stock.protocols) out.set(`p:${pr.id}`, JSON.stringify(pr));
     for (const it of db.stock.items) out.set(`i:${it.id}`, JSON.stringify(it));
     for (const o of db.orders) out.set(`o:${o.id}`, JSON.stringify(o));
     return out;
@@ -63,6 +65,7 @@ async function start() {
       case 'a': return F.doc(fs, 'users', user.uid, 'admin', id);
       case 'd': return F.doc(fs, 'users', user.uid, 'adminDocs', id);
       case 'm': return F.doc(fs, 'labs', lab, 'meta', 'stock');
+      case 'p': return F.doc(fs, 'labs', lab, 'protocols', id);
       case 'i': return F.doc(fs, 'labs', lab, 'items', id);
       case 'o': return F.doc(fs, 'labs', lab, 'orders', id);
       case 'L': return F.doc(fs, 'labs', lab);
@@ -107,6 +110,7 @@ async function start() {
       case 'a': if (v != null) t[id] = v; break;
       case 'd': if (v) upsert(t.docs, v); else t.docs = t.docs.filter(x => x.id !== id); break;
       case 'm': if (v) Object.assign(t.stock, v); break;
+      case 'p': if (v) upsert(t.stock.protocols, v); else t.stock.protocols = t.stock.protocols.filter(x => x.id !== id); break;
       case 'i': if (v) upsert(t.stock.items, v); else t.stock.items = t.stock.items.filter(x => x.id !== id); break;
       case 'o': if (v) upsert(t.orders, v); else t.orders = t.orders.filter(x => x.id !== id); break;
     }
@@ -134,7 +138,7 @@ async function start() {
       stock: { cats: [], places: [], vendors: { columns: [], rows: [] }, protoGroups: [], protocols: [], items: [] } };
   }
   function whenLoaded() {
-    const names = mode === 'pi' ? ['admin', 'docs', 'meta', 'items', 'orders'] : ['meta', 'items', 'orders'];
+    const names = mode === 'pi' ? ['admin', 'docs', 'meta', 'protocols', 'items', 'orders'] : ['meta', 'protocols', 'items', 'orders'];
     if (ready || !names.every(n => loaded[n])) return;
     const local = db;
     if (mode === 'pi' && !loaded.admin.any && !loaded.docs.any) {
@@ -189,6 +193,7 @@ async function start() {
       listen('docs', F.collection(fs, 'users', u.uid, 'adminDocs'), id => `d:${id}`);
     }
     listen('meta', F.doc(fs, 'labs', lab, 'meta', 'stock'), () => 'm');
+    listen('protocols', F.collection(fs, 'labs', lab, 'protocols'), id => `p:${id}`);
     listen('items', F.collection(fs, 'labs', lab, 'items'), id => `i:${id}`);
     listen('orders', F.collection(fs, 'labs', lab, 'orders'), id => `o:${id}`);
   });

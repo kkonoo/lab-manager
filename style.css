@@ -85,7 +85,7 @@ h2 { margin: 0; font-size: calc(15px * var(--fs)); font-weight: 700; letter-spac
 main { padding: 0 24px 40px; }
 .tab { display: none; }
 body[data-tab="home"] #tab-home, body[data-tab="pay"] #tab-pay, body[data-tab="budget"] #tab-budget, body[data-tab="stock"] #tab-stock,
-body[data-tab="info"] #tab-info, body[data-tab="docs"] #tab-docs { display: block; }
+body[data-tab="info"] #tab-info, body[data-tab="docs"] #tab-docs, body[data-tab="protocol"] #tab-protocol { display: block; }
 
 .panel {
   min-width: 0; padding: 16px 18px; border-radius: var(--radius);
@@ -412,18 +412,19 @@ tfoot td.name { background: var(--surface-2); }
 .cat-head.static.drag { cursor: grab; }
 .cat-head.drop-before { box-shadow: inset 0 3px 0 var(--accent); }
 .cat-head.drop-after { box-shadow: inset 0 -3px 0 var(--accent); }
-/* 프로토콜·실험: 묶음 막대 아래에 프로토콜 칸이 이어짐 */
-.stock-main > .proto-head { margin: 18px 0 10px; cursor: default; }
-.stock-main > .proto-head:first-of-type { margin-top: 4px; }
-.proto-head .btn { margin-left: 4px; }
-.stock-main > .stock-sec.proto + .stock-sec.proto { margin-top: 10px; }
 .stock-main > .panel-head.plain { flex-wrap: wrap; margin-top: 0; }
-/* 프로토콜 노트 (프로토콜 칸 맨 아래, 접힘) */
-.proto-note { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
-.proto-note-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.proto-note-head .hint { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
-.proto-note-label { flex-shrink: 0; font-size: calc(13px * var(--fs)); font-weight: 600; cursor: pointer; }
-.proto-note.open > .doc, .proto-note.open > .ov-edit, .proto-note.open > .ov-empty { margin-top: 8px; }
+/* 프로토콜 탭: 왼쪽 묶음 → 프로토콜 목록 | 오른쪽 본문 + 재료 (경계는 끌어서 --proto-w) */
+.proto-layout { display: grid; grid-template-columns: var(--proto-w, 280px) 16px minmax(0, 1fr); align-items: stretch; }
+.proto-layout > :not(.splitter) { align-self: start; }
+@media (max-width: 900px) {
+  .proto-layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .proto-layout > .splitter { display: none; }
+}
+.proto-main { display: grid; gap: 14px; min-width: 0; }
+.proto-title { flex-wrap: wrap; align-items: center; }
+.proto-title h2 { margin: 0; font-size: calc(20px * var(--fs)); }
+.proto-doc > .doc, .proto-doc > .ov-edit { margin-top: 4px; }
+.proto-doc .ov-edit { min-height: 220px; }
 .stock-sec .panel-head { flex-wrap: wrap; margin-bottom: 6px; }
 .stock-row { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 6px 4px; border-top: 1px solid var(--line); }
 .stock-sec .panel-head + .stock-row, .stock-sec .stock-add + .stock-row, .stock-sec .stock-add + datalist + .stock-row { border-top: none; }
@@ -761,7 +762,9 @@ dialog h3 { margin: 0 0 14px; font-size: calc(17px * var(--fs)); }
 .member-input:focus { border-color: var(--accent); }
 .avatar { width: 32px; height: 32px; padding: 0; border: none; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; cursor: pointer; }
 /* 랩 멤버(학생)로 로그인: 재고 탭만 */
-body[data-role="member"] #tabSeg button:not([data-tab="stock"]) { display: none; }
+body[data-role="member"] #tabSeg > :not([data-tab="protocol"]):not([data-tab="stock"]) { display: none; } /* 구분선도 숨김 */
+/* 탭: 연구실(프로토콜·재고) │ 행정 */
+.seg-sep { align-self: stretch; width: 1px; margin: 5px 6px; background: var(--line); }
 
 @media (max-width: 600px) {
   .topbar { padding: 14px 16px 10px; }

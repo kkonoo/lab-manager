@@ -1,8 +1,8 @@
 {
-  "id": "/lab-admin/",
-  "name": "랩 행정",
-  "short_name": "랩 행정",
-  "description": "연구실 행정 — 과제·인건비·세목 예산·재고·서류",
+  "id": "/lab-manager/",
+  "name": "랩 매니저",
+  "short_name": "랩 매니저",
+  "description": "연구실 매니저 — 프로토콜·재고(학생과 같이) + 과제·인건비·세목 예산·서류",
   "lang": "ko",
   "start_url": "./",
   "scope": "./",

@@ -1,5 +1,5 @@
 'use strict';
-// 랩 행정 — 재원·연차·학생인건비·재고·서류 + 행정 정보 노트. 저장은 이 브라우저(localStorage), 로그인하면 sync.js가 Firestore와 맞춤
+// 랩 매니저 — 연구실(프로토콜·재고, 학생과 같이) + 행정(재원·연차·학생인건비·서류·정보 노트). 저장은 이 브라우저(localStorage), 로그인하면 sync.js가 Firestore와 맞춤
 // 금액은 모두 천원으로 저장. 인건비 화면만 만원으로 보여 줌 (fmtM)
 // db.grants 재원 / db.people 학생 (과정은 학기마다) / db.pays 학생×재원×월 한 칸씩 / db.lines 연차별 세목 예산 / db.info 정보 노트
 // db.stock·db.orders 재고·주문 (랩 멤버와 같이 씀) / db.docs 서류 / db.trips 출장 / db.profile 내 정보
@@ -40,8 +40,8 @@ const semLabel = s => `${s.slice(2, 4)}년 ${s.slice(5)}학기`;
 const semRange = s => `${mShort(semStart(s))}–${mShort(semEnd(s))}`;
 
 // ---------- 저장 ----------
-// 같은 주소(kkonoo.github.io)의 다른 앱과 localStorage를 같이 쓰므로 키는 lab-admin* 로만. 목업 때 키도 읽어 이어받음
-const KEY = 'lab-admin', OLD_KEY = 'lab-admin-mockup', VERSION = 3;
+// 같은 주소(kkonoo.github.io)의 다른 앱과 localStorage를 같이 쓰므로 키는 lab-manager* 로만. 예전 이름(랩 행정·목업) 때 키도 읽어 이어받음
+const KEY = 'lab-manager', OLD_KEYS = ['lab-admin', 'lab-admin-mockup'], VERSION = 3;
 function fresh() {
   const s = structuredClone(window.SEED);
   const pays = [];
@@ -82,7 +82,7 @@ function withDocs(v) {
   return v;
 }
 function load() {
-  for (const k of [KEY, OLD_KEY]) {
+  for (const k of [KEY, ...OLD_KEYS]) {
     try { const v = JSON.parse(localStorage.getItem(k)); if (v && v.version === VERSION) return withDocs(v); } catch { /* 처음이거나 막힘 */ }
   }
   return fresh();
@@ -212,13 +212,13 @@ let tab = 'home', selGrant = null, selN = null;
 // 인건비 표는 데이터가 있는 기간 전체를 그리고 옆으로 넘겨 봄. payFocus = 다음에 그릴 때 맨 왼쪽에 둘 달
 let payFocus = semStart(semOf(NOW)), payScroll = true;
 let payView = 'sem';
-try { payView = localStorage.getItem('lab-admin-payview') || 'sem'; } catch { /* 기본값 */ }
-function setPayView(v) { payView = v; payScroll = true; try { localStorage.setItem('lab-admin-payview', v); } catch { /* 없음 */ } render(); }
+try { payView = localStorage.getItem('lab-manager-payview') || 'sem'; } catch { /* 기본값 */ }
+function setPayView(v) { payView = v; payScroll = true; try { localStorage.setItem('lab-manager-payview', v); } catch { /* 없음 */ } render(); }
 function setTab(t) { tab = t; render(); }
 function openPay(month, back = 0) { payFocus = semStart(semAdd(semOf(month), -back)); payScroll = true; setTab('pay'); }
 
 // 화면 배치(패널 너비·열 너비·글씨 크기)는 이 브라우저에만 따로 저장
-const LAYOUT_KEY = 'lab-admin-layout';
+const LAYOUT_KEY = 'lab-manager-layout';
 let layout = {};
 try { layout = JSON.parse(localStorage.getItem(LAYOUT_KEY)) || {}; } catch { /* 처음 */ }
 layout.colW ||= { month: { name: 190, col: 66 }, sem: { name: 190, col: 170 } };
@@ -278,19 +278,21 @@ function colGrip(onSize, onDone, min = 40) {
 }
 function openBudget(gid, n) { selGrant = gid; selN = n ?? null; setTab('budget'); }
 
-// 랩 멤버(학생)로 로그인하면 db.member = { lab, labName } 이고 재고 탭만 보임 (sync.js가 정함)
+// 랩 멤버(학생)로 로그인하면 db.member = { lab, labName } 이고 연구실 탭(프로토콜·재고)만 보임 (sync.js가 정함)
 const isMember = () => !!db.member;
+const LAB_TABS = ['protocol', 'stock'];
 function render() {
-  if (isMember()) tab = 'stock';
+  if (isMember() && !LAB_TABS.includes(tab)) tab = 'protocol';
   document.body.dataset.tab = tab;
   document.body.dataset.role = isMember() ? 'member' : 'pi';
-  for (const b of $('tabSeg').children) b.classList.toggle('on', b.dataset.tab === tab);
+  for (const b of $('tabSeg').querySelectorAll('[data-tab]')) b.classList.toggle('on', b.dataset.tab === tab);
   $('cellPop').hidden = true;
-  if (isMember()) { renderStock(); return; }
+  renderProtocol();
+  renderStock();
+  if (isMember()) return;
   renderHome();
   renderPay();
   renderBudget();
-  renderStock();
   renderInfo();
   renderDocs();
 }
@@ -1885,7 +1887,7 @@ const centralText = (m = NOW) => { const c = centralAt(m); return `장비·비�
 // 왼쪽: 살 것 · 주문 기록 + 묶음 막대(누르면 오른쪽에 그 묶음, 아래로 펼치지 않음) / 오른쪽: 고른 것 하나
 function renderStock() {
   const S = db.stock, need = S.items.filter(it => it.need), waiting = db.orders.filter(o => !o.got).length;
-  if (!['need', 'orders', 'map', 'protocols', 'vendors'].includes(stockView) && !stockCat(stockView)) stockView = need.length || !S.cats.length ? 'need' : S.cats[0].id;
+  if (!['need', 'orders', 'map', 'vendors'].includes(stockView) && !stockCat(stockView)) stockView = need.length || !S.cats.length ? 'need' : S.cats[0].id;
   const pick = (v, ...kids) => { const b = h('button', cls('note-row', stockView === v && 'on'), ...kids); b.onclick = () => { stockView = v; render(); }; return b; };
   const cats = S.cats.map((c, i) => {
     const n = S.items.filter(it => it.cat === c.id).length, b = h('button', cls('cat-head pick', stockView === c.id && 'on'), h('span', 'cat-name', c.name), h('span', 'cat-count', String(n)));
@@ -1899,18 +1901,18 @@ function renderStock() {
     pick('need', h('span', 'note-emoji', '🛒'), h('span', 'note-title', '살 것'), h('span', 'note-meta', String(need.length))),
     pick('orders', h('span', 'note-emoji', '🧾'), h('span', 'note-title', '주문 기록'), h('span', 'note-meta', waiting ? `기다림 ${waiting}` : String(db.orders.length))),
     pick('map', h('span', 'note-emoji', '🗺️'), h('span', 'note-title', '보관 위치'), h('span', 'note-meta', String(S.places.length))),
-    pick('protocols', h('span', 'note-emoji', '🧪'), h('span', 'note-title', '프로토콜·실험'), h('span', 'note-meta', String(S.protocols.length))),
     pick('vendors', h('span', 'note-emoji', '🏢'), h('span', 'note-title', '업체'), h('span', 'note-meta', String(S.vendors.rows.length))),
     ...cats, addCat);
   const vendors = () => [h('div', 'panel-head plain', h('h2', null, '업체 연락처'), h('span', 'hint', '주문하기에서 업체를 여기서 골라요 · 랩 멤버도 같이 봐요')), tableBody(S.vendors)];
-  const main = { need: stockNeed, orders: () => [stockOrders()], map: () => [stockMap()], protocols: stockProtocols, vendors }[stockView];
+  const main = { need: stockNeed, orders: () => [stockOrders()], map: () => [stockMap()], vendors }[stockView];
   $('stockMain').replaceChildren(...(main ? main() : [stockCatPanel(stockCat(stockView))]));
   if (stockFocus) { document.querySelector(stockFocus)?.focus(); stockFocus = null; }
 }
 
-// 품목 한 줄: 왼쪽 표시 + 이름(제조사·Cat. No.·위치) + 오른쪽 버튼들
-function stockRow(it, mark, tools = []) {
-  const meta = [it.maker, it.catNo, placeOf(it.place)?.name, it.memo].filter(Boolean).join(' · ');
+// 품목 한 줄: 왼쪽 표시 + 이름(제조사·Cat. No.·위치·쓰이는 프로토콜) + 오른쪽 버튼들. hideProto = 지금 보고 있는 프로토콜은 빼고
+function stockRow(it, mark, tools = [], hideProto = null) {
+  const protos = (it.protocols || []).filter(id => id !== hideProto).map(id => protoOf(id)?.name).filter(Boolean).map(n => `🧪 ${n}`);
+  const meta = [it.maker, it.catNo, placeOf(it.place)?.name, it.memo, ...protos].filter(Boolean).join(' · ');
   return h('div', cls('stock-row', it.need && 'need'), mark, h('div', 'stock-name', h('span', null, it.name), meta ? h('small', null, meta) : null), h('div', 'row-tools', tools));
 }
 // 이름을 적어 Enter. pickFrom 이 있으면 그 품목들에서 골라 넣을 수도 있음 (목록에 없으면 새 품목은 '기타' 묶음에)
@@ -2006,69 +2008,54 @@ function stockCatPanel(c) {
     rows.length ? rows : h('p', 'hint stock-empty', '아직 없어요. 위에 이름을 적고 Enter.'));
 }
 
-// ---- 프로토콜·실험 (목록 모드): 프로토콜 묶음 → 프로토콜 → 재료(품목). 품목 하나가 여러 프로토콜에 들어감 (it.protocols = [id]) ----
-let protoGroup = ''; // 위에서 고른 묶음 ('' = 전체)
+// ---------- 프로토콜 탭 (연구실 — 랩 멤버와 같이 씀): 묶음 → 프로토콜. 프로토콜 = 본문 노트 + 재료(재고 품목, it.protocols = [id]) ----------
+// 여럿이 동시에 고칠 수 있어서 sync.js가 프로토콜을 한 건씩 따로 저장함 (labs/{PI}/protocols/{id})
+let selProto = null;
 const protoItems = p => db.stock.items.filter(it => it.protocols?.includes(p.id));
-function stockProtocols() {
-  const S = db.stock;
-  if (protoGroup && !S.protoGroups.some(g => g.id === protoGroup)) protoGroup = '';
-  const chip = (id, label) => { const b = h('button', cls(protoGroup === id && 'on'), label); b.type = 'button'; b.onclick = () => { protoGroup = id; render(); }; return b; };
-  const addGroup = h('button', 'btn small', '+ 묶음');
-  addGroup.onclick = () => editProtoGroup(null);
-  const head = h('div', 'panel-head plain', h('h2', null, '프로토콜·실험'), h('div', 'seg', chip('', '전체'), S.protoGroups.map(g => chip(g.id, g.name))),
-    h('span', 'hint', '실험마다 필요한 재료 · 줄을 누르면 살 것으로 (● = 살 것)'), h('span', 'spacer'), addGroup);
-  const groups = S.protoGroups.filter(g => !protoGroup || g.id === protoGroup);
-  if (!groups.length) return [head, h('div', 'panel', h('p', 'hint', '‘+ 묶음’으로 시작해요 (예: NGS, 세포 배양). 묶음 안에 프로토콜을 만들고 재료를 넣어요.'))];
-  return [head, ...groups.flatMap((g, gi) => {
-    const ps = S.protocols.filter(p => p.group === g.id);
-    const addP = h('button', 'btn small', '+ 프로토콜');
-    addP.onclick = () => editProtocol(null, g.id);
+const protoOf = id => db.stock.protocols.find(p => p.id === id);
+function renderProtocol() {
+  const S = db.stock, folded = new Set(layout.protoFold || []); // 접은 묶음 (이 브라우저에만)
+  if (!protoOf(selProto)) selProto = S.protocols[0]?.id ?? null;
+  const row = p => {
+    const items = protoItems(p), need = items.filter(it => it.need).length;
+    const b = h('button', cls('note-row', p.id === selProto && 'on'), h('span', 'note-emoji', '🧪'), h('span', 'note-title', p.name), h('span', 'note-meta', need ? `살 것 ${need}` : String(items.length)));
+    b.title = `재료 ${items.length}개${need ? ` · 살 것 ${need}` : ''}`;
+    b.onclick = () => { selProto = p.id; editKey = null; render(); };
+    return b;
+  };
+  const list = S.protoGroups.flatMap((g, gi) => {
+    const ps = S.protocols.filter(p => p.group === g.id), shut = folded.has(g.id);
     const edit = h('button', 'link-btn', '✎');
     edit.title = '묶음 고치기';
-    edit.onclick = () => editProtoGroup(g);
-    const bar = h('div', 'cat-head proto-head', h('span', 'cat-name', g.name), h('span', 'cat-count', `프로토콜 ${ps.length}`), edit, addP);
-    bar.style.setProperty('--c', PALETTE[(S.protoGroups.indexOf(g) + 3) % PALETTE.length]);
-    return [bar, ...(ps.length ? ps.map(protocolPanel) : [h('p', 'hint stock-empty', '‘+ 프로토콜’로 만들어요.')])];
-  })];
-}
-function protocolPanel(p) {
-  const S = db.stock, items = protoItems(p), need = items.filter(it => it.need).length;
-  const rows = items.map(it => {
-    const drop = h('button', 'link-btn', '빼기');
-    drop.title = '이 프로토콜에서 빼요 (품목은 재고에 그대로)';
-    drop.onclick = e => { e.stopPropagation(); it.protocols = it.protocols.filter(x => x !== p.id); save(); };
-    const row = stockRow(it, h('span', cls('mark', it.need && 'on')), [h('span', 'cat-chip', stockCat(it.cat)?.name ?? ''), openOrder(it) ? h('span', 'tag', '주문함') : null, drop]);
-    row.classList.add('tap');
-    row.title = it.need ? '눌러서 살 것에서 빼기' : '눌러서 살 것으로 표시';
-    row.onclick = () => { it.need = !it.need; save(); };
-    return row;
+    edit.onclick = e => { e.stopPropagation(); editProtoGroup(g); };
+    const add = h('button', 'cat-add', '+');
+    add.title = '이 묶음에 새 프로토콜';
+    add.onclick = e => { e.stopPropagation(); editProtocol(null, g.id); };
+    const head = h('div', 'cat-head', h('span', 'caret', shut ? '▸' : '▾'), h('span', 'cat-name', g.name), h('span', 'cat-count', String(ps.length)), edit, add);
+    head.style.setProperty('--c', PALETTE[(gi + 3) % PALETTE.length]);
+    head.title = '누르면 접기·펴기';
+    head.onclick = () => { if (shut) folded.delete(g.id); else folded.add(g.id); layout.protoFold = [...folded]; saveLayout(); render(); };
+    return shut ? [head] : [head, ...ps.map(row)];
   });
-  const allNeed = h('button', 'btn small', '재료 모두 살 것으로');
-  allNeed.disabled = !items.length || need === items.length;
-  allNeed.onclick = () => { for (const it of items) it.need = true; save(); };
-  const edit = h('button', 'btn small', '고치기');
-  edit.onclick = () => editProtocol(p);
-  const adder = stockAdder(`pr-${p.id}`, '+ 재료 추가 (재고에서 찾기 · 없으면 새 품목)', name => {
-    const it = S.items.find(x => sameName(x.name, name)) || newStockItem(name);
-    it.protocols = [...new Set([...(it.protocols || []), p.id])];
-    save();
-  }, S.items.filter(it => !it.protocols?.includes(p.id)));
-  return h('div', 'panel stock-sec proto', h('div', 'panel-head', h('h2', null, p.name), h('span', 'hint', [`재료 ${items.length}`, need ? `살 것 ${need}` : '', p.memo].filter(Boolean).join(' · ')), h('span', 'spacer'), allNeed, edit),
-    ...adder, rows.length ? rows : h('p', 'hint stock-empty', '필요한 재료를 위에 적어 넣어요.'), protocolNote(p));
+  const orphans = S.protocols.filter(p => !S.protoGroups.some(g => g.id === p.group)); // 묶음이 없어진 프로토콜
+  if (orphans.length) list.push(h('div', 'cat-head static', h('span', 'cat-name', '묶음 없음'), h('span', 'cat-count', String(orphans.length))), ...orphans.map(row));
+  const addGroup = h('button', 'cat-new', '+ 묶음');
+  addGroup.onclick = () => editProtoGroup(null);
+  $('protoList').replaceChildren(h('h2', 'note-list-title', '프로토콜'), ...list, addGroup);
+  const p = protoOf(selProto);
+  $('protoMain').replaceChildren(...(p ? protocolPage(p) : [h('div', 'panel', h('p', 'hint', S.protoGroups.length
+    ? '왼쪽 묶음의 + 로 프로토콜을 만들어요.' : '‘+ 묶음’으로 시작해요 (예: NGS, 세포 배양). 묶음 안에 프로토콜을 만들고, 본문과 재료를 적어요.'))]));
 }
-// 프로토콜 노트: 과제 개요처럼 글 노트 (순서·조건·주의할 점). 처음엔 접혀 있음 — 편 상태는 이 브라우저에 기억 (layout.protoOpen)
-function protocolNote(p) {
-  const key = `pn:${p.id}`, editing = editKey === key, opened = new Set(layout.protoOpen || []), open = opened.has(p.id) || editing;
-  const fold = h('button', 'fold', open ? '▾' : '▸');
-  fold.title = open ? '접기' : '펴기';
-  const toggle = () => { if (open) opened.delete(p.id); else opened.add(p.id); layout.protoOpen = [...opened]; saveLayout(); if (open && editing) editKey = null; render(); };
-  fold.onclick = toggle;
-  const btn = h('button', cls('btn small', editing && 'primary'), editing ? '다 썼어요' : '편집');
-  btn.onclick = () => { editKey = editing ? null : key; render(); };
-  const label = h('span', 'proto-note-label', '📝 프로토콜 노트');
-  label.onclick = toggle;
-  const head = h('div', 'proto-note-head', fold, label, open ? null : h('span', 'hint', preview(p.note) || '순서·조건·주의할 점을 적어 둬요'), h('span', 'spacer'), btn);
-  if (!open) return h('div', 'proto-note', head);
+// 오른쪽: 본문(글 노트 — 준비·순서·조건·주의할 점) + 재료(재고와 같은 품목: 위치·살 것·주문함이 같이 보임)
+function protocolPage(p) {
+  const S = db.stock, items = protoItems(p), need = items.filter(it => it.need).length, g = S.protoGroups.find(x => x.id === p.group);
+  const key = `pn:${p.id}`, editing = editKey === key;
+  const write = h('button', cls('btn small', editing && 'primary'), editing ? '다 썼어요' : '본문 편집');
+  write.onclick = () => { editKey = editing ? null : key; render(); };
+  const edit = h('button', 'btn small', '이름·묶음');
+  edit.onclick = () => editProtocol(p);
+  const head = h('div', 'panel-head proto-title', h('h2', null, p.name), g ? h('span', 'tag', g.name) : null, p.memo ? h('span', 'hint', p.memo) : null,
+    p.updatedAt ? h('span', 'hint', `고친 날 ${p.updatedAt.slice(2).replaceAll('-', '.')}`) : null, h('span', 'spacer'), write, edit);
   let body;
   if (editing) {
     body = h('textarea', 'ov-edit');
@@ -2076,10 +2063,35 @@ function protocolNote(p) {
     body.placeholder = '## 준비\n- [ ] 시료 정량\n## 순서\n1. …\n> 주의: …';
     body.spellcheck = false;
     const grow = () => { body.style.height = 'auto'; body.style.height = `${body.scrollHeight + 2}px`; };
-    body.oninput = () => { p.note = body.value; persist(); grow(); };
+    body.oninput = () => { p.note = body.value; p.updatedAt = isoToday(); persist(); grow(); };
     requestAnimationFrame(grow);
-  } else body = p.note?.trim() ? docView(p.note, v => { p.note = v; }) : h('p', 'hint ov-empty', '아직 비어 있어요. ‘편집’을 눌러 순서·조건·주의할 점을 적어요.');
-  return h('div', 'proto-note open', head, body, editing ? h('p', 'hint', DOC_HINT) : null);
+  } else body = p.note?.trim() ? docView(p.note, v => { p.note = v; }) : h('p', 'hint ov-empty', '아직 비어 있어요. ‘본문 편집’을 눌러 준비·순서·조건·주의할 점을 적어요.');
+  const doc = h('div', 'panel proto-doc', head, body, editing ? h('p', 'hint', DOC_HINT) : null);
+
+  const rows = items.map(it => {
+    const drop = h('button', 'link-btn', '빼기');
+    drop.title = '이 프로토콜에서 빼요 (품목은 재고에 그대로)';
+    drop.onclick = e => { e.stopPropagation(); it.protocols = it.protocols.filter(x => x !== p.id); save(); };
+    const r = stockRow(it, h('span', cls('mark', it.need && 'on')), [h('span', 'cat-chip', stockCat(it.cat)?.name ?? ''), openOrder(it) ? h('span', 'tag', '주문함') : null, drop], p.id);
+    r.classList.add('tap');
+    r.title = it.need ? '눌러서 살 것에서 빼기' : '눌러서 살 것으로 표시';
+    r.onclick = () => { it.need = !it.need; save(); };
+    return r;
+  });
+  const allNeed = h('button', 'btn small', '재료 모두 살 것으로');
+  allNeed.disabled = !items.length || need === items.length;
+  allNeed.onclick = () => { for (const it of items) it.need = true; save(); };
+  const toStock = h('button', 'btn small', '재고 살 것 보기');
+  toStock.onclick = () => { stockView = 'need'; setTab('stock'); };
+  const adder = stockAdder(`pr-${p.id}`, '+ 재료 추가 (재고에서 찾기 · 없으면 새 품목)', name => {
+    const it = S.items.find(x => sameName(x.name, name)) || newStockItem(name);
+    it.protocols = [...new Set([...(it.protocols || []), p.id])];
+    save();
+  }, S.items.filter(it => !it.protocols?.includes(p.id)));
+  const mats = h('div', 'panel stock-sec proto-mats', h('div', 'panel-head', h('h2', null, '재료'),
+    h('span', 'hint', `${items.length}개${need ? ` · 살 것 ${need}` : ''} · 줄을 누르면 살 것으로 (● = 살 것)`), h('span', 'spacer'), allNeed, need ? toStock : null),
+    ...adder, rows.length ? rows : h('p', 'hint stock-empty', '필요한 재료를 위에 적어 넣어요. 재고 탭의 품목과 같은 것으로 이어져요.'));
+  return [doc, mats];
 }
 function editProtoGroup(g) {
   const n = g ? db.stock.protocols.filter(p => p.group === g.id).length : 0;
@@ -2093,7 +2105,7 @@ function editProtoGroup(g) {
   ask(g ? '프로토콜 묶음 고치기' : '새 프로토콜 묶음', [{ key: 'name', label: '이름', value: g?.name ?? '', required: true, placeholder: '예: NGS, 세포 배양' }], v => {
     const t = g || { id: uid() };
     t.name = v.name.trim();
-    if (!g) { db.stock.protoGroups.push(t); protoGroup = ''; }
+    if (!g) db.stock.protoGroups.push(t);
     save();
   }, del ? [h('p', null, del)] : []);
 }
@@ -2105,17 +2117,18 @@ function editProtocol(p, group) {
       if (!confirm(`'${p.name}'을(를) 지울까요? 재료(품목)는 재고에 그대로 남아요.`)) return;
       for (const it of db.stock.items) if (it.protocols) it.protocols = it.protocols.filter(x => x !== p.id);
       db.stock.protocols = db.stock.protocols.filter(x => x !== p);
+      selProto = null;
       dlg.close(); save();
     };
   }
   ask(p ? '프로토콜 고치기' : '새 프로토콜', [
     { key: 'name', label: '이름', value: p?.name ?? '', required: true, placeholder: '예: 라이브러리 제작' },
     { key: 'group', label: '묶음', type: 'select', options: db.stock.protoGroups.map(g => [g.id, g.name]), value: p?.group ?? group },
-    { key: 'memo', label: '메모', value: p?.memo ?? '', placeholder: '예: 키트 버전, 샘플 8개 기준' },
+    { key: 'memo', label: '한 줄 메모', value: p?.memo ?? '', placeholder: '예: 키트 버전, 샘플 8개 기준' },
   ], v => {
-    const t = p || { id: uid() };
+    const t = p || { id: uid(), updatedAt: isoToday() };
     Object.assign(t, { name: v.name.trim(), group: v.group, memo: v.memo.trim() || undefined });
-    if (!p) db.stock.protocols.push(t);
+    if (!p) { db.stock.protocols.push(t); selProto = t.id; editKey = `pn:${t.id}`; } // 새로 만들면 바로 본문 쓰기
     save();
   }, del ? [h('p', null, del)] : []);
 }
@@ -2185,7 +2198,8 @@ function mapInfo(it, pid) {
     toggle.onclick = () => { it.need = !it.need; save(); };
     const edit = h('button', 'btn small', '고치기');
     edit.onclick = () => editStockItem(it);
-    return h('div', 'map-info', h('b', null, it.name), [stockCat(it.cat)?.name, p ? `${p.name}${kindOf(p).temp ? ` (${p.temp || kindOf(p).temp})` : ''}` : '위치 미정', it.maker, it.catNo, it.memo].filter(Boolean).map(t => h('span', 'tag', t)),
+    return h('div', 'map-info', h('b', null, it.name), [stockCat(it.cat)?.name, p ? `${p.name}${kindOf(p).temp ? ` (${p.temp || kindOf(p).temp})` : ''}` : '위치 미정', it.maker, it.catNo, it.memo,
+      ...(it.protocols || []).map(id => protoOf(id)?.name).filter(Boolean).map(n => `🧪 ${n}`)].filter(Boolean).map(t => h('span', 'tag', t)),
       openOrder(it) ? h('span', 'hint', '주문함') : null, h('span', 'spacer'), toggle, edit);
   }
   if (pid !== undefined) {
@@ -2462,7 +2476,7 @@ function exportData() {
   delete data.owner; delete data.member;
   const a = h('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: 'application/json' }));
-  a.download = `lab-admin-${isoToday()}.json`;
+  a.download = `lab-manager-${isoToday()}.json`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
@@ -2475,7 +2489,7 @@ function importData() {
     if (!file) return;
     try {
       const v = JSON.parse(await file.text());
-      if (v?.version !== VERSION || !Array.isArray(v.grants)) throw new Error('랩 행정에서 내보낸 파일이 아니에요');
+      if (v?.version !== VERSION || !Array.isArray(v.grants)) throw new Error('랩 매니저(랩 행정)에서 내보낸 파일이 아니에요');
       if (!confirm(`지금 데이터를 '${file.name}' 내용으로 통째로 바꿀까요?${window.cloud?.user ? '\n로그인한 계정의 데이터도 같이 바뀌어요.' : ''}`)) return;
       const owner = db.owner;
       db = withDocs(v);
@@ -2489,7 +2503,7 @@ function importData() {
 }
 
 // ---------- 테마·탭·패널 경계 ----------
-const THEME_KEY = 'lab-admin-theme';
+const THEME_KEY = 'lab-manager-theme';
 function applyTheme(t) { if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; }
 try { applyTheme(localStorage.getItem(THEME_KEY)); } catch { /* 없음 */ }
 $('themeBtn').onclick = () => {
@@ -2498,11 +2512,12 @@ $('themeBtn').onclick = () => {
   applyTheme(t);
   try { localStorage.setItem(THEME_KEY, t); } catch { /* 없음 */ }
 };
-for (const b of $('tabSeg').children) b.onclick = () => setTab(b.dataset.tab);
+for (const b of $('tabSeg').querySelectorAll('[data-tab]')) b.onclick = () => setTab(b.dataset.tab);
 $('homeGrid').insertBefore(splitter($('homeGrid'), '--home-l', 260), $('homeGrid').children[1]);
 $('budgetLayout').insertBefore(splitter($('budgetLayout'), '--list-w', 150), $('grantDetail'));
 $('noteView').before(splitter($('noteView').parentElement, '--info-w', 180));
 $('docMain').before(splitter($('docMain').parentElement, '--docs-w', 180));
 $('stockMain').before(splitter($('stockMain').parentElement, '--stock-w', 180));
+$('protoMain').before(splitter($('protoMain').parentElement, '--proto-w', 180));
 
 render();
