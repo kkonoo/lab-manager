@@ -477,6 +477,9 @@ tfoot td.name { background: var(--surface-2); }
 .place-card.on { border-color: var(--pc); }
 .place-card.dim { opacity: .38; }
 .place-card.drop { border-style: dashed; border-color: var(--pc); opacity: 1; }
+.place-card.drop-before { box-shadow: inset 4px 0 0 var(--accent); opacity: 1; }
+.place-card.drop-after { box-shadow: inset -4px 0 0 var(--accent); opacity: 1; }
+.place-head[draggable="true"] { cursor: grab; }
 .place-card.none { border: 1.5px dashed var(--line); background: transparent; }
 .place-card.add { align-items: center; justify-content: center; border: 1.5px dashed var(--line); background: transparent; color: var(--muted); font: inherit; font-size: calc(14px * var(--fs)); }
 .place-card.add:hover { border-color: var(--accent); color: var(--accent); }

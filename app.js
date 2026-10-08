@@ -2453,16 +2453,40 @@ function stockMap() {
   const zones = [...S.places.map(p => [p, S.items.filter(it => it.place === p.id)]), [null, S.items.filter(it => !placeOf(it.place))]];
   const cards = zones.filter(([p, items]) => p || items.length).map(([p, items]) => {
     const id = p?.id ?? null, k = kindOf(p), need = items.filter(it => it.need).length;
+    const head = h('div', 'place-head', placeIcon(p), h('div', 'place-name', h('b', null, p?.name ?? '위치 미정'),
+      h('small', null, [p ? p.temp || k.temp : '', `${items.length}개`, need ? `살 것 ${need}` : ''].filter(Boolean).join(' · '))));
     const card = h('div', cls('place-card', !p && 'none', selPlace !== undefined && (selPlace === id ? 'on' : 'dim')),
-      h('div', 'place-head', placeIcon(p), h('div', 'place-name', h('b', null, p?.name ?? '위치 미정'),
-        h('small', null, [p ? p.temp || k.temp : '', `${items.length}개`, need ? `살 것 ${need}` : ''].filter(Boolean).join(' · ')))),
-      h('div', 'place-items', items.length ? items.map(chip) : h('span', 'hint', '비어 있어요')));
+      head, h('div', 'place-items', items.length ? items.map(chip) : h('span', 'hint', '비어 있어요')));
     card.style.setProperty('--pc', p ? k.color : '#8B93A1');
     card.onclick = e => { if (e.target.closest('.item-chip')) return; mapSel = selPlace === id && !selItem ? null : { place: id }; render(); };
-    card.ondragover = e => { e.preventDefault(); card.classList.add('drop'); };
-    card.ondragleave = () => card.classList.remove('drop');
+    // 위치 순서: 이름 줄을 끌어 다른 위치 카드의 왼쪽·오른쪽 절반에 놓으면 그 앞·뒤로 (품목 칩 끌기는 위치 옮기기)
+    if (p) {
+      head.draggable = true;
+      head.title = '끌어서 위치 순서 바꾸기';
+      head.ondragstart = e => { e.dataTransfer.setData('text/x-place', p.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setDragImage(card, 20, 20); };
+    }
+    const side = e => (e.clientX - card.getBoundingClientRect().left > card.offsetWidth / 2 ? 'after' : 'before');
+    const clear = () => card.classList.remove('drop', 'drop-before', 'drop-after');
+    card.ondragover = e => {
+      const placing = e.dataTransfer.types.includes('text/x-place');
+      if (placing && !p) return; // 위치 미정 칸 앞뒤로는 못 놓음
+      e.preventDefault();
+      if (!placing) return card.classList.add('drop');
+      card.classList.toggle('drop-before', side(e) === 'before');
+      card.classList.toggle('drop-after', side(e) === 'after');
+    };
+    card.ondragleave = clear;
     card.ondrop = e => {
       e.preventDefault();
+      clear();
+      const from = e.dataTransfer.getData('text/x-place');
+      if (from) {
+        if (from === id) return;
+        const ids = S.places.map(x => x.id).filter(x => x !== from);
+        ids.splice(ids.indexOf(id) + (side(e) === 'after' ? 1 : 0), 0, from);
+        S.places = byIds(S.places, ids);
+        return save();
+      }
       const it = stockItem(e.dataTransfer.getData('text/plain'));
       if (it) { it.place = id || undefined; mapSel = { item: it.id }; save(); }
     };
@@ -2472,7 +2496,7 @@ function stockMap() {
   add.onclick = () => editPlace(null);
   const legend = h('div', 'map-legend', S.cats.map(c => h('span', null, h('span', 'dot'), c.name)).map((el, i) => { el.style.setProperty('--cc', catColor(S.cats[i].id)); return el; }),
     h('span', null, h('span', 'dot ring'), '살 것'));
-  return h('div', 'panel', h('div', 'panel-head', h('h2', null, '보관 위치'), h('span', 'hint', '위치를 누르면 그곳만 · 품목을 누르면 아래에 자세히 · 품목을 끌어 다른 위치에 놓으면 옮겨져요'), h('span', 'spacer'), legend),
+  return h('div', 'panel', h('div', 'panel-head', h('h2', null, '보관 위치'), h('span', 'hint', '위치를 누르면 그곳만 · 품목을 누르면 아래에 자세히 · 품목을 끌어 다른 위치에 놓으면 옮겨져요 · 위치 이름 줄을 끌면 순서'), h('span', 'spacer'), legend),
     h('div', 'place-map', cards, add), mapInfo(selItem, selPlace));
 }
 // 지도 아래 한 줄: 고른 품목 또는 위치의 자세한 내용과 버튼
