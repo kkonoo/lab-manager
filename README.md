@@ -33,12 +33,6 @@
 - 금액은 모두 **천원** 단위로 저장해요 (인건비 화면만 만원으로 보여요).
 - 기준 인건비·중앙구매 기준은 설정에서 **시행 월**과 함께 바꿔요. 지난 달 참여율과 지난 주문은 그때 기준대로 계산돼요.
 
-## 만든 사람이 할 일 (Firebase 설정)
-
-1. [Firebase 콘솔](https://console.firebase.google.com)에서 프로젝트를 만들고 **웹 앱**을 추가해요. 나온 `firebaseConfig`를 `firebase-config.js`에 붙여 넣어요.
-2. **Authentication → 로그인 방법 → Google** 사용, **설정 → 승인된 도메인**에 `kkonoo.github.io` 추가 (localhost는 기본으로 있음).
-3. **Firestore Database**를 만들고(위치 `asia-northeast3` 서울), **규칙**에 `firestore.rules` 내용을 붙여 넣고 게시해요.
-
 ## 개발
 
 빌드 없음 — 정적 HTML/CSS/JS 그대로예요.
