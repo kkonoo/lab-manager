@@ -1,0 +1,9 @@
+# 로컬 개발 설정
+.claude/
+
+# Claude 작업 지침 (로컬 전용)
+CLAUDE.md
+
+# 내보내기로 받은 데이터 백업 (실데이터 — 올리지 않기)
+lab-admin-*.json
+*.sync-conflict-*

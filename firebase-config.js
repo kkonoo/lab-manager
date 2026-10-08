@@ -1,0 +1,3 @@
+// Firebase 콘솔 > 프로젝트 설정 > 내 앱(웹)의 firebaseConfig 값. 비우면(null) 로그인·동기화가 꺼지고 이 브라우저에만 저장돼요.
+// (이 값은 공개돼도 괜찮아요. 데이터 보호는 firestore.rules가 담당)
+export const firebaseConfig = null;

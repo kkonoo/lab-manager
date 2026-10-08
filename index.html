@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>랩 행정</title>
+<meta name="description" content="연구실 행정 — 과제·인건비·세목 예산·재고·서류">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#F5F4F0">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/app-192.png">
+<link rel="apple-touch-icon" href="icons/app-maskable-192.png">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-tab="home">
+
+<header class="topbar">
+  <h1 class="app-title">랩 행정</h1>
+  <div class="seg" id="tabSeg">
+    <button type="button" data-tab="home">한눈에</button>
+    <button type="button" data-tab="budget">재원별 예산</button>
+    <button type="button" data-tab="pay">인건비</button>
+    <button type="button" data-tab="stock">재고</button>
+    <button type="button" data-tab="docs">서류</button>
+    <button type="button" data-tab="info">정보</button>
+  </div>
+  <div class="tools">
+    <button class="icon-btn" id="themeBtn" title="라이트/다크 전환">◐</button>
+    <button class="btn" id="accountBtn" hidden>로그인</button>
+    <button class="btn" id="settingsBtn">설정</button>
+  </div>
+</header>
+
+<main>
+  <!-- 한눈에 -->
+  <section class="tab" id="tab-home">
+    <div class="alerts" id="alerts"></div>
+    <div class="home-grid" id="homeGrid">
+      <div class="panel">
+        <div class="panel-head"><h2>과제 기간·연차</h2><span class="hint">칸 하나 = 1년 연차 · 세로선 = 오늘 · 연차를 누르면 그 연차 예산으로</span></div>
+        <div class="tl" id="timeline"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2 id="thisMonthTitle">이번 달 학생별 인건비</h2><span class="hint" id="thisMonthHint"></span></div>
+        <div id="thisMonth"></div>
+      </div>
+    </div>
+    <div class="panel-head plain"><h2>지금 연차</h2><span class="hint">카드를 누르면 재원별 예산으로 · 금액 단위 천원</span></div>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <!-- 인건비 -->
+  <section class="tab" id="tab-pay">
+    <div class="toolbar">
+      <div class="nav">
+        <button class="icon-btn" id="prevRange" aria-label="이전">‹</button>
+        <span class="range-title" id="rangeTitle"></span>
+        <button class="icon-btn" id="nextRange" aria-label="다음">›</button>
+        <button class="btn" id="todayRange">오늘</button>
+      </div>
+      <div class="seg" id="viewSeg">
+        <button type="button" data-view="sem">학기</button>
+        <button type="button" data-view="month">월</button>
+      </div>
+      <label class="check"><input type="checkbox" id="simToggle"> 가상 학생 포함</label>
+      <span class="spacer"></span>
+      <button class="btn" id="addPerson">+ 학생</button>
+      <button class="btn primary" id="addVirtual">+ 가상 학생 (시뮬레이션)</button>
+    </div>
+    <div class="legend" id="legend"></div>
+    <div class="grid-wrap" id="gridWrap"><table class="grid" id="payGrid"></table></div>
+    <p class="foot" id="payFoot"></p>
+  </section>
+
+  <!-- 재원별 예산 -->
+  <section class="tab" id="tab-budget">
+    <div class="budget-layout" id="budgetLayout">
+      <nav class="grant-list" id="grantList"></nav>
+      <div class="grant-detail" id="grantDetail"></div>
+    </div>
+  </section>
+
+  <!-- 재고 (시약·키트·소모품·장비 → 주문 → 세목 집행) -->
+  <section class="tab" id="tab-stock">
+    <div class="stock-layout">
+      <nav class="note-list" id="stockList"></nav>
+      <div class="stock-main" id="stockMain"></div>
+    </div>
+  </section>
+
+  <!-- 정보 (행정 노트) -->
+  <section class="tab" id="tab-info">
+    <div class="info-layout">
+      <nav class="note-list" id="noteList"></nav>
+      <div class="note-view" id="noteView"></div>
+    </div>
+  </section>
+  <!-- 서류 (양식 채워서 PDF로) -->
+  <section class="tab" id="tab-docs">
+    <div class="docs-layout">
+      <nav class="note-list doc-side" id="formList"></nav>
+      <div class="doc-main" id="docMain"></div>
+    </div>
+  </section>
+</main>
+
+<!-- 인건비 칸 편집 -->
+<div class="pop" id="cellPop" hidden>
+  <div class="pop-title" id="popTitle"></div>
+  <div class="pop-sub" id="popSub"></div>
+  <div class="pop-row">
+    <input type="number" id="popAmount" step="0.5" min="0" inputmode="decimal" enterkeyhint="enter"><span class="unit">만원/월</span>
+    <span class="pop-rate" id="popRate"></span>
+  </div>
+  <div class="pop-months" id="popMonths"></div>
+  <div class="pop-btns" id="popBtns"></div>
+</div>
+
+<!-- 범용 입력 창 -->
+<dialog id="dlg">
+  <form method="dialog" id="dlgForm">
+    <h3 id="dlgTitle"></h3>
+    <div id="dlgBody"></div>
+    <!-- 확인을 먼저 둬야 Enter(폼 기본 제출)가 확인을 누름. 화면엔 CSS(row-reverse)로 '취소 · 확인' 순서 -->
+    <div class="dlg-btns">
+      <button class="btn primary" value="ok" id="dlgOk">확인</button>
+      <button class="btn" value="cancel" formnovalidate>취소</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="data.js"></script>
+<script src="forms.js"></script>
+<script src="forms-trip.js"></script>
+<script src="forms-buy.js"></script>
+<script src="forms-misc.js"></script>
+<script src="app.js"></script>
+<script type="module" src="sync.js"></script>
+<script>
+  // 오프라인에서도 열리게 (localhost에선 개발 중 캐시가 헷갈리니 끔)
+  if ('serviceWorker' in navigator && location.hostname !== 'localhost') navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>
