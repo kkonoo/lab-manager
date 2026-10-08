@@ -149,11 +149,13 @@ const ordersOf = lid => db.orders.filter(o => o.line === lid);
 const lineSpent = l => (+l.spent || 0) + sum(ordersOf(l.id)); // 집행 = 직접 적은 값 + 재고 탭에서 이 항목으로 낸 주문
 // 포닥은 학생인건비가 아니라 인건비 비목 → 계상액과는 비교 안 하고 배정액 쓰임에만 더함
 const isPostdoc = x => { const p = person(x.person); return !!p && degreeAt(p, x.month) === '포닥'; };
+// 세목이 간접비인 항목은 직접비 배정과 따로 셈 (indirect)
 function periodStats(g, pd) {
   const xs = paysOf(g.id, pd.from, pd.to);
   const pay = sum(xs.filter(x => !isPostdoc(x))), postdoc = sum(xs.filter(isPostdoc));
-  const lines = sum(linesOf(g.id, pd.n), l => l.plan);
-  return { pay, postdoc, lines, spent: sum(linesOf(g.id, pd.n), lineSpent), used: pay + postdoc + lines };
+  const ls = linesOf(g.id, pd.n), direct = ls.filter(l => l.cat !== '간접비');
+  const lines = sum(direct, l => l.plan), indirect = sum(ls.filter(l => l.cat === '간접비'), l => l.plan);
+  return { pay, postdoc, lines, indirect, spent: sum(direct, lineSpent), used: pay + postdoc + lines };
 }
 const monthTotal = (pid, m) => sum(db.pays.filter(x => x.person === pid && x.month === m));
 const cellTotal = (pid, gid, m) => sum(db.pays.filter(x => x.person === pid && x.grant === gid && x.month === m));
@@ -876,7 +878,7 @@ function ask(title, fields, onOk, extra = []) {
   $('dlgTitle').textContent = title;
   const draw = f => f instanceof Node ? f : Array.isArray(f) ? h('div', 'row3', f.map(field))
     : f.fold ? Object.assign(fold(f.fold, f.hint, ...f.fields.map(draw)), { className: 'fold-box set-box' }) : field(f);
-  $('dlgBody').replaceChildren(...fields.map(draw), ...extra);
+  $('dlgBody').replaceChildren(...fields.map(draw), ...extra.filter(Boolean));
   dlg.returnValue = '';
   dlg.onclose = () => { if (dlg.returnValue === 'ok') onOk(Object.fromEntries(new FormData($('dlgForm')))); };
   dlg.showModal();
@@ -979,8 +981,8 @@ $('todayRange').onclick = () => payGo(semStart(semOf(NOW)));
 for (const b of $('viewSeg').children) b.onclick = () => setPayView(b.dataset.view);
 
 // ---------- 재원별 예산 (천원) ----------
-const CATS = ['연구활동비', '연구재료비', '연구시설·장비비', '연구수당', '위탁연구개발비', '국제공동연구개발비', '기타'];
-const CAT_COLOR = { 인건비: '#F08A4B', 연구활동비: '#5B9BEA', 연구재료비: '#2BB39A', '연구시설·장비비': '#9D7BE0', 연구수당: '#E8B10C', 위탁연구개발비: '#F0727A', 국제공동연구개발비: '#D46FB0', 기타: '#8B93A1', 미지정: '#C9C5BB' };
+const CATS = ['연구활동비', '연구재료비', '연구시설·장비비', '연구수당', '위탁연구개발비', '국제공동연구개발비', '기타', '간접비'];
+const CAT_COLOR = { 인건비: '#F08A4B', 연구활동비: '#5B9BEA', 연구재료비: '#2BB39A', '연구시설·장비비': '#9D7BE0', 연구수당: '#E8B10C', 위탁연구개발비: '#F0727A', 국제공동연구개발비: '#D46FB0', 기타: '#8B93A1', 간접비: '#B39B7A', 미지정: '#C9C5BB' };
 const STATUS = ['계획', '집행중', '완료'];
 const KINDS = ['과제', 'BK21', '기타'];
 const PALETTE = ['#5B9BEA', '#F0727A', '#2BB39A', '#9D7BE0', '#E8B10C', '#8B93A1', '#F08A4B', '#D46FB0', '#4FB3D9', '#B39B7A'];
@@ -989,7 +991,7 @@ function renderBudget() {
   const listBtn = g => {
     const b = h('button', g.id === selGrant ? 'on' : null, h('span', null, g.emoji), h('span', 'gname', g.name), g.annual != null ? h('span', 'kind', fmt(g.annual)) : null);
     b.style.setProperty('--c', g.color);
-    b.title = g.annual != null ? `연 ${fmt(g.annual)}천원` : '연 예산 미입력';
+    b.title = g.annual != null ? annualText(g) : '연 예산 미입력';
     b.onclick = () => { selGrant = g.id; selN = null; render(); };
     return b;
   };
@@ -1016,7 +1018,7 @@ function renderBudget() {
       chip(g, roleLabel(g)),
       g.no ? h('span', 'chip', g.no) : null,
       g.start ? h('span', 'chip', `${mDot(g.start)} – ${mDot(g.end)}`) : null,
-      g.annual != null ? h('span', 'chip', `연 ${fmt(g.annual)}천원`) : null),
+      g.annual != null ? h('span', 'chip', annualText(g)) : null),
     g.title && g.title !== g.full ? h('div', 'gd-desc', g.title) : null);
   head.style.setProperty('--c', g.color);
 
@@ -1028,7 +1030,7 @@ function renderBudget() {
   const parts = [['인건비', st.pay + st.postdoc]];
   const byCat = {};
   for (const l of linesOf(g.id, pd.n)) byCat[l.cat || '미지정'] = (byCat[l.cat || '미지정'] || 0) + (+l.plan || 0);
-  for (const c of [...CATS, '미지정']) if (byCat[c]) parts.push([c, byCat[c]]);
+  for (const c of [...CATS, '미지정']) if (byCat[c] && c !== '간접비') parts.push([c, byCat[c]]); // 막대 = 직접비 배정 쓰임
   const base = Math.max(pd.budget || 0, st.used) || 1;
   const stack = h('div', 'stack', parts.map(([k, v]) => {
     const i = h('i');
@@ -1042,7 +1044,7 @@ function renderBudget() {
     d.style.setProperty('--c', CAT_COLOR[k]);
     return h('span', null, d, `${k} ${fmt(v)}`);
   }));
-  const summary = `계획 ${fmt(st.used)}${pd.budget != null ? ` / 배정 ${fmt(pd.budget)}` : ''} · 집행 ${fmt(st.spent)} (천원)`;
+  const summary = `계획 ${fmt(st.used)}${pd.budget != null ? ` / 배정 ${fmt(pd.budget)}` : ''} · 집행 ${fmt(st.spent)}${st.indirect ? ` · 간접비 계획 ${fmt(st.indirect)}` : ''} (천원)`;
   const usage = h('div', 'panel', h('div', 'panel-head', h('h2', null, `${pd.n}차년도 쓰임`), h('span', 'hint', `${mDot(pd.from)}–${mDot(pd.to)} · ${summary}`)), stack, stackLegend);
 
   const two = h('div', 'two', monthsPanel(g, pd));
@@ -1116,7 +1118,7 @@ function periodTable(g, ps) {
       h('td', 'r', inp(pd, 'budget')),
       h('td', 'r', inp(pd, 'pay')),
       h('td', cls('r', pd.pay != null && st.pay > pd.pay && 'over'), st.pay ? fmt(st.pay) : '–', st.postdoc ? h('small', null, ` +포닥 ${fmt(st.postdoc)}`) : null),
-      h('td', 'r', st.lines ? fmt(st.lines) : '–'),
+      h('td', 'r', st.lines ? fmt(st.lines) : '–', st.indirect ? h('small', null, ` +간접비 ${fmt(st.indirect)}`) : null),
       h('td', cls('r', left != null && (left < 0 ? 'over' : 'good')), left == null ? '–' : fmt(left)));
     tr.onclick = () => { selN = pd.n; render(); };
     return tr;
@@ -1155,6 +1157,9 @@ function periodRange(g, pd, ps) {
   return b;
 }
 
+// 연 예산 = 직접비 + 간접비 (예전 저장본은 합계만 있을 수 있음)
+const annualText = g => g.annualDirect == null && g.annualIndirect == null ? `연 ${fmt(g.annual)}천원`
+  : `연 ${fmt(g.annual)}천원 (직접 ${fmt(g.annualDirect || 0)} · 간접 ${fmt(g.annualIndirect || 0)})`;
 function editGrant(g) {
   const isNew = !g;
   const used = new Set(db.grants.map(x => x.color));
@@ -1182,7 +1187,8 @@ function editGrant(g) {
     [{ key: 'start', label: '시작 월', type: 'month', value: base.start },
       { key: 'end', label: '끝 월', type: 'month', value: base.end },
       { key: 'firstNo', label: '첫 연차 번호', type: 'number', value: base.firstNo || 1 }],
-    { key: 'annual', label: '연 예산 (천원)', type: 'number', value: base.annual },
+    [{ key: 'annualDirect', label: '연 직접비 (천원)', type: 'number', value: base.annualDirect },
+      { key: 'annualIndirect', label: '연 간접비 (천원)', type: 'number', value: base.annualIndirect }],
     { key: 'color', label: '색', type: 'color', value: base.color || PALETTE.find(c => !used.has(c)) || PALETTE[0] },
   ], v => {
     if (!!v.start !== !!v.end || (v.start && v.end < v.start)) return alert('시작·끝 월은 둘 다 넣고, 끝이 시작보다 늦어야 해요. 기간 없는 재원(장학·수당)이면 둘 다 비워요.');
@@ -1192,13 +1198,17 @@ function editGrant(g) {
       name: v.name.trim(), kind: v.kind, role: v.kind === '과제' ? v.role : null, emoji: v.emoji.trim() || '📁',
       full: v.full.trim() || null, title: v.title.trim() || null, no: v.no.trim() || null,
       start: v.start || null, end: v.end || null, firstNo: Math.max(1, Math.round(+v.firstNo) || 1),
-      annual: v.annual === '' ? null : +v.annual,
     });
+    const d = v.annualDirect === '' ? null : +v.annualDirect, i = v.annualIndirect === '' ? null : +v.annualIndirect;
+    const legacy = t.annualDirect == null && t.annualIndirect == null; // 합계만 있던 재원: 둘 다 비워 두면 합계는 그대로
+    Object.assign(t, { annualDirect: d, annualIndirect: i, annual: d == null && i == null ? (legacy ? t.annual ?? null : null) : (d || 0) + (i || 0) });
     if (isNew) db.grants.push(t);
     selGrant = t.id;
     selN = null;
     save();
-  }, isNew ? [] : [h('p', 'hint', '기간·첫 연차 번호를 바꾸면 연차가 다시 계산돼요. 연차별 배정액은 번호를 따라가요.'), del]);
+  }, isNew ? [] : [
+    g.annual != null && g.annualDirect == null && g.annualIndirect == null ? h('p', 'hint', `지금은 연 예산 합계 ${fmt(g.annual)}천원만 있어요. 직접비·간접비로 나눠 넣으면 그 합이 연 예산이 돼요.`) : null,
+    h('p', 'hint', '기간·첫 연차 번호를 바꾸면 연차가 다시 계산돼요. 연차별 배정액은 번호를 따라가요.'), del]);
 }
 
 function monthsPanel(g, pd) {
