@@ -554,6 +554,8 @@ function degreeSummary(p, first, last) {
   const known = parts.length > 1 ? parts.filter(x => x.d !== '과정 미정') : parts; // 과정 적기 전 학기는 빼고
   return known.map((x, i) => i ? `${x.d}(${mShort(semStart(x.s))}~)` : x.d).join(' → ');
 }
+// 재원 줄: 금액을 그 재원 색으로 (CSS --g)
+const grantRow = (k, g, ...kids) => { const tr = h('tr', k, ...kids); tr.style.setProperty('--g', g.color); return tr; };
 function grantNameCell(g) {
   const dot = h('span', 'dot');
   dot.style.setProperty('--c', g.color);
@@ -603,7 +605,7 @@ function semTable(sems, people, nData) {
     body.append(h('tr', cls('p-head', p.virtual && 'virtual'), personNameCell(p, first, last), cells, h('td', 'sum', fmtM(total))));
     for (const g of rowsOf(p, first, last)) {
       const gSum = sum(db.pays.filter(x => x.person === p.id && x.grant === g.id && between(x.month, first, last)));
-      body.append(h('tr', 'g-row', grantNameCell(g), sems.map(s => semCell(p, g, s)), h('td', 'sum', gSum ? fmtM(gSum) : '')));
+      body.append(grantRow('g-row', g, grantNameCell(g), sems.map(s => semCell(p, g, s)), h('td', 'sum', gSum ? fmtM(gSum) : '')));
     }
     body.append(addRow(p, sems.length));
   }
@@ -611,7 +613,7 @@ function semTable(sems, people, nData) {
   for (const g of sortedGrants()) {
     const xs = paysOf(g.id, first, last);
     if (!xs.length) continue;
-    foot.append(h('tr', null, grantNameCell(g),
+    foot.append(grantRow('g-foot', g, grantNameCell(g),
       sems.map(s => { const t = sum(xs.filter(x => between(x.month, semStart(s), semEnd(s)))); return h('td', s === cur ? 'now' : null, t ? fmtM(t) : ''); }),
       h('td', 'sum', fmtM(sum(xs)))));
   }
@@ -668,7 +670,7 @@ function monthTable(sems, months, people, nData) {
     body.append(h('tr', cls('p-head', p.virtual && 'virtual'), personNameCell(p, first, last), totals, h('td', 'sum', fmtM(total))));
     for (const g of rowsOf(p, first, last)) {
       const gSum = sum(db.pays.filter(x => x.person === p.id && x.grant === g.id && between(x.month, first, last)));
-      body.append(h('tr', 'g-row', grantNameCell(g), months.map(m => monthCell(p, g, m, ss(m))), h('td', 'sum', gSum ? fmtM(gSum) : '')));
+      body.append(grantRow('g-row', g, grantNameCell(g), months.map(m => monthCell(p, g, m, ss(m))), h('td', 'sum', gSum ? fmtM(gSum) : '')));
     }
     body.append(addRow(p, months.length));
   }
@@ -676,7 +678,7 @@ function monthTable(sems, months, people, nData) {
   for (const g of sortedGrants()) {
     const xs = paysOf(g.id, first, last);
     if (!xs.length) continue;
-    foot.append(h('tr', null, grantNameCell(g),
+    foot.append(grantRow('g-foot', g, grantNameCell(g),
       months.map(m => {
         const t = sum(xs.filter(x => x.month === m));
         return h('td', cls(m === NOW && 'now', ss(m) && 'ss', t && !inGrant(g, m) && 'cell out bad'), t ? fmtM(t) : '');
