@@ -572,6 +572,9 @@ tfoot td.name { background: var(--surface-2); }
 .icon-mini { flex: none; padding: 2px 3px; border: none; background: none; font-size: calc(11px * var(--fs)); opacity: 0; cursor: pointer; }
 th:hover .icon-mini, .icon-mini.on { opacity: .75; }
 .icon-mini:hover { opacity: 1; }
+.col-move { cursor: grab; color: var(--muted); user-select: none; }
+.itable th.drop-before { box-shadow: inset 3px 0 0 var(--accent); }
+.itable th.drop-after { box-shadow: inset -3px 0 0 var(--accent); }
 .itable-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 10px; }
 
 /* ---------- 서류 ---------- */

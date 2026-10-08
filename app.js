@@ -1404,7 +1404,32 @@ function tableBody(n) {
     x.title = '이 칸 지우기';
     x.onclick = () => { if (confirm(`'${c.name}' 칸을 지울까요?`)) { n.columns = n.columns.filter(y => y !== c); n.rows.forEach(r => delete r.cells[c.id]); save(); } };
     const grip = colGrip(w => { c.width = w; cols[i].style.width = `${w}px`; fit(); }, persist, 60);
-    return h('th', c.secret ? 'secret' : null, h('div', 'th-wrap', name, lock, x), grip);
+    // ↔ 를 끌어 다른 머리칸 왼쪽·오른쪽 절반에 놓으면 그 앞·뒤로 (칸 이름 입력은 그대로 쓰게 손잡이만 끌림)
+    const move = h('span', 'icon-mini col-move', '↔');
+    move.draggable = true;
+    move.title = '끌어서 열 순서 바꾸기';
+    move.ondragstart = e => { e.dataTransfer.setData('text/x-col', c.id); e.dataTransfer.effectAllowed = 'move'; };
+    const th = h('th', c.secret ? 'secret' : null, h('div', 'th-wrap', move, name, lock, x), grip);
+    const side = e => (e.clientX - th.getBoundingClientRect().left > th.offsetWidth / 2 ? 'after' : 'before');
+    const clear = () => th.classList.remove('drop-before', 'drop-after');
+    th.ondragover = e => {
+      if (!e.dataTransfer.types.includes('text/x-col')) return;
+      e.preventDefault();
+      th.classList.toggle('drop-before', side(e) === 'before');
+      th.classList.toggle('drop-after', side(e) === 'after');
+    };
+    th.ondragleave = clear;
+    th.ondrop = e => {
+      e.preventDefault();
+      clear();
+      const from = n.columns.find(y => y.id === e.dataTransfer.getData('text/x-col'));
+      if (!from || from === c) return;
+      const rest = n.columns.filter(y => y !== from);
+      rest.splice(rest.indexOf(c) + (side(e) === 'after' ? 1 : 0), 0, from);
+      n.columns = rest;
+      save();
+    };
+    return th;
   }), h('th'));
   const rows = n.rows.map(r => {
     const del = h('button', 'link-btn', '×');
@@ -1429,7 +1454,7 @@ function tableBody(n) {
   ], v => { n.columns.push({ id: uid(), name: v.name.trim(), secret: !!v.secret }); save(); });
   return h('div', 'panel',
     h('div', 'tbl-wrap', table),
-    h('div', 'itable-tools', addRow, addCol, h('span', 'hint', '머리칸 오른쪽 끝을 끌면 열 너비가 바뀌어요'),
+    h('div', 'itable-tools', addRow, addCol, h('span', 'hint', '머리칸 오른쪽 끝을 끌면 열 너비 · ↔ 를 끌면 열 순서가 바뀌어요'),
       n.columns.some(c => c.secret) ? h('span', 'hint', '🔒 칸은 가려져 보여요 (위 ‘🔓 가린 칸 보기’로 잠깐 보여요). 로그인하면 내 계정에만 저장돼요.') : null));
 }
 
