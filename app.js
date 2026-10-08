@@ -456,7 +456,16 @@ function renderPay() {
   for (const b of $('viewSeg').children) b.classList.toggle('on', b.dataset.view === payView);
   const sems = paySems();
   const months = sems.flatMap(semMonths), first = months[0], last = months.at(-1);
-  $('legend').replaceChildren(...sortedGrants().map(g => chip(g)), ...(payView === 'sem' ? [
+  // 재원 칩: 이 구간에 걸친 재원만 (기간 없는 재원은 이 구간에 인건비가 있을 때만), 누르면 그 재원 예산으로
+  const inWin = g => (g.start ? grantIn(g, first, last) : db.pays.some(x => x.grant === g.id && between(x.month, first, last)));
+  const chips = sortedGrants().filter(inWin).map(g => {
+    const c = chip(g);
+    c.classList.add('chip-link');
+    c.title = `${g.name} 예산 보기`;
+    c.onclick = () => openBudget(g.id);
+    return c;
+  });
+  $('legend').replaceChildren(...chips, ...(payView === 'sem' ? [
     h('span', null, '학생 줄 = 월 인건비 · 참여율(인건비 ÷ 기준)'),
     h('span', null, '칸을 누르면 학기 단위로 고쳐요'),
     h('span', null, h('span', 'sw out'), '과제 기간 밖'),
