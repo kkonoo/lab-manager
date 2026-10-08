@@ -2312,11 +2312,13 @@ function protocolPage(p) {
   write.onclick = () => { editKey = editing ? null : key; render(); };
   const edit = h('button', 'btn small', '이름·묶음');
   edit.onclick = () => editProtocol(p);
+  const del = h('button', 'btn danger small proto-del', '지우기');
+  del.onclick = () => { if (removeProtocol(p)) save(); };
   const print = h('button', 'btn small', '🖨 인쇄 / PDF');
   print.title = '실험대에 두고 볼 수 있게 A4로 인쇄해요 (인쇄 창에서 PDF로 저장도 돼요)';
   print.onclick = () => printProtocol(p);
   const head = h('div', 'panel-head proto-title', h('h2', null, p.name), g ? h('span', 'tag', g.name) : null, p.memo ? h('span', 'hint', p.memo) : null,
-    p.updatedAt ? h('span', 'hint', `고친 날 ${p.updatedAt.slice(2).replaceAll('-', '.')}`) : null, h('span', 'spacer'), print, write, edit);
+    p.updatedAt ? h('span', 'hint', `고친 날 ${p.updatedAt.slice(2).replaceAll('-', '.')}`) : null, h('span', 'spacer'), print, write, edit, del);
   let body;
   if (editing) {
     body = h('textarea', 'ov-edit');
@@ -2414,17 +2416,19 @@ const PROTO_TEMPLATE = [
   '- 키트 매뉴얼·논문 링크는 그대로 붙여 넣어요',
   '- **굵게** 쓰려면 별표 두 개로 감싸요',
 ].join('\n');
+// 프로토콜 지우기 (물어보고). 재료로 이어 둔 품목은 재고에 그대로 남고 연결만 끊김
+function removeProtocol(p) {
+  if (!confirm(`'${p.name}'을(를) 지울까요? 재료(품목)는 재고에 그대로 남아요.`)) return false;
+  for (const it of db.stock.items) if (it.protocols) it.protocols = it.protocols.filter(x => x !== p.id);
+  db.stock.protocols = db.stock.protocols.filter(x => x !== p);
+  selProto = null;
+  return true;
+}
 function editProtocol(p, group) {
   const del = p ? h('button', 'btn danger small', '이 프로토콜 지우기') : null;
   if (del) {
     del.type = 'button';
-    del.onclick = () => {
-      if (!confirm(`'${p.name}'을(를) 지울까요? 재료(품목)는 재고에 그대로 남아요.`)) return;
-      for (const it of db.stock.items) if (it.protocols) it.protocols = it.protocols.filter(x => x !== p.id);
-      db.stock.protocols = db.stock.protocols.filter(x => x !== p);
-      selProto = null;
-      dlg.close(); save();
-    };
+    del.onclick = () => { if (removeProtocol(p)) { dlg.close(); save(); } };
   }
   ask(p ? '프로토콜 고치기' : '새 프로토콜', [
     { key: 'name', label: '이름', value: p?.name ?? '', required: true, placeholder: '예: 라이브러리 제작' },
