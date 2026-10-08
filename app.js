@@ -47,6 +47,8 @@ document.documentElement.classList.toggle('touch', navigator.maxTouchPoints > 0 
 // 색 고르기 기본 팔레트 10색 (빨강→주황→노랑→초록→민트→하늘→파랑→보라→분홍→회색, 그 밖의 색은 + 로).
 // 예전 10색은 순서대로 붙어 있던 색을 그대로 두는 데만 씀
 const PALETTE = ['#E89B91', '#EFBB93', '#EFD487', '#A8CB95', '#92CDB9', '#94CCDD', '#95B6EC', '#B39BE9', '#E8A9C6', '#9DA5B0'];
+const palette = () => db.palette || PALETTE; // 색 고르기 팔레트: + 로 넣고 길게 눌러 뺌 (db.palette)
+const newColor = (used = []) => { const p = palette().length ? palette() : PALETTE; return p.find(c => !used.includes(c)) || p[0]; }; // 새로 만들 때 안 쓴 색부터
 const OLD_PALETTE = ['#5B9BEA', '#F0727A', '#2BB39A', '#9D7BE0', '#E8B10C', '#8B93A1', '#F08A4B', '#D46FB0', '#4FB3D9', '#B39B7A'];
 const KEY = 'lab-manager', OLD_KEYS = ['lab-admin', 'lab-admin-mockup'], VERSION = 3;
 function fresh() {
@@ -860,28 +862,53 @@ function removePerson(pid) {
 // ---------- 입력 창 ----------
 const dlg = $('dlg');
 function field(f) {
-  if (f.type === 'color') { // 색: 팔레트 10색 (+ 팔레트에 없는 지금 색) 중 하나 (라디오 — 안 골랐으면 값이 안 넘어감 → 그대로), 끝의 + 로 원하는 색
+  if (f.type === 'color') { // 색: 팔레트 (+ 팔레트에 없는 지금 색) 중 하나 (라디오 — 안 골랐으면 값이 안 넘어감 → 그대로)
+    // 끝의 + = 원하는 색을 팔레트에 넣기, 팔레트 색을 길게 누르면(PC는 오른쪽 클릭) 팔레트에서 빼기
     const box = h('div', 'swatches'), same = (a, b) => a.toLowerCase() === b.toLowerCase();
-    const plus = h('label', 'swatch swatch-add', '+'), picker = h('input');
-    picker.type = 'color';
-    picker.title = '원하는 색 고르기';
-    plus.append(picker);
-    const swatch = c => {
-      const old = [...box.querySelectorAll('input[type=radio]')].find(r => same(r.value, c));
-      if (old) return old;
-      const r = h('input');
-      r.type = 'radio';
-      r.name = f.key;
-      r.value = c;
-      const l = h('label', 'swatch', r);
-      l.style.setProperty('--c', c);
-      box.insertBefore(l, plus);
-      return r;
+    let sel = f.value || '', skipClick = false;
+    box.addEventListener('click', e => { if (skipClick) { e.preventDefault(); e.stopPropagation(); skipClick = false; } }, true); // 길게 누른 뒤 손 떼면 고르지 않음
+    const hold = (el, fn) => {
+      let timer = 0, done = false;
+      const go = () => { clearTimeout(timer); if (!done) { done = true; skipClick = true; fn(); } };
+      el.addEventListener('pointerdown', e => { done = false; if (e.pointerType !== 'mouse') timer = setTimeout(go, 550); });
+      for (const t of ['pointerup', 'pointercancel', 'pointerleave']) el.addEventListener(t, () => clearTimeout(timer));
+      el.addEventListener('contextmenu', e => { e.preventDefault(); go(); });
     };
-    box.append(plus);
-    for (const c of [...PALETTE, f.value].filter(Boolean)) swatch(c);
-    if (f.value) swatch(f.value).checked = true;
-    picker.onchange = () => { swatch(picker.value.toUpperCase()).checked = true; };
+    const draw = () => {
+      const cs = [...palette()];
+      if (sel && !cs.some(c => same(c, sel))) cs.push(sel);
+      const plus = h('label', 'swatch swatch-add', '+'), picker = h('input');
+      picker.type = 'color';
+      picker.title = '원하는 색을 팔레트에 넣기';
+      picker.onchange = () => {
+        const c = picker.value.toUpperCase();
+        if (!palette().some(x => same(x, c))) { db.palette = [...palette(), c]; persist(); }
+        sel = c;
+        draw();
+      };
+      plus.append(picker);
+      box.replaceChildren(...cs.map(c => {
+        const r = h('input');
+        r.type = 'radio';
+        r.name = f.key;
+        r.value = c;
+        r.checked = same(c, sel);
+        r.onchange = () => { sel = c; };
+        const l = h('label', 'swatch', r);
+        l.style.setProperty('--c', c);
+        if (palette().some(x => same(x, c))) {
+          l.title = '길게 누르면 팔레트에서 빼기';
+          hold(l, () => {
+            if (!confirm('이 색을 팔레트에서 지울까요?\n이미 이 색을 쓰는 재원·묶음은 그대로예요.')) return;
+            db.palette = palette().filter(x => !same(x, c));
+            persist();
+            draw();
+          });
+        }
+        return l;
+      }), plus);
+    };
+    draw();
     return h('div', 'field', f.label, box);
   }
   let input;
@@ -1264,10 +1291,10 @@ function editGrant(g) {
       { key: 'firstNo', label: '첫 연차 번호', type: 'number', value: base.firstNo || 1 }],
     [{ key: 'annualDirect', label: '연 직접비 (천원)', type: 'number', value: base.annualDirect },
       { key: 'annualIndirect', label: '연 간접비 (천원)', type: 'number', value: base.annualIndirect }],
-    { key: 'color', label: '색', type: 'color', value: base.color || PALETTE.find(c => !used.has(c)) || PALETTE[0] },
+    { key: 'color', label: '색', type: 'color', value: base.color || newColor([...used]) },
   ], v => {
     if (!!v.start !== !!v.end || (v.start && v.end < v.start)) return alert('시작·끝 월은 둘 다 넣고, 끝이 시작보다 늦어야 해요. 기간 없는 재원(장학·수당)이면 둘 다 비워요.');
-    const t = g || { id: uid(), color: PALETTE.find(c => !used.has(c)) || PALETTE[0], periods: {} };
+    const t = g || { id: uid(), color: newColor([...used]), periods: {} };
     if (v.color) t.color = v.color;
     Object.assign(t, {
       name: v.name.trim(), kind: v.kind, role: v.kind === '과제' ? v.role : null, emoji: v.emoji.trim() || '📁',
@@ -1514,7 +1541,7 @@ function renderInfo() {
   }
   const addCat = h('button', 'cat-new', '+ 묶음');
   addCat.onclick = () => ask('묶음 추가', [{ key: 'name', label: '이름', required: true }], v => {
-    cats.push({ id: uid(), name: v.name.trim(), color: PALETTE.find(c => !cats.some(x => x.color === c)) || PALETTE[0], open: true });
+    cats.push({ id: uid(), name: v.name.trim(), color: newColor(cats.map(x => x.color)), open: true });
     save();
   });
   $('noteList').replaceChildren(h('h2', 'note-list-title', '정보'), ...list, addCat);
@@ -1750,7 +1777,7 @@ function editDocGroup(g) {
     };
     extra.push(h('p', null, del, fs.length && others.length ? [` 안의 서류 ${fs.length}개는 `, to, ' 묶음으로'] : null));
   } else extra = [h('p', 'hint', '만든 뒤 서류 화면 위의 묶음 칸에서 이 묶음을 고르면 서류가 옮겨져요.')];
-  const color = g?.color || PALETTE[docGroups().length % PALETTE.length];
+  const color = g?.color || newColor(docGroups().map(x => x.color));
   ask(g ? '서류 묶음' : '새 서류 묶음', [{ key: 'name', label: '이름', value: g?.gname ?? '', required: true },
     { key: 'color', label: '색', type: 'color', value: color }], v => {
     const gid = g?.gid || uid();
@@ -2418,7 +2445,7 @@ function renderProtocol() {
     const head = h('div', 'cat-head', h('span', 'caret', shut ? '▸' : '▾'), h('span', 'cat-name', g.name), h('span', 'cat-count', String(ps.length)), add);
     head.style.setProperty('--c', g.color || PALETTE[(gi + 3) % PALETTE.length]);
     head.title = '누르면 접기·펴기 · 끌어서 순서 바꾸기 · 길게 누르거나 ✎ 로 이름·색 바꾸기';
-    groupEditable(head, () => editProtoGroup(g, gi));
+    groupEditable(head, () => editProtoGroup(g));
     dragReorder(head, g.id, S.protoGroups.map(x => x.id), ids => {
       S.protoGroups.forEach((x, i) => { x.color ||= PALETTE[(i + 3) % PALETTE.length]; }); // 순서대로 붙던 색은 그대로 두고
       S.protoGroups = byIds(S.protoGroups, ids);
@@ -2533,7 +2560,7 @@ function printProtocol(p) {
   addEventListener('afterprint', done);
   window.print();
 }
-function editProtoGroup(g, gi = db.stock.protoGroups.length) {
+function editProtoGroup(g) {
   const n = g ? db.stock.protocols.filter(p => p.group === g.id).length : 0;
   const del = g ? h('button', 'btn danger small', '이 묶음 지우기') : null;
   if (del) {
@@ -2543,7 +2570,7 @@ function editProtoGroup(g, gi = db.stock.protoGroups.length) {
     del.onclick = () => { db.stock.protoGroups = db.stock.protoGroups.filter(x => x !== g); dlg.close(); save(); };
   }
   ask(g ? '프로토콜 묶음 고치기' : '새 프로토콜 묶음', [{ key: 'name', label: '이름', value: g?.name ?? '', required: true, placeholder: '예: NGS, 세포 배양' },
-    { key: 'color', label: '색', type: 'color', value: g?.color || PALETTE[(gi + 3) % PALETTE.length] }], v => {
+    { key: 'color', label: '색', type: 'color', value: g?.color || newColor(db.stock.protoGroups.map(x => x.color)) }], v => {
     const t = g || { id: uid() };
     t.name = v.name.trim();
     if (v.color) t.color = v.color;
@@ -2839,7 +2866,7 @@ function editStockCat(c) {
   ask(c ? '묶음 고치기' : '새 묶음', [
     { key: 'name', label: '이름', value: c?.name ?? '', required: true, placeholder: '예: 항체' },
     { key: 'equip', label: '중앙구매 기준', type: 'select', options: [['', `소모품·시약 (${fmtM(centralAt(NOW).other)}만원 초과)`], ['1', `장비·비품 (${fmtM(centralAt(NOW).equip)}만원 초과)`]], value: c?.equip ? '1' : '' },
-    { key: 'color', label: '색', type: 'color', value: c ? catColor(c.id) : PALETTE[db.stock.cats.length % PALETTE.length] },
+    { key: 'color', label: '색', type: 'color', value: c ? catColor(c.id) : newColor(db.stock.cats.map(x => x.color)) },
   ], v => {
     const t = c || { id: uid() };
     t.name = v.name.trim();

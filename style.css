@@ -556,7 +556,7 @@ tfoot td.name { background: var(--surface-2); }
 .cat-head:hover .cat-edit { opacity: 1; }
 .cat-edit:hover { background: color-mix(in srgb, var(--c) 30%, transparent); color: var(--text); }
 .touch .cat-edit { display: none; } /* 터치 화면은 길게 누르기로 */
-.swatches { display: flex; flex-wrap: wrap; gap: 10px; padding: 4px; }
+.swatches { display: flex; flex-wrap: wrap; gap: 10px; padding: 4px; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 .swatch { position: relative; width: 32px; height: 32px; border-radius: 50%; background: var(--c); cursor: pointer; }
 .swatch input { position: absolute; opacity: 0; pointer-events: none; }
 .swatch:has(input:checked) { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--text); }
