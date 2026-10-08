@@ -116,7 +116,8 @@ async function start() {
     }
   }
   function listen(name, q, keyOf) {
-    unsubs.push(F.onSnapshot(q, snap => {
+    // includeMetadataChanges: 기기 캐시에 이미 있는 값이 먼저 오고 서버 값이 같으면, 이게 없을 땐 '서버에서 받음'이 안 와서 whenLoaded가 영영 안 불림
+    unsubs.push(F.onSnapshot(q, { includeMetadataChanges: true }, snap => {
       let changed = false;
       const changes = snap.docChanges ? snap.docChanges() : [{ type: snap.exists() ? 'modified' : 'removed', doc: snap }];
       for (const ch of changes) {
