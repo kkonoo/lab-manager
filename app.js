@@ -2268,21 +2268,51 @@ function stockCatPanel(c) {
 let selProto = null;
 const protoItems = p => db.stock.items.filter(it => it.protocols?.includes(p.id));
 const protoOf = id => db.stock.protocols.find(p => p.id === id);
+// 묶음 안 순서 = p.order (끌어서 바꾸면 매김), 없으면 들어온 순서. 프로토콜은 한 건씩 따로 저장돼서 배열 순서는 기기마다 다를 수 있음
+const protoKey = p => p.order ?? db.stock.protocols.indexOf(p);
+const protosIn = gid => db.stock.protocols.filter(p => p.group === gid).sort((a, b) => protoKey(a) - protoKey(b));
+// 프로토콜을 gid 묶음의 target 앞·뒤로 (target 없으면 맨 끝) 옮기고 그 묶음 순서를 다시 매김
+function moveProto(m, gid, target = null, where = 'after') {
+  if (m === target) return;
+  const list = protosIn(gid).filter(x => x !== m);
+  list.splice(target ? list.indexOf(target) + (where === 'after' ? 1 : 0) : list.length, 0, m);
+  m.group = gid;
+  list.forEach((x, i) => { x.order = i; });
+  save();
+}
 function renderProtocol() {
   const S = db.stock, folded = new Set(layout.protoFold || []); // 접은 묶음 (이 브라우저에만)
   if (!protoOf(selProto)) selProto = S.protocols[0]?.id ?? null;
   const row = p => {
     const items = protoItems(p), need = items.filter(it => it.need).length;
     const b = h('button', cls('note-row', p.id === selProto && 'on'), h('span', 'note-emoji', '🧪'), h('span', 'note-title', p.name), h('span', 'note-meta', need ? `살 것 ${need}` : String(items.length)));
-    b.title = `재료 ${items.length}개${need ? ` · 살 것 ${need}` : ''}`;
+    b.title = `재료 ${items.length}개${need ? ` · 살 것 ${need}` : ''} · 끌어서 순서 바꾸기·다른 묶음으로 옮기기`;
     b.onclick = () => { selProto = p.id; editKey = null; render(); };
+    // 다른 프로토콜 위쪽·아래쪽 절반에 놓으면 그 앞·뒤로 (묶음이 다르면 그 묶음으로)
+    b.draggable = true;
+    b.ondragstart = e => { e.dataTransfer.setData('text/x-proto', p.id); e.dataTransfer.effectAllowed = 'move'; };
+    const side = e => (e.clientY - b.getBoundingClientRect().top > b.offsetHeight / 2 ? 'after' : 'before');
+    const clear = () => b.classList.remove('drop-before', 'drop-after');
+    b.ondragover = e => {
+      if (!e.dataTransfer.types.includes('text/x-proto') || !S.protoGroups.some(g => g.id === p.group)) return;
+      e.preventDefault();
+      b.classList.toggle('drop-before', side(e) === 'before');
+      b.classList.toggle('drop-after', side(e) === 'after');
+    };
+    b.ondragleave = clear;
+    b.ondrop = e => {
+      e.preventDefault();
+      clear();
+      const m = protoOf(e.dataTransfer.getData('text/x-proto'));
+      if (m) moveProto(m, p.group, p, side(e));
+    };
     return b;
   };
   const list = S.protoGroups.flatMap((g, gi) => {
-    const ps = S.protocols.filter(p => p.group === g.id), shut = folded.has(g.id);
+    const ps = protosIn(g.id), shut = folded.has(g.id);
     const add = h('button', 'cat-add', '+');
     add.title = '이 묶음에 새 프로토콜';
-    add.onclick = e => { e.stopPropagation(); editProtocol(null, g.id); };
+    add.onclick = e => { e.stopPropagation(); newProtocol(g.id); };
     const head = h('div', 'cat-head', h('span', 'caret', shut ? '▸' : '▾'), h('span', 'cat-name', g.name), h('span', 'cat-count', String(ps.length)), add);
     head.style.setProperty('--c', g.color || PALETTE[(gi + 3) % PALETTE.length]);
     head.title = '누르면 접기·펴기 · 끌어서 순서 바꾸기 · 길게 누르거나 ✎ 로 이름·색 바꾸기';
@@ -2293,6 +2323,14 @@ function renderProtocol() {
       save();
     });
     head.onclick = () => { if (shut) folded.delete(g.id); else folded.add(g.id); layout.protoFold = [...folded]; saveLayout(); render(); };
+    // 프로토콜을 묶음 막대에 놓으면 그 묶음 맨 끝으로 (묶음 순서 끌기와 따로)
+    head.addEventListener('dragover', e => { if (e.dataTransfer.types.includes('text/x-proto')) { e.preventDefault(); head.classList.add('drop-into'); } });
+    head.addEventListener('dragleave', () => head.classList.remove('drop-into'));
+    head.addEventListener('drop', e => {
+      head.classList.remove('drop-into');
+      const m = protoOf(e.dataTransfer.getData('text/x-proto'));
+      if (m) { e.preventDefault(); moveProto(m, g.id); }
+    });
     return shut ? [head] : [head, ...ps.map(row)];
   });
   const orphans = S.protocols.filter(p => !S.protoGroups.some(g => g.id === p.group)); // 묶음이 없어진 프로토콜
@@ -2310,15 +2348,31 @@ function protocolPage(p) {
   const key = `pn:${p.id}`, editing = editKey === key;
   const write = h('button', cls('btn small', editing && 'primary'), editing ? '다 썼어요' : '본문 편집');
   write.onclick = () => { editKey = editing ? null : key; render(); };
-  const edit = h('button', 'btn small', '이름·묶음');
-  edit.onclick = () => editProtocol(p);
   const del = h('button', 'btn danger small proto-del', '지우기');
   del.onclick = () => { if (removeProtocol(p)) save(); };
   const print = h('button', 'btn small', '🖨 인쇄 / PDF');
   print.title = '실험대에 두고 볼 수 있게 A4로 인쇄해요 (인쇄 창에서 PDF로 저장도 돼요)';
   print.onclick = () => printProtocol(p);
-  const head = h('div', 'panel-head proto-title', h('h2', null, p.name), g ? h('span', 'tag', g.name) : null, p.memo ? h('span', 'hint', p.memo) : null,
-    p.updatedAt ? h('span', 'hint', `고친 날 ${p.updatedAt.slice(2).replaceAll('-', '.')}`) : null, h('span', 'spacer'), print, write, edit, del);
+  // 제목·한 줄 메모는 눌러서 바로 고침, 묶음은 고르는 칸으로 옮김 (폰에선 목록 끌기가 안 돼서)
+  const touched = () => { p.updatedAt = isoToday(); save(); };
+  const enterBlur = e => { if (e.key === 'Enter' && !e.isComposing) e.target.blur(); };
+  const title = h('input', 'note-title-input proto-name');
+  title.value = p.name;
+  title.title = '눌러서 이름 고치기';
+  title.onkeydown = enterBlur;
+  title.onchange = () => { p.name = title.value.trim() || p.name; touched(); };
+  const grp = h('select', 'note-cat', [g ? null : Object.assign(h('option', null, '묶음 없음'), { value: '', selected: true }),
+    ...S.protoGroups.map(x => Object.assign(h('option', null, x.name), { value: x.id, selected: x.id === p.group }))]);
+  grp.title = '묶음 옮기기';
+  grp.onchange = () => { if (grp.value) moveProto(p, grp.value); };
+  const memo = h('input', 'proto-memo');
+  memo.value = p.memo || '';
+  memo.placeholder = '한 줄 메모';
+  memo.title = '눌러서 메모 고치기 (예: 키트 버전, 샘플 8개 기준)';
+  memo.onkeydown = enterBlur;
+  memo.onchange = () => { p.memo = memo.value.trim() || undefined; touched(); };
+  const head = h('div', 'panel-head proto-title', title, grp, memo,
+    p.updatedAt ? h('span', 'hint', `고친 날 ${p.updatedAt.slice(2).replaceAll('-', '.')}`) : null, h('span', 'spacer'), print, write, del);
   let body;
   if (editing) {
     body = h('textarea', 'ov-edit');
@@ -2424,22 +2478,20 @@ function removeProtocol(p) {
   selProto = null;
   return true;
 }
-function editProtocol(p, group) {
-  const del = p ? h('button', 'btn danger small', '이 프로토콜 지우기') : null;
-  if (del) {
-    del.type = 'button';
-    del.onclick = () => { if (removeProtocol(p)) { dlg.close(); save(); } };
-  }
-  ask(p ? '프로토콜 고치기' : '새 프로토콜', [
-    { key: 'name', label: '이름', value: p?.name ?? '', required: true, placeholder: '예: 라이브러리 제작' },
-    { key: 'group', label: '묶음', type: 'select', options: db.stock.protoGroups.map(g => [g.id, g.name]), value: p?.group ?? group },
-    { key: 'memo', label: '한 줄 메모', value: p?.memo ?? '', placeholder: '예: 키트 버전, 샘플 8개 기준' },
+// 새 프로토콜: 본문은 틀을 채워 바로 쓰기 (이름·메모·묶음은 나중에 프로토콜 화면 위에서 바로 고침)
+function newProtocol(group) {
+  ask('새 프로토콜', [
+    { key: 'name', label: '이름', required: true, placeholder: '예: 라이브러리 제작' },
+    { key: 'group', label: '묶음', type: 'select', options: db.stock.protoGroups.map(g => [g.id, g.name]), value: group },
+    { key: 'memo', label: '한 줄 메모', placeholder: '예: 키트 버전, 샘플 8개 기준' },
   ], v => {
-    const t = p || { id: uid(), updatedAt: isoToday() };
-    Object.assign(t, { name: v.name.trim(), group: v.group, memo: v.memo.trim() || undefined });
-    if (!p) { t.note = PROTO_TEMPLATE; db.stock.protocols.push(t); selProto = t.id; editKey = `pn:${t.id}`; } // 새로 만들면 틀을 채워 바로 본문 쓰기
+    const last = protosIn(v.group).at(-1);
+    const t = { id: uid(), updatedAt: isoToday(), name: v.name.trim(), group: v.group, memo: v.memo.trim() || undefined, note: PROTO_TEMPLATE, order: last ? protoKey(last) + 1 : 0 };
+    db.stock.protocols.push(t);
+    selProto = t.id;
+    editKey = `pn:${t.id}`;
     save();
-  }, del ? [h('p', null, del)] : []);
+  });
 }
 
 // ---- 보관 위치 지도: 위치 하나 = 색 칸 하나(선 그림 + 품목 칩). 누르면 그곳만 진하게, 칩을 끌어 다른 칸에 놓으면 위치가 바뀜 ----
