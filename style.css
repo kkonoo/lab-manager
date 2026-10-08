@@ -92,6 +92,7 @@ body[data-tab="info"] #tab-info, body[data-tab="docs"] #tab-docs, body[data-tab=
   background: var(--surface); box-shadow: var(--shadow);
 }
 .panel-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+.panel-head h2 { flex-shrink: 0; white-space: nowrap; } /* 옆 안내 문구가 길어도 제목은 한 줄 */
 .panel-head.plain { margin: 22px 2px 10px; }
 .dot { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
 .chip {
@@ -399,6 +400,13 @@ tfoot td.name { background: var(--surface-2); }
 .tbl input.inline.wide { width: 100px; }
 .tbl input.inline.name { width: auto; min-width: 90px; max-width: 240px; field-sizing: content; margin-left: -7px; font: inherit; text-align: left; color: inherit; }
 .tbl.lines th { position: relative; }
+.line-name { display: flex; align-items: center; gap: 2px; }
+.line-name input.inline.name { flex: 1; margin-left: 0; }
+.line-move { flex: none; padding: 0 3px; color: var(--muted); cursor: grab; user-select: none; opacity: 0; }
+.tbl.lines tr:hover .line-move { opacity: .75; }
+@media (hover: none) { .line-move { display: none; } }
+.tbl.lines tr.drop-before td { box-shadow: inset 0 2px 0 var(--accent); }
+.tbl.lines tr.drop-after td { box-shadow: inset 0 -2px 0 var(--accent); }
 .tbl.lines.fixed { table-layout: fixed; }
 .tbl.lines.fixed td { overflow: hidden; text-overflow: ellipsis; }
 .tbl.lines.fixed .memo { max-width: none; }

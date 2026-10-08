@@ -983,7 +983,6 @@ for (const b of $('viewSeg').children) b.onclick = () => setPayView(b.dataset.vi
 // ---------- 재원별 예산 (천원) ----------
 const CATS = ['연구활동비', '연구재료비', '연구시설·장비비', '연구수당', '위탁연구개발비', '국제공동연구개발비', '기타', '간접비'];
 const CAT_COLOR = { 인건비: '#F08A4B', 연구활동비: '#5B9BEA', 연구재료비: '#2BB39A', '연구시설·장비비': '#9D7BE0', 연구수당: '#E8B10C', 위탁연구개발비: '#F0727A', 국제공동연구개발비: '#D46FB0', 기타: '#8B93A1', 간접비: '#B39B7A', 미지정: '#C9C5BB' };
-const STATUS = ['계획', '집행중', '완료'];
 const KINDS = ['과제', 'BK21', '기타'];
 const PALETTE = ['#5B9BEA', '#F0727A', '#2BB39A', '#9D7BE0', '#E8B10C', '#8B93A1', '#F08A4B', '#D46FB0', '#4FB3D9', '#B39B7A'];
 
@@ -1243,7 +1242,8 @@ function monthsPanel(g, pd) {
 
 // 세목 예산 표: 머리칸 오른쪽 끝을 끌면 열 너비 (처음 끌 때 지금 너비를 다 적어 두고 고정 너비로, layout.lineColW — 이 브라우저에만)
 function linesTable(...parts) {
-  const heads = [['항목'], ['세목'], ['계획', 'r'], ['집행', 'r'], ['상태'], ['메모'], ['']];
+  const heads = [['항목'], ['세목'], ['계획', 'r'], ['집행', 'r'], ['메모'], ['']];
+  if (layout.lineColW?.length !== heads.length) delete layout.lineColW; // 열이 바뀐 뒤의 예전 너비는 버림
   const table = h('table', cls('tbl lines', layout.lineColW && 'fixed'));
   const cols = heads.map((_, i) => { const c = h('col'); if (layout.lineColW) c.style.width = `${layout.lineColW[i]}px`; return c; });
   const fit = () => { table.style.width = `${sum(layout.lineColW, w => w)}px`; };
@@ -1294,13 +1294,36 @@ function linesPanel(g, pd) {
     const name = h('input', 'inline name'); // 항목 이름도 바로 고침
     name.value = l.name;
     name.onchange = () => { l.name = name.value.trim() || l.name; save(); };
-    return h('tr', null,
-      h('td', null, name),
+    // ≡ 를 끌어 다른 줄 위쪽·아래쪽 절반에 놓으면 그 앞·뒤로 (db.lines 순서 = 보이는 순서)
+    const move = h('span', 'line-move', '≡');
+    move.draggable = true;
+    move.title = '끌어서 순서 바꾸기';
+    const tr = h('tr', null,
+      h('td', null, h('div', 'line-name', move, name)),
       h('td', null, sel([['', '세목 ?'], ...CATS.map(c => [c, c])], l.cat, v => { l.cat = v || null; save(); }, l.cat ? null : 'no-cat')),
       h('td', 'r', num(l.plan, v => { l.plan = v; save(); })),
       h('td', 'r', num(l.spent, v => { l.spent = v; save(); }), fromOrders),
-      h('td', null, sel(STATUS.map(s => [s, s]), l.status || '계획', v => { l.status = v; save(); })),
       memo, h('td', null, del));
+    move.ondragstart = e => { e.dataTransfer.setData('text/x-line', l.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setDragImage(tr, 16, 16); };
+    const side = e => (e.clientY - tr.getBoundingClientRect().top > tr.offsetHeight / 2 ? 'after' : 'before');
+    const clear = () => tr.classList.remove('drop-before', 'drop-after');
+    tr.ondragover = e => {
+      if (!e.dataTransfer.types.includes('text/x-line')) return;
+      e.preventDefault();
+      tr.classList.toggle('drop-before', side(e) === 'before');
+      tr.classList.toggle('drop-after', side(e) === 'after');
+    };
+    tr.ondragleave = clear;
+    tr.ondrop = e => {
+      e.preventDefault();
+      clear();
+      const from = lineOf(e.dataTransfer.getData('text/x-line'));
+      if (!from || from === l) return;
+      db.lines = db.lines.filter(x => x !== from);
+      db.lines.splice(db.lines.indexOf(l) + (side(e) === 'after' ? 1 : 0), 0, from);
+      save();
+    };
+    return tr;
   });
   const add = h('button', 'btn small', '+ 항목');
   add.onclick = () => ask(`${g.name} ${pd.n}차년도 — 예산 항목`, [
@@ -1309,10 +1332,10 @@ function linesPanel(g, pd) {
     { key: 'plan', label: '계획액 (천원)', type: 'number', required: true },
     { key: 'memo', label: '메모' },
   ], v => { db.lines.push({ id: uid(), grant: g.id, n: pd.n, name: v.name.trim(), cat: v.cat || null, subs: [], plan: +v.plan, memo: v.memo }); save(); });
-  return h('div', 'panel', h('div', 'panel-head', h('h2', null, '세목 예산'), h('span', 'hint', '천원 · 항목·계획·집행·상태는 바로 고쳐져요 · 집행엔 재고 탭 주문이 더해져요 · 머리칸 끝을 끌면 열 너비')),
+  return h('div', 'panel', h('div', 'panel-head', h('h2', null, '세목 예산'), h('span', 'hint', '천원 · 항목·계획·집행은 바로 고쳐져요 · 집행엔 재고 탭 주문이 더해져요 · ≡ 를 끌면 순서, 머리칸 끝을 끌면 열 너비')),
     lines.length ? h('div', 'tbl-wrap', linesTable(
       h('tbody', null, body),
-      h('tfoot', null, h('tr', null, h('td', null, '합계'), h('td'), h('td', 'r', fmt(sum(lines, l => l.plan))), h('td', 'r', fmt(sum(lines, lineSpent))), h('td'), h('td'), h('td')))))
+      h('tfoot', null, h('tr', null, h('td', null, '합계'), h('td'), h('td', 'r', fmt(sum(lines, l => l.plan))), h('td', 'r', fmt(sum(lines, lineSpent))), h('td'), h('td')))))
       : h('p', 'hint', '아직 항목이 없어요.'),
     h('div', null, add));
 }
