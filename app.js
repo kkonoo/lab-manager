@@ -2457,12 +2457,12 @@ function accountPanel() {
   const c = window.cloud;
   if (!c) return null;
   const btn = (label, fn, k = 'btn small') => { const b = h('button', k, label); b.type = 'button'; b.onclick = () => { dlg.close(); fn(); }; return b; };
-  if (!c.user) return h('div', 'set-box', h('b', null, '계정'), h('p', 'hint', '구글로 로그인하면 PC·폰에서 같은 데이터를 보고, 랩 멤버(학생)와 재고를 같이 써요.'), h('div', 'set-btns', btn('구글로 로그인', c.login, 'btn small primary')));
+  if (!c.user) return h('div', 'set-box', h('b', null, '계정'), h('p', 'hint', '구글로 로그인하면 PC·폰에서 같은 데이터를 보고, 랩 멤버(학생)와 프로토콜·재고를 같이 써요.'), h('div', 'set-btns', btn('구글로 로그인', c.login, 'btn small primary')));
   return h('div', 'set-box', h('b', null, '계정'),
-    h('p', 'hint', `${c.user.email} · 자동 동기화${isMember() ? ` · ${db.member.labName} 랩 멤버 (재고만 보여요)` : ''}`),
+    h('p', 'hint', `${c.user.email} · 자동 동기화${isMember() ? ` · ${db.member.labName} 랩 멤버 (프로토콜·재고만 보여요)` : ''}`),
     h('div', 'set-btns', btn('로그아웃', c.logout)), isMember() ? null : labMembersBox());
 }
-// 랩 멤버: 학생 구글 이메일. 그 계정으로 로그인하면 재고 탭만 보임 (보안 규칙이 이 목록으로 막음)
+// 랩 멤버: 학생 구글 이메일. 그 계정으로 로그인하면 프로토콜·재고 탭만 보임 (보안 규칙이 이 목록으로 막음)
 function labMembersBox() {
   const box = h('div', 'members');
   const draw = () => {
@@ -2489,7 +2489,7 @@ function labMembersBox() {
         return h('div', 'member', h('span', null, e), x);
       }),
       h('div', 'member-add', inp, plus),
-      h('p', 'hint', '학생이 이 주소에서 그 구글 계정으로 로그인하면 재고 탭만 보여요 (품목·살 것·주문·받음). 과제·인건비·정보·서류와 주문의 재원은 안 보여요.'));
+      h('p', 'hint', '학생이 이 주소에서 그 구글 계정으로 로그인하면 프로토콜·재고 탭만 보여요 (프로토콜·품목·살 것·주문·받음). 과제·인건비·정보·서류와 주문의 재원은 안 보여요.'));
   };
   draw();
   return box;
