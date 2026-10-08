@@ -120,7 +120,7 @@ function degreeAt(p, m) {
 // 기준(기준 인건비·중앙구매)은 시행 월부터 바뀜: db.rateHist / db.centralHist = [{ from: 'YYYY-MM', v }]
 // 첫 기록 전 달은 db.rates / db.central (처음 기준). 기준을 바꿔도 지난 달 참여율·주문 판단은 그때 기준대로
 const histAt = (base, hist, m) => (hist || []).filter(x => x.from <= m).sort((a, b) => a.from.localeCompare(b.from)).at(-1)?.v ?? base;
-const ratesAt = m => histAt(db.rates, db.rateHist, m);
+const ratesAt = m => ({ ...db.rates, ...histAt(db.rates, db.rateHist, m) }); // 나중에 생긴 과정(포닥)은 기록에 없으면 처음 기준에서
 const centralAt = m => histAt(db.central, db.centralHist, m);
 const rateAt = (p, m) => { const d = degreeAt(p, m); return d ? ratesAt(m)[d] : null; };
 const partRate = (v, rate) => Math.round(v / rate * 100); // 참여율 = 인건비 ÷ 기준 인건비
@@ -138,15 +138,19 @@ function periods(g) {
 }
 const periodAt = (g, m) => periods(g).find(p => between(m, p.from, p.to)) || null;
 const inGrant = (g, m) => !g.start || between(m, g.start, g.end);
+const grantIn = (g, from, to) => !g.start || (g.start <= to && g.end >= from); // 그 구간에 걸친 재원 (기간 없는 재원은 늘)
 const paysOf = (gid, from, to) => db.pays.filter(x => x.grant === gid && shown(x) && between(x.month, from, to));
 const linesOf = (gid, n) => db.lines.filter(l => l.grant === gid && l.n === n);
 const lineOf = id => db.lines.find(l => l.id === id);
 const ordersOf = lid => db.orders.filter(o => o.line === lid);
 const lineSpent = l => (+l.spent || 0) + sum(ordersOf(l.id)); // 집행 = 직접 적은 값 + 재고 탭에서 이 항목으로 낸 주문
+// 포닥은 학생인건비가 아니라 인건비 비목 → 계상액과는 비교 안 하고 배정액 쓰임에만 더함
+const isPostdoc = x => { const p = person(x.person); return !!p && degreeAt(p, x.month) === '포닥'; };
 function periodStats(g, pd) {
-  const pay = sum(paysOf(g.id, pd.from, pd.to));
+  const xs = paysOf(g.id, pd.from, pd.to);
+  const pay = sum(xs.filter(x => !isPostdoc(x))), postdoc = sum(xs.filter(isPostdoc));
   const lines = sum(linesOf(g.id, pd.n), l => l.plan);
-  return { pay, lines, spent: sum(linesOf(g.id, pd.n), lineSpent), used: pay + lines };
+  return { pay, postdoc, lines, spent: sum(linesOf(g.id, pd.n), lineSpent), used: pay + postdoc + lines };
 }
 const monthTotal = (pid, m) => sum(db.pays.filter(x => x.person === pid && x.month === m));
 const cellTotal = (pid, gid, m) => sum(db.pays.filter(x => x.person === pid && x.grant === gid && x.month === m));
@@ -175,7 +179,7 @@ function alerts() {
           s: `인건비 ${fmt(st.pay)} / 계상 ${fmt(pd.pay)}천원 (${fmt(st.pay - pd.pay)}천원 초과)`, go: () => openBudget(g.id, pd.n) });
       if (pd.budget != null && st.used > pd.budget)
         out.push({ lv: 'bad', t: `${g.emoji} ${g.name} ${pd.n}차년도 계획이 배정액을 넘어요`,
-          s: `인건비 ${fmt(st.pay)} + 세목 ${fmt(st.lines)} = ${fmt(st.used)} / 배정 ${fmt(pd.budget)}천원`, go: () => openBudget(g.id, pd.n) });
+          s: `인건비 ${fmt(st.pay + st.postdoc)} + 세목 ${fmt(st.lines)} = ${fmt(st.used)} / 배정 ${fmt(pd.budget)}천원`, go: () => openBudget(g.id, pd.n) });
     }
     const cur = periodAt(g, NOW);
     if (cur && cur.budget == null && cur.pay == null) missing.push({ g, cur });
@@ -209,8 +213,11 @@ function alerts() {
 
 // ---------- 화면 전환 ----------
 let tab = 'home', selGrant = null, selN = null;
-// 인건비 표는 데이터가 있는 기간 전체를 그리고 옆으로 넘겨 봄. payFocus = 다음에 그릴 때 맨 왼쪽에 둘 달
+// 인건비 표는 5학기 구간(payFocus 학기 앞 1학기 + 그 학기 + 뒤 3학기)만 그림 — ‹ ›는 구간을 한 학기씩 옮김
+// payFocus = 다음에 그릴 때 맨 왼쪽에 둘 달 (폰처럼 좁으면 그 앞 학기는 왼쪽으로 넘겨 봄)
 let payFocus = semStart(semOf(NOW)), payScroll = true;
+const paySems = () => Array.from({ length: 5 }, (_, i) => semAdd(semOf(payFocus), i - 1));
+let payShow = {}; // 구간에 인건비가 없어도 표에 꺼낸 학생: { 학생 id: 그때 구간 첫 학기 }
 let payView = 'sem';
 try { payView = localStorage.getItem('lab-manager-payview') || 'sem'; } catch { /* 기본값 */ }
 function setPayView(v) { payView = v; payScroll = true; try { localStorage.setItem('lab-manager-payview', v); } catch { /* 없음 */ } render(); }
@@ -426,21 +433,17 @@ function renderCards() {
 }
 
 // ---------- 인건비 표 (학기 보기 / 월 보기) — 금액은 만원으로 보여 줌 ----------
-function rowsOf(p) {
-  const ids = new Set([...db.pays.filter(x => x.person === p.id).map(x => x.grant),
-    ...db.rows.filter(r => r.startsWith(`${p.id}|`)).map(r => r.split('|')[1])]);
+// 학생 아래 재원 줄: 그 구간에 인건비가 있거나, 넣어 둔 줄 중 구간에 걸친 재원
+function rowsOf(p, first, last) {
+  const ids = new Set([...db.pays.filter(x => x.person === p.id && between(x.month, first, last)).map(x => x.grant),
+    ...db.rows.filter(r => r.startsWith(`${p.id}|`)).map(r => r.split('|')[1]).filter(id => grant(id) && grantIn(grant(id), first, last))]);
   return sortedGrants().filter(g => ids.has(g.id));
 }
 
 function renderPay() {
   for (const b of $('viewSeg').children) b.classList.toggle('on', b.dataset.view === payView);
   $('simToggle').checked = db.sim;
-  // 그릴 기간: 인건비가 있는 첫 달(또는 이번 학기)부터 마지막 달·1년 반 뒤 중 늦은 쪽까지, 학기 단위
-  const ms = db.pays.filter(shown).map(x => x.month).sort();
-  const lo = [ms[0], NOW, payFocus].filter(Boolean).sort()[0];
-  const hi = [ms.at(-1), mAdd(NOW, 18), mAdd(payFocus, 11)].filter(Boolean).sort().at(-1);
-  const sems = [];
-  for (let s = semOf(lo); semStart(s) <= hi; s = semAdd(s, 1)) sems.push(s);
+  const sems = paySems();
   const months = sems.flatMap(semMonths), first = months[0], last = months.at(-1);
   $('legend').replaceChildren(...sortedGrants().map(g => chip(g)), ...(payView === 'sem' ? [
     h('span', null, '학생 줄 = 월 인건비 · 참여율(인건비 ÷ 기준)'),
@@ -452,10 +455,11 @@ function renderPay() {
     h('span', null, h('span', 'sw out'), '과제 기간 밖'),
   ]), h('span', null, '표를 끌면 옆으로 넘어가요 · 머리칸 오른쪽 끝을 끌면 열 너비'));
 
+  // 학생: 이 구간에 인건비가 있거나, 아직 인건비가 하나도 없는 새 학생, 또는 아래에서 꺼낸 학생만
   const people = [], hidden = [];
   for (const p of [...db.people.filter(p => !p.virtual), ...db.people.filter(p => p.virtual && db.sim)]) {
-    const inWin = db.pays.some(x => x.person === p.id && between(x.month, first, last));
-    if (inWin || p.virtual || db.rows.some(r => r.startsWith(`${p.id}|`))) people.push(p); else hidden.push(p.name);
+    const xs = db.pays.filter(x => x.person === p.id);
+    if (!xs.length || xs.some(x => between(x.month, first, last)) || payShow[p.id] === sems[0]) people.push(p); else hidden.push(p);
   }
   // 다시 그려도 보던 자리 유지. 화면 이동(오늘·경고 보기 등)이 있을 때만 payFocus로 넘김
   const wrap = $('gridWrap'), keep = [wrap.scrollLeft, wrap.scrollTop];
@@ -468,11 +472,22 @@ function renderPay() {
     scrollPayTo(payFocus, false);
   } else [wrap.scrollLeft, wrap.scrollTop] = keep;
   updatePayRange();
-  $('payFoot').textContent = [
-    payView === 'sem' ? '단위: 만원 · 학생 칸은 월액(학기 안에서 달마다 다르면 범위), 맨 아래는 학기 합계(6개월)'
-      : '단위: 만원 · 칸을 누르면 금액을 고쳐요. 어느 연차인지는 월만 보고 자동으로 정해져요.',
-    hidden.length ? `이 구간에 인건비가 없는 학생: ${hidden.join(', ')}` : '',
-  ].filter(Boolean).join('  ·  ');
+  $('payFoot').replaceChildren(payView === 'sem' ? '단위: 만원 · 학생 칸은 월액(학기 안에서 달마다 다르면 범위), 맨 아래는 학기 합계(6개월)'
+    : '단위: 만원 · 칸을 누르면 금액을 고쳐요. 어느 연차인지는 월만 보고 자동으로 정해져요.');
+  if (hidden.length) {
+    const b = h('button', 'link-btn', '꺼내기');
+    b.onclick = () => showHidden(hidden, sems[0]);
+    $('payFoot').append(`  ·  이 구간에 인건비가 없는 학생 ${hidden.length}명 `, b);
+  }
+}
+// 구간 밖 학생을 이 구간 표에 꺼냄 (다시 인건비를 넣으려고). 최근에 받은 학생부터
+function showHidden(hidden, s0) {
+  const lastPay = p => db.pays.filter(x => x.person === p.id).map(x => x.month).sort().at(-1);
+  const opts = hidden.map(p => [p.id, `${p.name} (마지막 ${mDot(lastPay(p))})`, lastPay(p)]).sort((a, b) => b[2].localeCompare(a[2]));
+  ask('학생 꺼내기', [{ key: 'pid', label: '이 구간 표에 보일 학생', type: 'select', options: opts, value: opts[0][0] }], v => {
+    payShow[v.pid] = s0;
+    render();
+  });
 }
 
 // 열 너비: 이름 열 하나 + 데이터 열(달/학기)은 모두 같은 너비. 보기마다 따로 기억
@@ -519,11 +534,14 @@ function personNameCell(p, first, last) {
     s.title = '과정은 학기 보기에서 학기마다 바꿔요';
     td.append(s);
   }
-  if (p.virtual) {
-    const del = h('button', 'link-btn', '삭제');
-    del.onclick = () => { if (confirm(`가상 학생 '${p.name}'을(를) 지울까요?`)) removePerson(p.id); };
-    td.append(del);
-  }
+  const del = h('button', 'link-btn', '삭제');
+  del.onclick = () => {
+    const n = db.pays.filter(x => x.person === p.id).length;
+    const msg = p.virtual ? `가상 학생 '${p.name}'을(를) 지울까요?`
+      : `'${p.name}'을(를) 지울까요?${n ? `\n인건비 기록 ${n}건(지난 달 포함)도 같이 지워져서 연차 예산 계산에서 빠져요.\n졸업했으면 지우지 않아도 인건비가 없는 구간에선 안 보여요.` : ''}`;
+    if (confirm(msg)) removePerson(p.id);
+  };
+  td.append(del);
   return td;
 }
 // '학사 → 석사(27.03~)'
@@ -564,13 +582,13 @@ function semTable(sems, people, nData) {
       th.dataset.s = s;
       return th;
     }),
-    h('th', 'sum', '합계', h('small', null, '기간 전체')));
+    h('th', 'sum', '합계', h('small', null, '이 5학기')));
   const body = h('tbody');
   for (const p of people) {
     const cells = sems.map(s => {
       const ms = semMonths(s), sm = summarize(ms.map(m => monthTotal(p.id, m)));
       const deg = degreeAt(p, ms[0]), rate = deg ? ratesAt(ms[0])[deg] : null, own = (p.degrees || {})[s];
-      const sel = h('select', cls('degree', !own && 'inherit'), ['', '학사', '석사', '박사'].map(d => {
+      const sel = h('select', cls('degree', !own && 'inherit'), ['', '학사', '석사', '박사', '포닥'].map(d => {
         const o = h('option', null, d || '과정');
         o.value = d;
         o.selected = (deg || '') === d;
@@ -583,7 +601,7 @@ function semTable(sems, people, nData) {
     });
     const total = sum(db.pays.filter(x => x.person === p.id && between(x.month, first, last)));
     body.append(h('tr', cls('p-head', p.virtual && 'virtual'), personNameCell(p, first, last), cells, h('td', 'sum', fmtM(total))));
-    for (const g of rowsOf(p)) {
+    for (const g of rowsOf(p, first, last)) {
       const gSum = sum(db.pays.filter(x => x.person === p.id && x.grant === g.id && between(x.month, first, last)));
       body.append(h('tr', 'g-row', grantNameCell(g), sems.map(s => semCell(p, g, s)), h('td', 'sum', gSum ? fmtM(gSum) : '')));
     }
@@ -648,7 +666,7 @@ function monthTable(sems, months, people, nData) {
     });
     const total = sum(db.pays.filter(x => x.person === p.id && between(x.month, first, last)));
     body.append(h('tr', cls('p-head', p.virtual && 'virtual'), personNameCell(p, first, last), totals, h('td', 'sum', fmtM(total))));
-    for (const g of rowsOf(p)) {
+    for (const g of rowsOf(p, first, last)) {
       const gSum = sum(db.pays.filter(x => x.person === p.id && x.grant === g.id && between(x.month, first, last)));
       body.append(h('tr', 'g-row', grantNameCell(g), months.map(m => monthCell(p, g, m, ss(m))), h('td', 'sum', gSum ? fmtM(gSum) : '')));
     }
@@ -843,7 +861,7 @@ function ask(title, fields, onOk, extra = []) {
   dlg.onclose = () => { if (dlg.returnValue === 'ok') onOk(Object.fromEntries(new FormData($('dlgForm')))); };
   dlg.showModal();
 }
-const DEGREES = [['', '미정'], ['학사', '학사'], ['석사', '석사'], ['박사', '박사']];
+const DEGREES = [['', '미정'], ['학사', '학사'], ['석사', '석사'], ['박사', '박사'], ['포닥', '포닥']];
 
 $('addPerson').onclick = () => ask('학생 추가', [
   { key: 'name', label: '이름', required: true },
@@ -874,9 +892,10 @@ $('addVirtual').onclick = () => {
 };
 
 function addGrantRow(p) {
-  const have = new Set(rowsOf(p).map(g => g.id));
-  const opts = sortedGrants().filter(g => !have.has(g.id)).map(g => [g.id, `${g.emoji} ${g.name}`]);
-  if (!opts.length) return alert('이미 모든 재원이 있어요.');
+  const sems = paySems(), first = semStart(sems[0]), last = semEnd(sems.at(-1));
+  const have = new Set(rowsOf(p, first, last).map(g => g.id));
+  const opts = sortedGrants().filter(g => !have.has(g.id) && grantIn(g, first, last)).map(g => [g.id, `${g.emoji} ${g.name}`]);
+  if (!opts.length) return alert('이 구간에 더 넣을 재원이 없어요.');
   ask(`${p.name} — 재원 추가`, [{ key: 'grant', label: '재원', type: 'select', options: opts, value: opts[0][0] }], v => {
     db.rows.push(`${p.id}|${v.grant}`);
     save();
@@ -884,11 +903,11 @@ function addGrantRow(p) {
 }
 
 $('simToggle').onchange = e => { db.sim = e.target.checked; save(); };
-// ‹ › = 한 학기씩 옆으로 (학기 보기 1칸, 월 보기 6칸)
-const pageBy = dir => $('gridWrap').scrollBy({ left: dir * layout.colW[payView].col * (payView === 'sem' ? 1 : 6), behavior: 'smooth' });
-$('prevRange').onclick = () => pageBy(-1);
-$('nextRange').onclick = () => pageBy(1);
-$('todayRange').onclick = () => scrollPayTo(semStart(semOf(NOW)));
+// ‹ › = 구간을 한 학기씩 옮김
+const payGo = month => { payFocus = month; payScroll = true; render(); };
+$('prevRange').onclick = () => payGo(semStart(semAdd(semOf(payFocus), -1)));
+$('nextRange').onclick = () => payGo(semStart(semAdd(semOf(payFocus), 1)));
+$('todayRange').onclick = () => payGo(semStart(semOf(NOW)));
 for (const b of $('viewSeg').children) b.onclick = () => setPayView(b.dataset.view);
 
 // ---------- 재원별 예산 (천원) ----------
@@ -938,7 +957,7 @@ function renderBudget() {
   const pd = ps.find(p => p.n === selN), st = periodStats(g, pd);
 
   // 쓰임 막대: 인건비 + 세목별
-  const parts = [['인건비', st.pay]];
+  const parts = [['인건비', st.pay + st.postdoc]];
   const byCat = {};
   for (const l of linesOf(g.id, pd.n)) byCat[l.cat || '미지정'] = (byCat[l.cat || '미지정'] || 0) + (+l.plan || 0);
   for (const c of [...CATS, '미지정']) if (byCat[c]) parts.push([c, byCat[c]]);
@@ -1028,7 +1047,7 @@ function periodTable(g, ps) {
       h('td', 'goal', preview(g.periods?.[pd.n]?.goal) || '–'),
       h('td', 'r', inp(pd, 'budget')),
       h('td', 'r', inp(pd, 'pay')),
-      h('td', cls('r', pd.pay != null && st.pay > pd.pay && 'over'), st.pay ? fmt(st.pay) : '–'),
+      h('td', cls('r', pd.pay != null && st.pay > pd.pay && 'over'), st.pay ? fmt(st.pay) : '–', st.postdoc ? h('small', null, ` +포닥 ${fmt(st.postdoc)}`) : null),
       h('td', 'r', st.lines ? fmt(st.lines) : '–'),
       h('td', cls('r', left != null && (left < 0 ? 'over' : 'good')), left == null ? '–' : fmt(left)));
     tr.onclick = () => { selN = pd.n; render(); };
@@ -2397,7 +2416,8 @@ $('settingsBtn').onclick = () => {
     { key: 'fs', label: '글씨 크기', type: 'select', options: FONT_SIZES, value: String(layout.fs || 1) },
     member ? null : [{ key: '학사', label: '학사 기준 (만원)', type: 'number', value: r.학사 / 10 },
       { key: '석사', label: '석사 기준', type: 'number', value: r.석사 / 10 },
-      { key: '박사', label: '박사 기준', type: 'number', value: r.박사 / 10 }],
+      { key: '박사', label: '박사 기준', type: 'number', value: r.박사 / 10 },
+      { key: '포닥', label: '포닥 기준', type: 'number', value: r.포닥 != null ? r.포닥 / 10 : '' }],
     member ? null : month('rFrom', '↑ 바꾸면 이 달부터 적용 (비우면 처음부터)'),
     member ? null : [{ key: 'cEquip', label: '중앙구매: 장비·비품 (만원 초과)', type: 'number', value: c.equip / 10 },
       { key: 'cOther', label: '중앙구매: 소모품·시약 (만원 초과)', type: 'number', value: c.other / 10 }],
@@ -2407,7 +2427,7 @@ $('settingsBtn').onclick = () => {
     saveLayout();
     applyFont();
     if (!member) {
-      const nr = Object.fromEntries(['학사', '석사', '박사'].map(k => [k, Math.round(+v[k] * 10) || r[k]]));
+      const nr = Object.fromEntries(['학사', '석사', '박사', '포닥'].map(k => [k, Math.round(+v[k] * 10) || r[k]]));
       const nc = { equip: Math.round(+v.cEquip * 10) || c.equip, other: Math.round(+v.cOther * 10) || c.other };
       setStandard('rates', 'rateHist', v.rFrom, r, nr); // 칸을 고친 경우에만 기록
       setStandard('central', 'centralHist', v.cFrom, c, nc);
@@ -2434,7 +2454,7 @@ function setStandard(baseKey, histKey, from, shown, next) {
 let histOpen = false; // 설정의 '기준 바뀐 기록' — 처음엔 접힘
 function standardHistory() {
   const box = h('div', 'set-box');
-  const rateTxt = v => `학사 ${fmtM(v.학사)} · 석사 ${fmtM(v.석사)} · 박사 ${fmtM(v.박사)}만원`;
+  const rateTxt = v => `학사 ${fmtM(v.학사)} · 석사 ${fmtM(v.석사)} · 박사 ${fmtM(v.박사)}${v.포닥 ? ` · 포닥 ${fmtM(v.포닥)}` : ''}만원`;
   const cenTxt = v => `장비·비품 ${fmtM(v.equip)} · 소모품·시약 ${fmtM(v.other)}만원 초과`;
   const draw = () => {
     const rows = [...(db.rateHist || []).map(x => ['rateHist', x, `기준 인건비 · ${rateTxt(x.v)}`]), ...(db.centralHist || []).map(x => ['centralHist', x, `중앙구매 · ${cenTxt(x.v)}`])]
