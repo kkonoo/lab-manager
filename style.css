@@ -788,15 +788,14 @@ dialog h3 { margin: 0 0 14px; font-size: calc(17px * var(--fs)); }
 body[data-role="member"] #tabSeg > :not([data-tab="protocol"]):not([data-tab="stock"]) { display: none; } /* 구분선도 숨김 */
 /* 탭: 연구실(프로토콜·재고) │ 행정 */
 .seg-sep { align-self: stretch; width: 1px; margin: 5px 6px; background: var(--line); }
+.seg-br { display: none; } /* 모바일에서만 줄 바꿈 */
 
 @media (max-width: 600px) {
   .topbar { padding: 14px 16px 10px; }
-  /* 탭: 세 줄로 — 한눈에·인건비·서류 / 재원별 예산·정보 / 프로토콜·재고. 구분선은 가로줄이 되어 줄을 넘김 */
+  /* 탭: 두 줄로 — 한눈에 │ 재원별 예산·인건비 / 서류·정보 │ 프로토콜·재고 */
   .seg { flex-basis: 100%; flex-wrap: wrap; }
   .seg button { flex: 1 1 0; padding: 6px 8px; white-space: nowrap; }
-  .seg [data-tab="home"] { order: -2; }
-  .seg [data-tab="pay"], .seg [data-tab="docs"] { order: -1; }
-  .seg-sep { flex-basis: 100%; height: 1px; margin: 3px 6px; }
+  .seg-br { display: block; flex-basis: 100%; }
   main { padding: 0 16px 32px; }
   .tl { grid-template-columns: 92px minmax(0, 1fr); }
 }
