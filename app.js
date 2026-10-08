@@ -1231,6 +1231,30 @@ function monthsPanel(g, pd) {
     rows.length ? table : h('p', 'hint', '이 연차에 잡힌 인건비가 없어요.'), h('div', null, goPay));
 }
 
+// 세목 예산 표: 머리칸 오른쪽 끝을 끌면 열 너비 (처음 끌 때 지금 너비를 다 적어 두고 고정 너비로, layout.lineColW — 이 브라우저에만)
+function linesTable(...parts) {
+  const heads = [['항목'], ['세목'], ['계획', 'r'], ['집행', 'r'], ['상태'], ['메모'], ['']];
+  const table = h('table', cls('tbl lines', layout.lineColW && 'fixed'));
+  const cols = heads.map((_, i) => { const c = h('col'); if (layout.lineColW) c.style.width = `${layout.lineColW[i]}px`; return c; });
+  const fit = () => { table.style.width = `${sum(layout.lineColW, w => w)}px`; };
+  const ths = heads.map(([t, k], i) => {
+    const th = h('th', k || null, t);
+    if (i < heads.length - 1) th.append(colGrip(w => {
+      if (!layout.lineColW) {
+        layout.lineColW = ths.map(x => Math.round(x.getBoundingClientRect().width));
+        cols.forEach((c, j) => { c.style.width = `${layout.lineColW[j]}px`; });
+        table.classList.add('fixed');
+      }
+      layout.lineColW[i] = w;
+      cols[i].style.width = `${w}px`;
+      fit();
+    }, saveLayout, 40));
+    return th;
+  });
+  table.append(h('colgroup', null, cols), h('thead', null, h('tr', null, ths)), ...parts);
+  if (layout.lineColW) fit();
+  return table;
+}
 function linesPanel(g, pd) {
   const lines = linesOf(g.id, pd.n);
   const sel = (opts, value, onchange, c) => {
@@ -1275,9 +1299,8 @@ function linesPanel(g, pd) {
     { key: 'plan', label: '계획액 (천원)', type: 'number', required: true },
     { key: 'memo', label: '메모' },
   ], v => { db.lines.push({ id: uid(), grant: g.id, n: pd.n, name: v.name.trim(), cat: v.cat || null, subs: [], plan: +v.plan, memo: v.memo }); save(); });
-  return h('div', 'panel', h('div', 'panel-head', h('h2', null, '세목 예산'), h('span', 'hint', '천원 · 항목·계획·집행·상태는 바로 고쳐져요 · 집행엔 재고 탭 주문이 더해져요')),
-    lines.length ? h('div', 'tbl-wrap', h('table', 'tbl',
-      h('thead', null, h('tr', null, h('th', null, '항목'), h('th', null, '세목'), h('th', 'r', '계획'), h('th', 'r', '집행'), h('th', null, '상태'), h('th', null, '메모'), h('th'))),
+  return h('div', 'panel', h('div', 'panel-head', h('h2', null, '세목 예산'), h('span', 'hint', '천원 · 항목·계획·집행·상태는 바로 고쳐져요 · 집행엔 재고 탭 주문이 더해져요 · 머리칸 끝을 끌면 열 너비')),
+    lines.length ? h('div', 'tbl-wrap', linesTable(
       h('tbody', null, body),
       h('tfoot', null, h('tr', null, h('td', null, '합계'), h('td'), h('td', 'r', fmt(sum(lines, l => l.plan))), h('td', 'r', fmt(sum(lines, lineSpent))), h('td'), h('td'), h('td')))))
       : h('p', 'hint', '아직 항목이 없어요.'),
