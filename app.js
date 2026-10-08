@@ -1283,8 +1283,12 @@ function linesPanel(g, pd) {
     const del = h('button', 'link-btn', '×');
     del.title = '이 항목 지우기';
     del.onclick = () => { db.lines = db.lines.filter(x => x !== l); save(); };
-    const memo = h('td', 'memo', [l.subs?.join('·'), l.memo].filter(Boolean).join(' — '));
-    memo.title = memo.textContent;
+    // 메모도 바로 고침. 예전 세부 항목(subs)은 보이던 그대로 메모 칸에 넣고, 고치면 메모 하나로 합침
+    const memoIn = h('input', 'inline memo-input');
+    memoIn.value = [l.subs?.join('·'), l.memo].filter(Boolean).join(' — ');
+    memoIn.title = memoIn.value;
+    memoIn.onchange = () => { l.memo = memoIn.value.trim() || undefined; l.subs = []; save(); };
+    const memo = h('td', 'memo', memoIn);
     const os = ordersOf(l.id), fromOrders = os.length ? h('button', 'from-orders', `+ 주문 ${fmt(sum(os))}`) : null;
     if (fromOrders) { // 재고 탭 주문 기록으로
       fromOrders.title = `${os.map(o => `${o.date} ${o.name} ${fmt(o.amount || 0)}`).join('\n')}\n\n집행 = 직접 적은 값 + 주문 합 (${fmt(lineSpent(l))})`;
@@ -1331,7 +1335,7 @@ function linesPanel(g, pd) {
     { key: 'plan', label: '계획액 (천원)', type: 'number', required: true },
     { key: 'memo', label: '메모' },
   ], v => { db.lines.push({ id: uid(), grant: g.id, n: pd.n, name: v.name.trim(), cat: v.cat || null, subs: [], plan: +v.plan, memo: v.memo }); save(); });
-  return h('div', 'panel', h('div', 'panel-head', h('h2', null, '세목 예산'), h('span', 'hint', '천원 · 항목·계획·집행은 바로 고쳐져요 · 집행엔 재고 탭 주문이 더해져요 · ≡ 를 끌면 순서, 머리칸 끝을 끌면 열 너비')),
+  return h('div', 'panel', h('div', 'panel-head', h('h2', null, '세목 예산'), h('span', 'hint', '천원 · 항목·계획·집행·메모는 바로 고쳐져요 · 집행엔 재고 탭 주문이 더해져요 · ≡ 를 끌면 순서, 머리칸 끝을 끌면 열 너비')),
     lines.length ? h('div', 'tbl-wrap', linesTable(
       h('tbody', null, body),
       h('tfoot', null, h('tr', null, h('td', null, '합계'), h('td'), h('td', 'r', fmt(sum(lines, l => l.plan))), h('td', 'r', fmt(sum(lines, lineSpent))), h('td'), h('td')))))
