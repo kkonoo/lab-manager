@@ -44,9 +44,9 @@ const semRange = s => `${mShort(semStart(s))}–${mShort(semEnd(s))}`;
 // 터치 화면(폰·태블릿)이면 <html class="touch"> → 끌기 손잡이 ≡ 를 보임. CSS (hover: none) 만 보면
 // 삼성 인터넷처럼 갤럭시에서 hover 가 된다고 알리는 브라우저에서 손잡이가 안 보임
 document.documentElement.classList.toggle('touch', navigator.maxTouchPoints > 0 || matchMedia('(any-pointer: coarse)').matches);
-// 색 고르기 기본 팔레트 16색 (+ 로 고른 색은 db.customColors). 예전 10색은 순서대로 붙어 있던 색을 그대로 두는 데만 씀
-const PALETTE = ['#E89B91', '#EFBB93', '#EFD487', '#C9D897', '#A8CB95', '#92CDB9', '#94CCDD', '#95B6EC', '#A6A2EC',
-  '#B39BE9', '#D4A4E2', '#E8A9C6', '#CCAE92', '#A28C75', '#9DA5B0', '#C6C2B9'];
+// 색 고르기 기본 팔레트 10색 (빨강→주황→노랑→초록→민트→하늘→파랑→보라→분홍→회색, 그 밖의 색은 + 로).
+// 예전 10색은 순서대로 붙어 있던 색을 그대로 두는 데만 씀
+const PALETTE = ['#E89B91', '#EFBB93', '#EFD487', '#A8CB95', '#92CDB9', '#94CCDD', '#95B6EC', '#B39BE9', '#E8A9C6', '#9DA5B0'];
 const OLD_PALETTE = ['#5B9BEA', '#F0727A', '#2BB39A', '#9D7BE0', '#E8B10C', '#8B93A1', '#F08A4B', '#D46FB0', '#4FB3D9', '#B39B7A'];
 const KEY = 'lab-manager', OLD_KEYS = ['lab-admin', 'lab-admin-mockup'], VERSION = 3;
 function fresh() {
@@ -860,7 +860,7 @@ function removePerson(pid) {
 // ---------- 입력 창 ----------
 const dlg = $('dlg');
 function field(f) {
-  if (f.type === 'color') { // 색: 팔레트·고른 색에서 하나 (라디오 — 아무것도 안 골랐으면 값이 안 넘어감 → 그대로), + 로 원하는 색
+  if (f.type === 'color') { // 색: 팔레트 10색 (+ 팔레트에 없는 지금 색) 중 하나 (라디오 — 안 골랐으면 값이 안 넘어감 → 그대로), 끝의 + 로 원하는 색
     const box = h('div', 'swatches'), same = (a, b) => a.toLowerCase() === b.toLowerCase();
     const plus = h('label', 'swatch swatch-add', '+'), picker = h('input');
     picker.type = 'color';
@@ -879,14 +879,9 @@ function field(f) {
       return r;
     };
     box.append(plus);
-    for (const c of [...PALETTE, ...(db.customColors || []), f.value].filter(Boolean)) swatch(c);
+    for (const c of [...PALETTE, f.value].filter(Boolean)) swatch(c);
     if (f.value) swatch(f.value).checked = true;
-    picker.onchange = () => {
-      const c = picker.value.toUpperCase();
-      db.customColors = [c, ...(db.customColors || []).filter(x => !same(x, c))].slice(0, 10); // 고른 색은 다음에도 (최근 10개)
-      persist();
-      swatch(c).checked = true;
-    };
+    picker.onchange = () => { swatch(picker.value.toUpperCase()).checked = true; };
     return h('div', 'field', f.label, box);
   }
   let input;
