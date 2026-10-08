@@ -2550,4 +2550,12 @@ $('docMain').before(splitter($('docMain').parentElement, '--docs-w', 180));
 $('stockMain').before(splitter($('stockMain').parentElement, '--stock-w', 180));
 $('protoMain').before(splitter($('protoMain').parentElement, '--proto-w', 180));
 
+// 처음 열면 PI는 한눈에, 학생은 프로토콜 (탭은 저장하지 않음). 폰에 설치한 앱은 닫아도 메모리에 남아 있다가 이어서 열리므로,
+// 1시간 넘게 내려 두었거나 날짜가 바뀌었으면 새로 불러옴 → 첫 화면부터, 오늘 날짜(TODAY·NOW)도 새로
+let hiddenAt = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { hiddenAt = Date.now(); return; }
+  if (hiddenAt && (new Date().toDateString() !== TODAY.toDateString() || Date.now() - hiddenAt > 36e5)) location.reload();
+});
+
 render();
