@@ -561,7 +561,18 @@ tfoot td.name { background: var(--surface-2); }
 .swatch input { position: absolute; opacity: 0; pointer-events: none; }
 .swatch:has(input:checked) { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--text); }
 .swatch-add { display: flex; align-items: center; justify-content: center; border: 2px solid var(--line); background: transparent; color: var(--muted); font-size: calc(18px * var(--fs)); line-height: 1; }
-.swatch-add input[type=color] { inset: 0; width: 100%; height: 100%; padding: 0; border: none; opacity: 0; pointer-events: auto; cursor: pointer; } /* + 를 누르면 바로 색 고르기 창 */
+button.swatch { padding: 0; border: none; font: inherit; }
+button.swatch-add { border: 2px solid var(--line); }
+/* + 를 누르면 펼쳐지는 칸: 추천 · 컬러코드 · 직접 고르기 · 기본 색으로 */
+.color-add { display: grid; gap: 10px; margin-top: 6px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; }
+.color-add[hidden] { display: none; }
+.color-add-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.color-add-row > .hint { min-width: 52px; }
+.hex-dot { --c: transparent; width: 26px; height: 26px; border: 1px solid var(--line); border-radius: 50%; background: var(--c); }
+.color-add .hex-in { width: 110px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; font-family: ui-monospace, monospace; text-transform: uppercase; outline: none; }
+.color-add .hex-in:focus { border-color: var(--accent); }
+.color-native { position: relative; }
+.color-native input[type=color] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 .note-row {
   display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 14px 10px 20px;
   border: none; border-radius: 10px; background: transparent; text-align: left; font-size: calc(15px * var(--fs)); cursor: pointer;

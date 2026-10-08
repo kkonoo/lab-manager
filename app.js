@@ -48,6 +48,7 @@ document.documentElement.classList.toggle('touch', navigator.maxTouchPoints > 0 
 // 예전 10색은 순서대로 붙어 있던 색을 그대로 두는 데만 씀
 const PALETTE = ['#E89B91', '#EFBB93', '#EFD487', '#A8CB95', '#92CDB9', '#94CCDD', '#95B6EC', '#B39BE9', '#E8A9C6', '#9DA5B0'];
 const palette = () => db.palette || PALETTE; // 색 고르기 팔레트: + 로 넣고 길게 눌러 뺌 (db.palette)
+const SUGGEST_COLORS = ['#C47F7A', '#D9A35E', '#8FAE7E', '#6FA3A0', '#6F8FB8', '#9A84B8', '#B07A99', '#8C8577']; // + 를 누르면 보이는 추천 (차분한 톤)
 const newColor = (used = []) => { const p = palette().length ? palette() : PALETTE; return p.find(c => !used.includes(c)) || p[0]; }; // 새로 만들 때 안 쓴 색부터
 const OLD_PALETTE = ['#5B9BEA', '#F0727A', '#2BB39A', '#9D7BE0', '#E8B10C', '#8B93A1', '#F08A4B', '#D46FB0', '#4FB3D9', '#B39B7A'];
 const KEY = 'lab-manager', OLD_KEYS = ['lab-admin', 'lab-admin-mockup'], VERSION = 3;
@@ -866,6 +867,7 @@ function field(f) {
     // 끝의 + = 원하는 색을 팔레트에 넣기, 팔레트 색을 길게 누르면(PC는 오른쪽 클릭) 팔레트에서 빼기
     const box = h('div', 'swatches'), same = (a, b) => a.toLowerCase() === b.toLowerCase();
     let sel = f.value || '', skipClick = false;
+    box.addEventListener('pointerdown', () => { skipClick = false; }, true); // 오른쪽 클릭 뒤엔 click 이 안 와서 여기서 풀어 둠
     box.addEventListener('click', e => { if (skipClick) { e.preventDefault(); e.stopPropagation(); skipClick = false; } }, true); // 길게 누른 뒤 손 떼면 고르지 않음
     const hold = (el, fn) => {
       let timer = 0, done = false;
@@ -874,19 +876,49 @@ function field(f) {
       for (const t of ['pointerup', 'pointercancel', 'pointerleave']) el.addEventListener(t, () => clearTimeout(timer));
       el.addEventListener('contextmenu', e => { e.preventDefault(); go(); });
     };
+    // + 를 누르면 펼쳐지는 칸: 추천 5색 · 컬러코드 · 직접 고르기(폰 기본 창) · 기본 색으로 되돌리기
+    const panel = h('div', 'color-add');
+    panel.hidden = true;
+    const add = c => {
+      c = c.toUpperCase();
+      if (!palette().some(x => same(x, c))) { db.palette = [...palette(), c]; persist(); }
+      sel = c;
+      panel.hidden = true;
+      draw();
+    };
+    const btn = (k, label, fn) => { const b = h('button', k, label); b.type = 'button'; b.onclick = fn; return b; };
+    const hexOf = v => { const m = v.trim().match(/^#?([0-9a-f]{6}|[0-9a-f]{3})$/i); return m ? `#${m[1].length === 3 ? [...m[1]].map(x => x + x).join('') : m[1]}` : null; };
+    const hexIn = h('input', 'hex-in'), dot = h('span', 'hex-dot');
+    hexIn.placeholder = '#6F8FB8';
+    hexIn.maxLength = 7;
+    hexIn.spellcheck = false;
+    hexIn.autocapitalize = 'off';
+    hexIn.oninput = () => { dot.style.setProperty('--c', hexOf(hexIn.value) || 'transparent'); };
+    hexIn.onkeydown = e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); const c = hexOf(hexIn.value); if (c) add(c); } }; // 설정 창이 닫히지 않게
+    const native = h('label', 'link-btn color-native', '직접 고르기'), picker = h('input');
+    picker.type = 'color';
+    picker.onchange = () => add(picker.value);
+    native.append(picker);
+    const drawPanel = () => panel.replaceChildren(
+      h('div', 'color-add-row', h('span', 'hint', '추천'), ...SUGGEST_COLORS.filter(c => !palette().some(x => same(x, c))).slice(0, 5).map(c => {
+        const b = btn('swatch', null, () => add(c));
+        b.style.setProperty('--c', c);
+        b.title = c;
+        return b;
+      })),
+      h('div', 'color-add-row', h('span', 'hint', '컬러코드'), dot, hexIn, btn('btn small', '넣기', () => { const c = hexOf(hexIn.value); if (c) add(c); else hexIn.focus(); })),
+      h('div', 'color-add-row', native, h('span', 'spacer'), btn('link-btn', '기본 색으로 되돌리기', () => {
+        if (!confirm('팔레트를 기본 10색으로 되돌릴까요?\n넣은 색은 팔레트에서 빠져요 (이미 쓰는 재원·묶음 색은 그대로).')) return;
+        delete db.palette;
+        persist();
+        panel.hidden = true;
+        draw();
+      })));
     const draw = () => {
       const cs = [...palette()];
       if (sel && !cs.some(c => same(c, sel))) cs.push(sel);
-      const plus = h('label', 'swatch swatch-add', '+'), picker = h('input');
-      picker.type = 'color';
-      picker.title = '원하는 색을 팔레트에 넣기';
-      picker.onchange = () => {
-        const c = picker.value.toUpperCase();
-        if (!palette().some(x => same(x, c))) { db.palette = [...palette(), c]; persist(); }
-        sel = c;
-        draw();
-      };
-      plus.append(picker);
+      const plus = btn('swatch swatch-add', '+', () => { panel.hidden = !panel.hidden; if (!panel.hidden) drawPanel(); });
+      plus.title = '색 넣기';
       box.replaceChildren(...cs.map(c => {
         const r = h('input');
         r.type = 'radio';
@@ -909,7 +941,7 @@ function field(f) {
       }), plus);
     };
     draw();
-    return h('div', 'field', f.label, box);
+    return h('div', 'field', f.label, box, panel);
   }
   let input;
   if (f.type === 'select') {
