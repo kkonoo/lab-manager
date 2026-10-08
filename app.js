@@ -41,6 +41,9 @@ const semRange = s => `${mShort(semStart(s))}–${mShort(semEnd(s))}`;
 
 // ---------- 저장 ----------
 // 같은 주소(kkonoo.github.io)의 다른 앱과 localStorage를 같이 쓰므로 키는 lab-manager* 로만. 예전 이름(랩 행정·목업) 때 키도 읽어 이어받음
+// 터치 화면(폰·태블릿)이면 <html class="touch"> → 끌기 손잡이 ≡ 를 보임. CSS (hover: none) 만 보면
+// 삼성 인터넷처럼 갤럭시에서 hover 가 된다고 알리는 브라우저에서 손잡이가 안 보임
+document.documentElement.classList.toggle('touch', navigator.maxTouchPoints > 0 || matchMedia('(any-pointer: coarse)').matches);
 const KEY = 'lab-manager', OLD_KEYS = ['lab-admin', 'lab-admin-mockup'], VERSION = 3;
 function fresh() {
   const s = structuredClone(window.SEED);
@@ -2230,11 +2233,39 @@ function stockAdder(key, placeholder, onName, pickFrom = null) {
   const commit = () => { const name = inp.value.trim(); if (!name) return; stockFocus = `[data-adder="${key}"]`; onName(name); };
   inp.onkeydown = e => { if (e.key === 'Enter' && !e.isComposing) commit(); };
   if (!pickFrom) return [inp];
-  const dl = h('datalist', null, pickFrom.map(it => Object.assign(h('option'), { value: it.name })));
-  dl.id = `dl-${key}`;
-  inp.setAttribute('list', dl.id);
-  inp.addEventListener('input', e => { if (e.inputType === 'insertReplacementText' || !e.inputType) commit(); }); // 목록에서 고르면 바로
-  return [inp, dl];
+  // 고를 목록은 직접 그림: 브라우저 기본 목록(datalist)은 삼성 인터넷 등에서 골라도 앱이 알아채지 못함
+  const list = h('div', 'adder-pick');
+  list.hidden = true;
+  let shown = [], hi = -1;
+  const pick = it => { inp.value = it.name; list.hidden = true; commit(); };
+  const draw = () => {
+    const q = inp.value.trim().toLowerCase().replace(/\s/g, '');
+    shown = pickFrom.filter(it => !q || it.name.toLowerCase().replace(/\s/g, '').includes(q)).slice(0, 8);
+    hi = Math.min(hi, shown.length - 1);
+    list.replaceChildren(...shown.map((it, i) => {
+      const b = h('button', cls('adder-opt', i === hi && 'on'), h('span', null, it.name), h('small', null, [stockCat(it.cat)?.name, placeOf(it.place)?.name].filter(Boolean).join(' · ')));
+      b.type = 'button';
+      b.onpointerdown = e => e.preventDefault(); // 칸에서 포커스가 빠져 목록이 먼저 닫히지 않게
+      b.onclick = () => pick(it);
+      return b;
+    }));
+    list.hidden = !shown.length || document.activeElement !== inp;
+  };
+  inp.addEventListener('focus', draw);
+  inp.addEventListener('input', () => { hi = -1; draw(); });
+  inp.addEventListener('blur', () => { list.hidden = true; });
+  inp.onkeydown = e => {
+    if (e.isComposing) return;
+    if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && shown.length) { // 위아래 키로 목록 고르기 (-1 = 친 글자 그대로)
+      e.preventDefault();
+      const n = shown.length;
+      hi = e.key === 'ArrowDown' ? (hi + 1 >= n ? -1 : hi + 1) : (hi < 0 ? n - 1 : hi - 1);
+      draw();
+    }
+    else if (e.key === 'Enter') { if (hi >= 0 && shown[hi]) pick(shown[hi]); else commit(); }
+    else if (e.key === 'Escape') list.hidden = true;
+  };
+  return [h('div', 'adder-wrap', inp, list)];
 }
 const newStockItem = name => { const it = { id: uid(), cat: (stockCat('etc') || db.stock.cats[0]).id, name }; db.stock.items.push(it); return it; };
 

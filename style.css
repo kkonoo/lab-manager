@@ -407,12 +407,11 @@ tfoot td.name { background: var(--surface-2); }
 /* 폰 끌기 손잡이 (touchHandle): ≡ 를 누른 채 움직이면 끌기. 막대·줄에 붙는 ≡ 는 폰에서만 (PC는 막대·줄을 바로 끎) */
 .touch-drag { touch-action: none; -webkit-user-select: none; user-select: none; }
 .touch-only { display: none; }
-@media (hover: none) {
-  .touch-only { display: inline-flex; align-items: center; justify-content: center; flex: none; min-width: 32px; min-height: 32px; margin: -6px -4px; color: var(--muted); font-size: calc(16px * var(--fs)); }
-  .place-head .touch-only { margin-left: auto; }
-  .line-move { opacity: .7; padding: 6px 8px; }
-  .icon-mini.col-move { opacity: .7; }
-}
+/* .touch = 터치 화면 (app.js 맨 위에서 정함) */
+.touch .touch-only { display: inline-flex; align-items: center; justify-content: center; flex: none; min-width: 32px; min-height: 32px; margin: -6px -4px; color: var(--muted); font-size: calc(16px * var(--fs)); }
+.touch .place-head .touch-only { margin-left: auto; }
+.touch .line-move { opacity: .7; padding: 6px 8px; }
+.touch .icon-mini.col-move { opacity: .7; }
 .touch-src { opacity: .45; }
 .tbl.lines tr.drop-before td { box-shadow: inset 0 2px 0 var(--accent); }
 .tbl.lines tr.drop-after td { box-shadow: inset 0 -2px 0 var(--accent); }
@@ -462,7 +461,7 @@ tfoot td.name { background: var(--surface-2); }
 .proto-doc .ov-edit { min-height: 220px; }
 .stock-sec .panel-head { flex-wrap: wrap; margin-bottom: 6px; }
 .stock-row { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 6px 4px; border-top: 1px solid var(--line); }
-.stock-sec .panel-head + .stock-row, .stock-sec .stock-add + .stock-row, .stock-sec .stock-add + datalist + .stock-row { border-top: none; }
+.stock-sec .panel-head + .stock-row, .stock-sec .stock-add + .stock-row, .stock-sec .adder-wrap + .stock-row { border-top: none; }
 .stock-row.tap { cursor: pointer; border-radius: 8px; }
 .stock-row.tap:hover { background: var(--surface-2); }
 .stock-row.need .stock-name > span { font-weight: 700; }
@@ -479,6 +478,13 @@ tfoot td.name { background: var(--surface-2); }
 .warn-txt { color: var(--warn) !important; }
 .stock-add { width: 100%; margin: 6px 0 2px; padding: 8px 10px; border: 1px dashed var(--line); border-radius: 9px; background: transparent; color: var(--text); font: inherit; font-size: calc(13px * var(--fs)); }
 .stock-add:focus { border-style: solid; border-color: var(--accent); outline: none; }
+/* 재료·살 것 추가 칸 아래 고를 목록 (datalist 대신 직접 그림) */
+.adder-wrap { position: relative; }
+.adder-pick { position: absolute; left: 0; right: 0; top: 100%; z-index: 30; display: grid; max-height: 280px; overflow: auto; padding: 4px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow); }
+.adder-pick[hidden] { display: none; }
+.adder-opt { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 9px 10px; border: none; border-radius: 7px; background: none; color: var(--text); font: inherit; font-size: calc(13px * var(--fs)); text-align: left; cursor: pointer; }
+.adder-opt small { flex: none; color: var(--muted); font-size: calc(11px * var(--fs)); }
+.adder-opt:hover, .adder-opt.on { background: var(--accent-soft); }
 .stock-empty { padding: 10px 4px; }
 /* 보관 위치 지도 — 위치마다 색 칸, 둥근 선 그림, 품목 칩(점 = 묶음 색, 테두리 = 살 것). 하나를 고르면 나머지는 흐리게 */
 .place-map { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: 12px; }
@@ -549,7 +555,7 @@ tfoot td.name { background: var(--surface-2); }
 .cat-edit { padding: 2px 6px; border-radius: 7px; font-weight: 500; color: var(--muted); cursor: pointer; opacity: 0; }
 .cat-head:hover .cat-edit { opacity: 1; }
 .cat-edit:hover { background: color-mix(in srgb, var(--c) 30%, transparent); color: var(--text); }
-@media (hover: none) { .cat-edit { display: none; } }
+.touch .cat-edit { display: none; } /* 터치 화면은 길게 누르기로 */
 .swatches { display: flex; flex-wrap: wrap; gap: 8px; padding: 2px; }
 .swatch { position: relative; width: 26px; height: 26px; border-radius: 50%; background: var(--c); cursor: pointer; }
 .swatch input { position: absolute; opacity: 0; pointer-events: none; }
