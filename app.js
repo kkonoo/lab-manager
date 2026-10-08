@@ -2365,13 +2365,22 @@ function protocolPage(p) {
     ...S.protoGroups.map(x => Object.assign(h('option', null, x.name), { value: x.id, selected: x.id === p.group }))]);
   grp.title = '묶음 옮기기';
   grp.onchange = () => { if (grp.value) moveProto(p, grp.value); };
+  // ↑ ↓ : 같은 묶음 안에서 한 칸씩 (폰에선 목록 끌기가 안 돼서)
+  const sibs = protosIn(p.group), at = sibs.indexOf(p);
+  const step = (label, dir, tip) => {
+    const b = h('button', 'btn small proto-step', label);
+    b.title = tip;
+    b.disabled = !g || !sibs[at + dir];
+    b.onclick = () => moveProto(p, p.group, sibs[at + dir], dir > 0 ? 'after' : 'before');
+    return b;
+  };
   const memo = h('input', 'proto-memo');
   memo.value = p.memo || '';
   memo.placeholder = '한 줄 메모';
   memo.title = '눌러서 메모 고치기 (예: 키트 버전, 샘플 8개 기준)';
   memo.onkeydown = enterBlur;
   memo.onchange = () => { p.memo = memo.value.trim() || undefined; touched(); };
-  const head = h('div', 'panel-head proto-title', title, grp, memo,
+  const head = h('div', 'panel-head proto-title', title, grp, h('span', 'proto-steps', step('↑', -1, '묶음 안에서 위로'), step('↓', 1, '묶음 안에서 아래로')), memo,
     p.updatedAt ? h('span', 'hint', `고친 날 ${p.updatedAt.slice(2).replaceAll('-', '.')}`) : null, h('span', 'spacer'), print, write, del);
   let body;
   if (editing) {

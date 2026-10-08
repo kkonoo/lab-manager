@@ -444,6 +444,9 @@ tfoot td.name { background: var(--surface-2); }
 .proto-title { flex-wrap: wrap; align-items: center; }
 .note-title-input.proto-name { flex: 0 1 auto; min-width: 120px; max-width: 100%; field-sizing: content; font-size: calc(20px * var(--fs)); }
 .proto-memo { min-width: 90px; max-width: 280px; field-sizing: content; padding: 4px 6px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--muted); font: inherit; font-size: calc(12px * var(--fs)); outline: none; }
+.proto-steps { display: inline-flex; flex: none; gap: 4px; }
+.proto-step { padding: 4px 9px; }
+.proto-step:disabled { opacity: .35; cursor: default; }
 .proto-memo:hover { border-color: var(--line); }
 .proto-memo:focus { border-color: var(--accent); background: var(--surface); color: var(--text); }
 .note-row.drop-before { box-shadow: inset 0 3px 0 var(--accent); }
