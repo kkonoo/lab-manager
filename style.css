@@ -418,6 +418,12 @@ tfoot td.name { background: var(--surface-2); }
 .proto-head .btn { margin-left: 4px; }
 .stock-main > .stock-sec.proto + .stock-sec.proto { margin-top: 10px; }
 .stock-main > .panel-head.plain { flex-wrap: wrap; margin-top: 0; }
+/* 프로토콜 노트 (프로토콜 칸 맨 아래, 접힘) */
+.proto-note { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.proto-note-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.proto-note-head .hint { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
+.proto-note-label { flex-shrink: 0; font-size: calc(13px * var(--fs)); font-weight: 600; cursor: pointer; }
+.proto-note.open > .doc, .proto-note.open > .ov-edit, .proto-note.open > .ov-empty { margin-top: 8px; }
 .stock-sec .panel-head { flex-wrap: wrap; margin-bottom: 6px; }
 .stock-row { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 6px 4px; border-top: 1px solid var(--line); }
 .stock-sec .panel-head + .stock-row, .stock-sec .stock-add + .stock-row, .stock-sec .stock-add + datalist + .stock-row { border-top: none; }

@@ -2054,7 +2054,32 @@ function protocolPanel(p) {
     save();
   }, S.items.filter(it => !it.protocols?.includes(p.id)));
   return h('div', 'panel stock-sec proto', h('div', 'panel-head', h('h2', null, p.name), h('span', 'hint', [`재료 ${items.length}`, need ? `살 것 ${need}` : '', p.memo].filter(Boolean).join(' · ')), h('span', 'spacer'), allNeed, edit),
-    ...adder, rows.length ? rows : h('p', 'hint stock-empty', '필요한 재료를 위에 적어 넣어요.'));
+    ...adder, rows.length ? rows : h('p', 'hint stock-empty', '필요한 재료를 위에 적어 넣어요.'), protocolNote(p));
+}
+// 프로토콜 노트: 과제 개요처럼 글 노트 (순서·조건·주의할 점). 처음엔 접혀 있음 — 편 상태는 이 브라우저에 기억 (layout.protoOpen)
+function protocolNote(p) {
+  const key = `pn:${p.id}`, editing = editKey === key, opened = new Set(layout.protoOpen || []), open = opened.has(p.id) || editing;
+  const fold = h('button', 'fold', open ? '▾' : '▸');
+  fold.title = open ? '접기' : '펴기';
+  const toggle = () => { if (open) opened.delete(p.id); else opened.add(p.id); layout.protoOpen = [...opened]; saveLayout(); if (open && editing) editKey = null; render(); };
+  fold.onclick = toggle;
+  const btn = h('button', cls('btn small', editing && 'primary'), editing ? '다 썼어요' : '편집');
+  btn.onclick = () => { editKey = editing ? null : key; render(); };
+  const label = h('span', 'proto-note-label', '📝 프로토콜 노트');
+  label.onclick = toggle;
+  const head = h('div', 'proto-note-head', fold, label, open ? null : h('span', 'hint', preview(p.note) || '순서·조건·주의할 점을 적어 둬요'), h('span', 'spacer'), btn);
+  if (!open) return h('div', 'proto-note', head);
+  let body;
+  if (editing) {
+    body = h('textarea', 'ov-edit');
+    body.value = p.note || '';
+    body.placeholder = '## 준비\n- [ ] 시료 정량\n## 순서\n1. …\n> 주의: …';
+    body.spellcheck = false;
+    const grow = () => { body.style.height = 'auto'; body.style.height = `${body.scrollHeight + 2}px`; };
+    body.oninput = () => { p.note = body.value; persist(); grow(); };
+    requestAnimationFrame(grow);
+  } else body = p.note?.trim() ? docView(p.note, v => { p.note = v; }) : h('p', 'hint ov-empty', '아직 비어 있어요. ‘편집’을 눌러 순서·조건·주의할 점을 적어요.');
+  return h('div', 'proto-note open', head, body, editing ? h('p', 'hint', DOC_HINT) : null);
 }
 function editProtoGroup(g) {
   const n = g ? db.stock.protocols.filter(p => p.group === g.id).length : 0;

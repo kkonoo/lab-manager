@@ -200,7 +200,17 @@ window.SEED = {
     ],
     protoGroups: [{ id: 'ngs', name: 'NGS' }, { id: 'data', name: '데이터·분석' }],
     protocols: [
-      { id: 'pr1', group: 'ngs', name: '라이브러리 제작', memo: '예시 — 샘플 8개 기준' }, { id: 'pr2', group: 'ngs', name: 'DNA 정량·QC' },
+      { id: 'pr1', group: 'ngs', name: '라이브러리 제작', memo: '예시 — 샘플 8개 기준', note: [
+        '## 준비',
+        '- [ ] DNA 정량 (Qubit) — 샘플당 50 ng 이상',
+        '- [ ] AMPure XP 상온에 30분 꺼내 두기',
+        '## 순서',
+        '1. Fragmentation → End repair',
+        '2. Adapter ligation',
+        '3. AMPure 정제 (0.8×) 두 번',
+        '4. PCR 증폭 → 최종 정제',
+        '> 주의: 에탄올은 그날 새로 만든 80% 사용 (예시)',
+      ].join('\n') }, { id: 'pr2', group: 'ngs', name: 'DNA 정량·QC' },
       { id: 'pr3', group: 'data', name: '시퀀싱 데이터 백업' },
     ],
     items: [
