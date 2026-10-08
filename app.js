@@ -2393,6 +2393,27 @@ function editProtoGroup(g, gi = db.stock.protoGroups.length) {
     save();
   }, del ? [h('p', null, del)] : []);
 }
+// 새 프로토콜 본문에 미리 채우는 틀: 쓰는 법(## 소제목 · - [ ] 체크 · 1. 순서 · > 주의)을 예시로 보여 주고, (예: …)를 바꿔 쓰면 됨
+const PROTO_TEMPLATE = [
+  '## 목적',
+  '- 이 프로토콜로 무엇을 하는지 한 줄 (예: Illumina 라이브러리 제작, 샘플 8개 기준)',
+  '## 준비',
+  '- [ ] 미리 꺼내 둘 시약 (예: AMPure XP 상온에 30분)',
+  '- [ ] 샘플 조건 (예: DNA 50 ng 이상, Qubit으로 정량)',
+  '- [ ] 켜 둘 장비 (예: 히트블록 37°C)',
+  '## 순서',
+  '1. 첫 단계 (예: Fragmentation — 37°C 15분)',
+  '2. 다음 단계 (예: Adapter ligation — 20°C 15분)',
+  '3. 정제 (예: AMPure 0.8× 두 번)',
+  '4. 마지막 단계 (예: PCR 8 cycles → 최종 정제)',
+  '## 조건',
+  '- PCR: 98°C 30초 → (98°C 10초 · 60°C 30초 · 72°C 30초) × 8 → 72°C 5분',
+  '- 원심분리: 13,000 rpm 1분',
+  '> 주의: 실수하기 쉬운 점이나 안전 사항 (예: 에탄올은 그날 새로 만든 80%)',
+  '## 참고',
+  '- 키트 매뉴얼·논문 링크는 그대로 붙여 넣어요',
+  '- **굵게** 쓰려면 별표 두 개로 감싸요',
+].join('\n');
 function editProtocol(p, group) {
   const del = p ? h('button', 'btn danger small', '이 프로토콜 지우기') : null;
   if (del) {
@@ -2412,7 +2433,7 @@ function editProtocol(p, group) {
   ], v => {
     const t = p || { id: uid(), updatedAt: isoToday() };
     Object.assign(t, { name: v.name.trim(), group: v.group, memo: v.memo.trim() || undefined });
-    if (!p) { db.stock.protocols.push(t); selProto = t.id; editKey = `pn:${t.id}`; } // 새로 만들면 바로 본문 쓰기
+    if (!p) { t.note = PROTO_TEMPLATE; db.stock.protocols.push(t); selProto = t.id; editKey = `pn:${t.id}`; } // 새로 만들면 틀을 채워 바로 본문 쓰기
     save();
   }, del ? [h('p', null, del)] : []);
 }
