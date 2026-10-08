@@ -980,6 +980,7 @@ const catColorOf = k => CAT_COLOR[k] || PALETTE[Math.max(0, db.lineCats.indexOf(
 const KINDS = ['과제', 'BK21', '기타'];
 const PALETTE = ['#5B9BEA', '#F0727A', '#2BB39A', '#9D7BE0', '#E8B10C', '#8B93A1', '#F08A4B', '#D46FB0', '#4FB3D9', '#B39B7A'];
 
+let usageAll = false; // 재원별 예산 쓰임 패널: 고른 연차 ↔ 전체 연차 합계
 function renderBudget() {
   const listBtn = g => {
     const b = h('button', g.id === selGrant ? 'on' : null, h('span', null, g.emoji), h('span', 'gname', g.name), g.annual != null ? h('span', 'kind', fmt(g.annual)) : null);
@@ -1017,14 +1018,17 @@ function renderBudget() {
 
   const overview = overviewPanel(g, ps);
   if (!ps.length) { $('grantDetail').replaceChildren(head, overview, etcDetail(g)); return; }
-  const pd = ps.find(p => p.n === selN), st = periodStats(g, pd);
+  const pd = ps.find(p => p.n === selN);
 
-  // 쓰임 막대: 인건비 + 세목별
+  // 쓰임 막대: 인건비 + 세목별. 오른쪽 위 버튼으로 고른 연차 ↔ 전체 연차 합계
+  const scope = usageAll ? ps : [pd], sts = scope.map(x => periodStats(g, x));
+  const st = Object.fromEntries(['pay', 'postdoc', 'lines', 'indirect', 'spent', 'used'].map(k => [k, sum(sts, x => x[k])]));
+  const budgets = scope.map(x => x.budget).filter(b => b != null), budget = budgets.length ? sum(budgets, b => b) : null;
   const parts = [['인건비', st.pay + st.postdoc]];
   const byCat = {};
-  for (const l of linesOf(g.id, pd.n)) byCat[l.cat || '미지정'] = (byCat[l.cat || '미지정'] || 0) + (+l.plan || 0);
+  for (const x of scope) for (const l of linesOf(g.id, x.n)) byCat[l.cat || '미지정'] = (byCat[l.cat || '미지정'] || 0) + (+l.plan || 0);
   for (const c of [...db.lineCats, '미지정']) if (byCat[c] && c !== '간접비') parts.push([c, byCat[c]]); // 막대 = 직접비 배정 쓰임
-  const base = Math.max(pd.budget || 0, st.used) || 1;
+  const base = Math.max(budget || 0, st.used) || 1;
   const stack = h('div', 'stack', parts.map(([k, v]) => {
     const i = h('i');
     i.style.setProperty('--c', catColorOf(k));
@@ -1037,8 +1041,12 @@ function renderBudget() {
     d.style.setProperty('--c', catColorOf(k));
     return h('span', null, d, `${k} ${fmt(v)}`);
   }));
-  const summary = `계획 ${fmt(st.used)}${pd.budget != null ? ` / 배정 ${fmt(pd.budget)}` : ''} · 집행 ${fmt(st.spent)}${st.indirect ? ` · 간접비 계획 ${fmt(st.indirect)}` : ''} (천원)`;
-  const usage = h('div', 'panel', h('div', 'panel-head', h('h2', null, `${pd.n}차년도 쓰임`), h('span', 'hint', `${mDot(pd.from)}–${mDot(pd.to)} · ${summary}`)), stack, stackLegend);
+  const budgetTxt = budget == null ? '' : ` / 배정 ${fmt(budget)}${budgets.length < scope.length ? ` (배정 넣은 ${budgets.length}개 연차만)` : ''}`;
+  const summary = `계획 ${fmt(st.used)}${budgetTxt} · 집행 ${fmt(st.spent)}${st.indirect ? ` · 간접비 계획 ${fmt(st.indirect)}` : ''} (천원)`;
+  const toggle = h('button', 'btn small', usageAll ? `${pd.n}차년도만 보기` : '전체 연차 보기');
+  toggle.onclick = () => { usageAll = !usageAll; render(); };
+  const usage = h('div', 'panel', h('div', 'panel-head', h('h2', null, usageAll ? `전체 연차 쓰임 (${ps[0].n}–${ps.at(-1).n}차년도)` : `${pd.n}차년도 쓰임`),
+    h('span', 'hint', `${mDot(scope[0].from)}–${mDot(scope.at(-1).to)} · ${summary}`), h('span', 'spacer'), toggle), stack, stackLegend);
 
   const two = h('div', 'two', monthsPanel(g, pd));
   two.append(splitter(two, '--two-l', 220), linesPanel(g, pd));
