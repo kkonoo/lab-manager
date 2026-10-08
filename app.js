@@ -1029,18 +1029,20 @@ function renderBudget() {
   for (const x of scope) for (const l of linesOf(g.id, x.n)) byCat[l.cat || '미지정'] = (byCat[l.cat || '미지정'] || 0) + (+l.plan || 0);
   for (const c of [...db.lineCats, '미지정']) if (byCat[c] && c !== '간접비') parts.push([c, byCat[c]]); // 막대 = 직접비 배정 쓰임
   const base = Math.max(budget || 0, st.used) || 1;
+  // % = 배정(직접비) 대비 (배정이 없으면 계획 합계 대비)
+  const pct = v => { const r = v / (budget || st.used || 1) * 100; return r > 0 && r < 1 ? '<1%' : `${Math.round(r)}%`; };
   const stack = h('div', 'stack', parts.map(([k, v]) => {
     const i = h('i');
     i.style.setProperty('--c', catColorOf(k));
     i.style.width = `${v / base * 100}%`;
-    i.title = `${k} ${fmt(v)}천원`;
+    i.title = `${k} ${fmt(v)}천원 (${pct(v)})`;
     return i;
   }));
   const stackLegend = h('div', 'stack-legend', parts.map(([k, v]) => {
     const d = h('span', 'dot');
     d.style.setProperty('--c', catColorOf(k));
-    return h('span', null, d, `${k} ${fmt(v)}`);
-  }));
+    return h('span', null, d, `${k} ${fmt(v)} (${pct(v)})`);
+  }), h('span', 'hint', budget ? '% = 배정(직접비) 대비' : '% = 계획 합계 대비 (배정 미입력)'));
   const budgetTxt = budget == null ? '' : ` / 배정 ${fmt(budget)}${budgets.length < scope.length ? ` (배정 넣은 ${budgets.length}개 연차만)` : ''}`;
   const summary = `계획 ${fmt(st.used)}${budgetTxt} · 집행 ${fmt(st.spent)}${st.indirect ? ` · 간접비 계획 ${fmt(st.indirect)}` : ''} (천원)`;
   const toggle = h('button', 'btn small', usageAll ? `${pd.n}차년도만 보기` : '전체 연차 보기');
