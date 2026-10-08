@@ -2431,6 +2431,7 @@ function setStandard(baseKey, histKey, from, shown, next) {
   if (same) same.v = next; else hist.push({ from, v: next });
   hist.sort((a, b) => a.from.localeCompare(b.from));
 }
+let histOpen = false; // 설정의 '기준 바뀐 기록' — 처음엔 접힘
 function standardHistory() {
   const box = h('div', 'set-box');
   const rateTxt = v => `학사 ${fmtM(v.학사)} · 석사 ${fmtM(v.석사)} · 박사 ${fmtM(v.박사)}만원`;
@@ -2438,7 +2439,11 @@ function standardHistory() {
   const draw = () => {
     const rows = [...(db.rateHist || []).map(x => ['rateHist', x, `기준 인건비 · ${rateTxt(x.v)}`]), ...(db.centralHist || []).map(x => ['centralHist', x, `중앙구매 · ${cenTxt(x.v)}`])]
       .sort((a, b) => a[1].from.localeCompare(b[1].from));
-    box.replaceChildren(h('b', null, '기준 바뀐 기록'),
+    const head = h('button', 'set-fold', h('span', 'caret', histOpen ? '▾' : '▸'), h('b', null, '기준 바뀐 기록'), h('span', 'hint', rows.length ? `${rows.length}건` : '없음'));
+    head.type = 'button';
+    head.onclick = () => { histOpen = !histOpen; draw(); };
+    if (!histOpen) { box.replaceChildren(head); return; }
+    box.replaceChildren(head,
       h('p', 'hint', `처음 기준 — 기준 인건비 ${rateTxt(db.rates)} · 중앙구매 ${cenTxt(db.central)}`),
       ...rows.map(([k, x, t]) => {
         const del = h('button', 'link-btn', '빼기');
