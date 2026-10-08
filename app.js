@@ -44,6 +44,10 @@ const semRange = s => `${mShort(semStart(s))}–${mShort(semEnd(s))}`;
 // 터치 화면(폰·태블릿)이면 <html class="touch"> → 끌기 손잡이 ≡ 를 보임. CSS (hover: none) 만 보면
 // 삼성 인터넷처럼 갤럭시에서 hover 가 된다고 알리는 브라우저에서 손잡이가 안 보임
 document.documentElement.classList.toggle('touch', navigator.maxTouchPoints > 0 || matchMedia('(any-pointer: coarse)').matches);
+// 색 고르기 기본 팔레트 16색 (+ 로 고른 색은 db.customColors). 예전 10색은 순서대로 붙어 있던 색을 그대로 두는 데만 씀
+const PALETTE = ['#E89B91', '#EFBB93', '#EFD487', '#C9D897', '#A8CB95', '#92CDB9', '#94CCDD', '#95B6EC', '#A6A2EC',
+  '#B39BE9', '#D4A4E2', '#E8A9C6', '#CCAE92', '#A28C75', '#9DA5B0', '#C6C2B9'];
+const OLD_PALETTE = ['#5B9BEA', '#F0727A', '#2BB39A', '#9D7BE0', '#E8B10C', '#8B93A1', '#F08A4B', '#D46FB0', '#4FB3D9', '#B39B7A'];
 const KEY = 'lab-manager', OLD_KEYS = ['lab-admin', 'lab-admin-mockup'], VERSION = 3;
 function fresh() {
   const s = structuredClone(window.SEED);
@@ -90,6 +94,10 @@ function withDocs(v) {
     if (v.rows) v.rows = v.rows.filter(r => !ghosts.has(r.split('|')[0]));
   }
   delete v.sim;
+  v.stock.cats.forEach((c, i) => { c.color ||= OLD_PALETTE[i % 10]; });
+  v.stock.protoGroups.forEach((g, i) => { g.color ||= OLD_PALETTE[(i + 3) % 10]; });
+  v.docGroups ||= {};
+  window.FORMS.groups.forEach(([gid], gi) => { const o = v.docGroups[gid] ||= {}; o.color ||= OLD_PALETTE[gi % 10]; });
   v.lineCats ||= ['연구활동비', '연구재료비', '연구시설·장비비', '연구수당', '위탁연구개발비', '국제공동연구개발비', '기타', '간접비']; // 세목 (설정에서 고침)
   return v;
 }
@@ -852,17 +860,34 @@ function removePerson(pid) {
 // ---------- 입력 창 ----------
 const dlg = $('dlg');
 function field(f) {
-  if (f.type === 'color') { // 색: 팔레트에서 하나 (라디오 — 아무것도 안 골랐으면 값이 안 넘어감 → 그대로)
-    return h('div', 'field', f.label, h('div', 'swatches', PALETTE.map(c => {
+  if (f.type === 'color') { // 색: 팔레트·고른 색에서 하나 (라디오 — 아무것도 안 골랐으면 값이 안 넘어감 → 그대로), + 로 원하는 색
+    const box = h('div', 'swatches'), same = (a, b) => a.toLowerCase() === b.toLowerCase();
+    const plus = h('label', 'swatch swatch-add', '+'), picker = h('input');
+    picker.type = 'color';
+    picker.title = '원하는 색 고르기';
+    plus.append(picker);
+    const swatch = c => {
+      const old = [...box.querySelectorAll('input[type=radio]')].find(r => same(r.value, c));
+      if (old) return old;
       const r = h('input');
       r.type = 'radio';
       r.name = f.key;
       r.value = c;
-      r.checked = c === f.value;
       const l = h('label', 'swatch', r);
       l.style.setProperty('--c', c);
-      return l;
-    })));
+      box.insertBefore(l, plus);
+      return r;
+    };
+    box.append(plus);
+    for (const c of [...PALETTE, ...(db.customColors || []), f.value].filter(Boolean)) swatch(c);
+    if (f.value) swatch(f.value).checked = true;
+    picker.onchange = () => {
+      const c = picker.value.toUpperCase();
+      db.customColors = [c, ...(db.customColors || []).filter(x => !same(x, c))].slice(0, 10); // 고른 색은 다음에도 (최근 10개)
+      persist();
+      swatch(c).checked = true;
+    };
+    return h('div', 'field', f.label, box);
   }
   let input;
   if (f.type === 'select') {
@@ -1032,7 +1057,6 @@ for (const b of $('viewSeg').children) b.onclick = () => setPayView(b.dataset.vi
 const CAT_COLOR = { 인건비: '#F08A4B', 연구활동비: '#5B9BEA', 연구재료비: '#2BB39A', '연구시설·장비비': '#9D7BE0', 연구수당: '#E8B10C', 위탁연구개발비: '#F0727A', 국제공동연구개발비: '#D46FB0', 기타: '#8B93A1', 간접비: '#B39B7A', 미지정: '#C9C5BB' };
 const catColorOf = k => CAT_COLOR[k] || PALETTE[Math.max(0, db.lineCats.indexOf(k)) % PALETTE.length]; // 새로 만든 세목은 순서대로
 const KINDS = ['과제', 'BK21', '기타'];
-const PALETTE = ['#5B9BEA', '#F0727A', '#2BB39A', '#9D7BE0', '#E8B10C', '#8B93A1', '#F08A4B', '#D46FB0', '#4FB3D9', '#B39B7A'];
 
 let usageAll = false; // 재원별 예산 쓰임 패널: 고른 연차 ↔ 전체 연차 합계
 function renderBudget() {

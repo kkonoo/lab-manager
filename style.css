@@ -556,10 +556,12 @@ tfoot td.name { background: var(--surface-2); }
 .cat-head:hover .cat-edit { opacity: 1; }
 .cat-edit:hover { background: color-mix(in srgb, var(--c) 30%, transparent); color: var(--text); }
 .touch .cat-edit { display: none; } /* 터치 화면은 길게 누르기로 */
-.swatches { display: flex; flex-wrap: wrap; gap: 8px; padding: 2px; }
-.swatch { position: relative; width: 26px; height: 26px; border-radius: 50%; background: var(--c); cursor: pointer; }
+.swatches { display: flex; flex-wrap: wrap; gap: 10px; padding: 4px; }
+.swatch { position: relative; width: 32px; height: 32px; border-radius: 50%; background: var(--c); cursor: pointer; }
 .swatch input { position: absolute; opacity: 0; pointer-events: none; }
-.swatch:has(input:checked) { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--c); }
+.swatch:has(input:checked) { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--text); }
+.swatch-add { display: flex; align-items: center; justify-content: center; border: 2px solid var(--line); background: transparent; color: var(--muted); font-size: calc(18px * var(--fs)); line-height: 1; }
+.swatch-add input[type=color] { inset: 0; width: 100%; height: 100%; padding: 0; border: none; opacity: 0; pointer-events: auto; cursor: pointer; } /* + 를 누르면 바로 색 고르기 창 */
 .note-row {
   display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 14px 10px 20px;
   border: none; border-radius: 10px; background: transparent; text-align: left; font-size: calc(15px * var(--fs)); cursor: pointer;
