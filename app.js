@@ -1257,8 +1257,11 @@ function linesPanel(g, pd) {
       fromOrders.title = `${os.map(o => `${o.date} ${o.name} ${fmt(o.amount || 0)}`).join('\n')}\n\n집행 = 직접 적은 값 + 주문 합 (${fmt(lineSpent(l))})`;
       fromOrders.onclick = () => { stockView = 'orders'; setTab('stock'); };
     }
+    const name = h('input', 'inline name'); // 항목 이름도 바로 고침
+    name.value = l.name;
+    name.onchange = () => { l.name = name.value.trim() || l.name; save(); };
     return h('tr', null,
-      h('td', null, l.name),
+      h('td', null, name),
       h('td', null, sel([['', '세목 ?'], ...CATS.map(c => [c, c])], l.cat, v => { l.cat = v || null; save(); }, l.cat ? null : 'no-cat')),
       h('td', 'r', num(l.plan, v => { l.plan = v; save(); })),
       h('td', 'r', num(l.spent, v => { l.spent = v; save(); }), fromOrders),
@@ -1272,7 +1275,7 @@ function linesPanel(g, pd) {
     { key: 'plan', label: '계획액 (천원)', type: 'number', required: true },
     { key: 'memo', label: '메모' },
   ], v => { db.lines.push({ id: uid(), grant: g.id, n: pd.n, name: v.name.trim(), cat: v.cat || null, subs: [], plan: +v.plan, memo: v.memo }); save(); });
-  return h('div', 'panel', h('div', 'panel-head', h('h2', null, '세목 예산'), h('span', 'hint', '천원 · 계획·집행·상태는 바로 고쳐져요 · 집행엔 재고 탭 주문이 더해져요')),
+  return h('div', 'panel', h('div', 'panel-head', h('h2', null, '세목 예산'), h('span', 'hint', '천원 · 항목·계획·집행·상태는 바로 고쳐져요 · 집행엔 재고 탭 주문이 더해져요')),
     lines.length ? h('div', 'tbl-wrap', h('table', 'tbl',
       h('thead', null, h('tr', null, h('th', null, '항목'), h('th', null, '세목'), h('th', 'r', '계획'), h('th', 'r', '집행'), h('th', null, '상태'), h('th', null, '메모'), h('th'))),
       h('tbody', null, body),
