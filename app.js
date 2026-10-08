@@ -1306,7 +1306,7 @@ function linesPanel(g, pd) {
     move.draggable = true;
     move.title = '끌어서 순서 바꾸기';
     const tr = h('tr', null,
-      h('td', null, h('div', 'line-name', move, name)),
+      h('td', 'line-name', name, move),
       h('td', null, sel([['', '세목 ?'], ...db.lineCats.map(c => [c, c])], l.cat, v => { l.cat = v || null; save(); }, l.cat ? null : 'no-cat')),
       h('td', 'r', num(l.plan, v => { l.plan = v; save(); })),
       h('td', 'r', num(l.spent, v => { l.spent = v; save(); }), fromOrders),
@@ -1507,7 +1507,7 @@ function tableBody(n) {
     move.draggable = true;
     move.title = '끌어서 열 순서 바꾸기';
     move.ondragstart = e => { e.dataTransfer.setData('text/x-col', c.id); e.dataTransfer.effectAllowed = 'move'; };
-    const th = h('th', c.secret ? 'secret' : null, h('div', 'th-wrap', move, name, lock, x), grip);
+    const th = h('th', c.secret ? 'secret' : null, name, h('div', 'th-tools', move, lock, x), grip); // 아이콘은 오른쪽 끝에 떠 있음 → 머리칸 글자가 아래 칸과 같은 선에서 시작
     const side = e => (e.clientX - th.getBoundingClientRect().left > th.offsetWidth / 2 ? 'after' : 'before');
     const clear = () => th.classList.remove('drop-before', 'drop-after');
     th.ondragover = e => {
