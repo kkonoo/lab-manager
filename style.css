@@ -737,6 +737,27 @@ th:hover .icon-mini, .icon-mini.on { opacity: .75; }
 }
 @page { size: A4; margin: 0; }
 
+/* 프로토콜 인쇄 (app.js printProtocol) — 화면엔 안 보이고, 인쇄할 때 이것만 나옴. 여백은 이름 붙인 쪽(proto)으로 따로 */
+#protoPrint { display: none; }
+@page proto { size: A4; margin: 14mm 15mm; }
+@media print {
+  body.printing-proto { background: #fff; }
+  body.printing-proto > :not(#protoPrint) { display: none !important; }
+  body.printing-proto #protoPrint {
+    --fs: 1; --text: #111; --muted: #555; --faint: #999; --line: #ccc; --surface: #fff; --surface-2: #f4f4f4; --accent: #3D63DD; --accent-soft: #eef1fb;
+    display: block; page: proto; color: #111; background: #fff; color-scheme: light; font-size: 11pt; line-height: 1.5;
+  }
+  .pp-sheet h1 { margin: 0 0 4px; font-size: 18pt; }
+  .pp-meta { margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1.5px solid #111; font-size: 9.5pt; color: #555; }
+  .pp-sheet h2 { margin: 16px 0 6px; font-size: 12pt; }
+  .pp-mats { width: 100%; border-collapse: collapse; font-size: 10pt; }
+  .pp-mats th, .pp-mats td { padding: 5px 6px; border: 1px solid #999; text-align: left; vertical-align: top; }
+  .pp-mats th { background: #f1f1f1; font-weight: 700; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .pp-box { width: 18px; font-size: 12pt; text-align: center; }
+  .pp-mats tr, .pp-sheet .d-check, .pp-sheet .d-ol, .pp-sheet .d-li { break-inside: avoid; }
+  .pp-sheet h2, .pp-sheet .d-h { break-after: avoid; }
+}
+
 /* ---------- 창 ---------- */
 dialog {
   width: min(420px, calc(100vw - 32px)); padding: 0; border: none; border-radius: 16px;

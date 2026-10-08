@@ -356,7 +356,8 @@ function renderThisMonth() {
   const order = sortedGrants();
   const rows = db.people.filter(p => db.sim || !p.virtual)
     .map(p => ({ p, items: db.pays.filter(x => x.person === p.id && x.month === NOW) }))
-    .filter(r => r.items.length);
+    .filter(r => r.items.length)
+    .sort((a, b) => sum(b.items) - sum(a.items)); // 이번 달 많이 받는 학생부터
   const total = sum(rows.flatMap(r => r.items));
   $('thisMonthHint').textContent = rows.length ? `합계 ${fmtM(total)}만원 · ${rows.length}명` : '';
   if (!rows.length) { $('thisMonth').replaceChildren(h('p', 'hint', '이번 달에 잡힌 인건비가 없어요.')); return; }
@@ -2054,8 +2055,11 @@ function protocolPage(p) {
   write.onclick = () => { editKey = editing ? null : key; render(); };
   const edit = h('button', 'btn small', '이름·묶음');
   edit.onclick = () => editProtocol(p);
+  const print = h('button', 'btn small', '🖨 인쇄 / PDF');
+  print.title = '실험대에 두고 볼 수 있게 A4로 인쇄해요 (인쇄 창에서 PDF로 저장도 돼요)';
+  print.onclick = () => printProtocol(p);
   const head = h('div', 'panel-head proto-title', h('h2', null, p.name), g ? h('span', 'tag', g.name) : null, p.memo ? h('span', 'hint', p.memo) : null,
-    p.updatedAt ? h('span', 'hint', `고친 날 ${p.updatedAt.slice(2).replaceAll('-', '.')}`) : null, h('span', 'spacer'), write, edit);
+    p.updatedAt ? h('span', 'hint', `고친 날 ${p.updatedAt.slice(2).replaceAll('-', '.')}`) : null, h('span', 'spacer'), print, write, edit);
   let body;
   if (editing) {
     body = h('textarea', 'ov-edit');
@@ -2092,6 +2096,27 @@ function protocolPage(p) {
     h('span', 'hint', `${items.length}개${need ? ` · 살 것 ${need}` : ''} · 줄을 누르면 살 것으로 (● = 살 것)`), h('span', 'spacer'), allNeed, need ? toStock : null),
     ...adder, rows.length ? rows : h('p', 'hint stock-empty', '필요한 재료를 위에 적어 넣어요. 재고 탭의 품목과 같은 것으로 이어져요.'));
   return [doc, mats];
+}
+// 인쇄 / PDF: 버튼·입력칸 없이 종이용으로 따로 그려서 인쇄 (화면은 그대로). 다크 모드여도 흰 종이에 검은 글씨
+function printProtocol(p) {
+  const g = db.stock.protoGroups.find(x => x.id === p.group), items = protoItems(p), d = s => s.slice(2).replaceAll('-', '.');
+  const meta = [g?.name, p.memo, p.updatedAt ? `고친 날 ${d(p.updatedAt)}` : null, `인쇄 ${d(isoToday())}`].filter(Boolean).join(' · ');
+  const mats = items.length ? h('table', 'pp-mats',
+    h('thead', null, h('tr', null, ['', '재료', '제조사 · Cat. No.', '보관 위치', '메모'].map(t => h('th', null, t)))),
+    h('tbody', null, items.map(it => h('tr', null, h('td', 'pp-box', '☐'), h('td', null, it.name), h('td', null, [it.maker, it.catNo].filter(Boolean).join(' · ')),
+      h('td', null, placeOf(it.place)?.name || ''), h('td', null, it.memo || ''))))) : null;
+  const sheet = h('div', 'pp-sheet', h('h1', null, p.name), h('div', 'pp-meta', meta),
+    p.note?.trim() ? docView(p.note, () => {}) : null,
+    mats ? h('h2', null, `재료 ${items.length}`) : null, mats);
+  let area = $('protoPrint');
+  if (!area) { area = h('div'); area.id = 'protoPrint'; document.body.append(area); }
+  area.replaceChildren(sheet);
+  const old = document.title;
+  document.title = `프로토콜_${p.name}`.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_'); // PDF 파일 이름
+  document.body.classList.add('printing-proto');
+  const done = () => { document.body.classList.remove('printing-proto'); area.replaceChildren(); document.title = old; removeEventListener('afterprint', done); };
+  addEventListener('afterprint', done);
+  window.print();
 }
 function editProtoGroup(g) {
   const n = g ? db.stock.protocols.filter(p => p.group === g.id).length : 0;
