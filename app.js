@@ -1113,7 +1113,6 @@ function periodTable(g, ps) {
     const tr = h('tr', cls('prow', pd.n === selN && 'on'),
       h('td', null, `${pd.n}차년도`, between(NOW, pd.from, pd.to) ? h('span', 'now-tag', '지금') : null),
       h('td', 'memo', periodRange(g, pd, ps)),
-      h('td', 'goal', preview(g.periods?.[pd.n]?.goal) || '–'),
       h('td', 'r', inp(pd, 'budget')),
       h('td', 'r', inp(pd, 'pay')),
       h('td', cls('r', pd.pay != null && st.pay > pd.pay && 'over'), st.pay ? fmt(st.pay) : '–', st.postdoc ? h('small', null, ` +포닥 ${fmt(st.postdoc)}`) : null),
@@ -1128,7 +1127,7 @@ function periodTable(g, ps) {
   return h('div', 'panel ptable-panel', h('div', 'panel-head', h('h2', null, '연차별 예산'),
     h('span', 'hint', '단위 천원 · 줄을 누르면 그 연차를 아래에 펼쳐요 · 기간·배정·계상액은 칸에서 바로 고쳐요'), h('span', 'spacer'), more),
     h('div', 'tbl-wrap', h('table', 'tbl ptable',
-      h('thead', null, h('tr', null, h('th', null, '연차'), h('th', null, '기간'), h('th', null, '목표'), h('th', 'r', '배정 (직접비)'), h('th', 'r', '인건비 계상액'),
+      h('thead', null, h('tr', null, h('th', null, '연차'), h('th', null, '기간'), h('th', 'r', '배정 (직접비)'), h('th', 'r', '인건비 계상액'),
         h('th', 'r', '인건비 계획'), h('th', 'r', '세목 계획'), h('th', 'r', '남은 금액'))),
       h('tbody', null, rows))));
 }

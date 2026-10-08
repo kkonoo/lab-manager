@@ -334,7 +334,6 @@ tfoot td.name { background: var(--surface-2); }
 
 /* 연차별 예산 표 */
 .ptable-panel { margin: 14px 0; }
-.ptable td.goal { max-width: 280px; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: calc(12px * var(--fs)); }
 
 /* 과제 개요 · 연차 목표 (글 노트와 같은 문법) */
 .text-panel { margin-top: 14px; }
