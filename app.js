@@ -893,6 +893,30 @@ function groupEditable(head, onEdit) {
   head.addEventListener('contextmenu', e => { e.preventDefault(); fire(); });
   head.addEventListener('click', e => { if (fired) { e.stopImmediatePropagation(); fired = false; } }, true); // 길게 누른 뒤 손을 떼도 접기·고르기는 안 함
 }
+// 묶음 순서: 막대를 끌어 다른 막대 위(위쪽 절반 = 앞, 아래쪽 절반 = 뒤)에 놓으면 onMove(새 id 순서). ids = 지금 순서
+function dragReorder(head, id, ids, onMove) {
+  head.draggable = true;
+  const side = e => (e.clientY - head.getBoundingClientRect().top > head.offsetHeight / 2 ? 'after' : 'before');
+  const clear = () => head.classList.remove('drop-before', 'drop-after');
+  head.ondragstart = e => { e.dataTransfer.setData('text/x-group', id); e.dataTransfer.effectAllowed = 'move'; };
+  head.ondragover = e => {
+    if (!e.dataTransfer.types.includes('text/x-group')) return;
+    e.preventDefault();
+    head.classList.toggle('drop-before', side(e) === 'before');
+    head.classList.toggle('drop-after', side(e) === 'after');
+  };
+  head.ondragleave = clear;
+  head.ondrop = e => {
+    e.preventDefault();
+    clear();
+    const from = e.dataTransfer.getData('text/x-group');
+    if (!ids.includes(from) || from === id) return;
+    const next = ids.filter(x => x !== from);
+    next.splice(next.indexOf(id) + (side(e) === 'after' ? 1 : 0), 0, from);
+    onMove(next);
+  };
+}
+const byIds = (list, ids) => ids.map(id => list.find(x => x.id === id)); // 끌어서 바꾼 순서대로
 const DEGREES = [['', '미정'], ['학사', '학사'], ['석사', '석사'], ['박사', '박사'], ['포닥', '포닥']];
 
 $('addPerson').onclick = () => ask('학생 추가', [
@@ -1277,7 +1301,7 @@ function inline(s) {
 // 첫 줄 미리보기 (기호 빼고)
 const preview = text => (text || '').split('\n').map(l => l.trim().replace(/^(## |> |- \[[ x]\] |- |\d+\. )/, '').replace(/\*\*/g, '')).find(Boolean) || '';
 
-// ---------- 정보: 카테고리 → 노트 (살림노트 노트 목록과 같은 구성) ----------
+// ---------- 정보: 묶음 → 노트 (살림노트 노트 목록과 같은 구성) ----------
 // doc 노트 = 글 한 덩어리, table 노트 = 칸·줄 (secret 칸은 기본으로 가려 보임, 열 너비는 칸마다 기억)
 let selNote = null, showSecret = false;
 
@@ -1294,14 +1318,15 @@ function renderInfo() {
   for (const c of cats) {
     const ns = notes.filter(n => n.cat === c.id);
     const add = h('button', 'cat-add', '+');
-    add.title = '이 카테고리에 노트 추가';
+    add.title = '이 묶음에 노트 추가';
     add.onclick = e => { e.stopPropagation(); addNote(c); };
     const head = h('div', 'cat-head', h('span', 'caret', c.open ? '▾' : '▸'), h('span', 'cat-name', c.name), h('span', 'cat-count', String(ns.length)), add);
     head.style.setProperty('--c', c.color);
-    head.title = '누르면 접기·펴기 · 길게 누르거나 ✎ 로 이름·색 바꾸기';
+    head.title = '누르면 접기·펴기 · 끌어서 순서 바꾸기 · 길게 누르거나 ✎ 로 이름·색 바꾸기';
     head.onclick = () => { c.open = !c.open; save(); };
     head.ondblclick = e => { e.stopPropagation(); editCat(c); };
     groupEditable(head, () => editCat(c));
+    dragReorder(head, c.id, cats.map(x => x.id), ids => { db.info.cats = byIds(cats, ids); save(); });
     list.push(head);
     if (c.open) for (const n of ns) {
       const row = h('button', cls('note-row', n.id === selNote && 'on'), h('span', 'note-emoji', n.emoji || '·'), h('span', 'note-title', n.title), h('span', 'note-meta', noteMeta(n)));
@@ -1309,14 +1334,14 @@ function renderInfo() {
       list.push(row);
     }
   }
-  const addCat = h('button', 'cat-new', '+ 카테고리');
-  addCat.onclick = () => ask('카테고리 추가', [{ key: 'name', label: '이름', required: true }], v => {
+  const addCat = h('button', 'cat-new', '+ 묶음');
+  addCat.onclick = () => ask('묶음 추가', [{ key: 'name', label: '이름', required: true }], v => {
     cats.push({ id: uid(), name: v.name.trim(), color: PALETTE.find(c => !cats.some(x => x.color === c)) || PALETTE[0], open: true });
     save();
   });
   $('noteList').replaceChildren(h('h2', 'note-list-title', '정보'), ...list, addCat);
   const n = notes.find(x => x.id === selNote);
-  $('noteView').replaceChildren(...(n ? noteView(n) : [h('p', 'hint', '카테고리의 + 로 노트를 만들어요.')]));
+  $('noteView').replaceChildren(...(n ? noteView(n) : [h('p', 'hint', '묶음의 + 로 노트를 만들어요.')]));
 }
 
 function noteView(n) {
@@ -1329,7 +1354,7 @@ function noteView(n) {
   title.value = n.title;
   title.onchange = () => { n.title = title.value.trim() || '제목 없음'; save(); };
   const catSel = h('select', 'note-cat', db.info.cats.map(c => { const o = h('option', null, c.name); o.value = c.id; o.selected = c.id === n.cat; return o; }));
-  catSel.title = '카테고리 옮기기';
+  catSel.title = '묶음 옮기기';
   catSel.onchange = () => { n.cat = catSel.value; db.info.cats.find(c => c.id === n.cat).open = true; save(); };
   const toggle = h('button', cls('btn small', editing && 'primary'), editing ? '다 썼어요' : n.type === 'table' ? '메모 편집' : '편집');
   toggle.onclick = () => { editKey = editing ? null : key; render(); };
@@ -1418,7 +1443,7 @@ function addNote(c) {
 }
 
 function editCat(c) {
-  const del = h('button', 'btn danger', '카테고리 지우기');
+  const del = h('button', 'btn danger', '묶음 지우기');
   del.type = 'button';
   del.onclick = () => {
     const ns = db.info.notes.filter(n => n.cat === c.id);
@@ -1428,7 +1453,7 @@ function editCat(c) {
     dlg.close();
     save();
   };
-  ask('카테고리', [{ key: 'name', label: '이름', value: c.name, required: true }, { key: 'color', label: '색', type: 'color', value: c.color }], v => {
+  ask('묶음', [{ key: 'name', label: '이름', value: c.name, required: true }, { key: 'color', label: '색', type: 'color', value: c.color }], v => {
     c.name = v.name.trim();
     if (v.color) c.color = v.color;
     save();
@@ -1452,41 +1477,18 @@ function renderDocs() {
   const F = window.FORMS;
   if (selForm !== TRIPS && !form(selForm)) selForm = (form(db.docs[0]?.tpl) || F.list[0]).id;
   const list = [];
-  // 묶음 순서: 막대를 끌어 다른 막대 위(위쪽 절반 = 앞, 아래쪽 절반 = 뒤)에 놓으면 바뀜 (db.docGroupOrder). 색은 원래 순서대로 (고르면 그 색)
-  // 이름·색을 고치면 db.docGroups = { 묶음 id: { name, color } } (묶음 자체는 양식 파일에 정해져 있음)
-  const order = db.docGroupOrder || [], rank = gid => (order.includes(gid) ? order.indexOf(gid) : 999 + F.groups.findIndex(([g]) => g === gid));
-  const groups = F.groups.map(([gid, gname], gi) => ({ gid, gname: db.docGroups?.[gid]?.name || gname, gi, color: db.docGroups?.[gid]?.color || PALETTE[gi % PALETTE.length] }))
-    .filter(g => F.list.some(f => f.group === g.gid)).sort((a, b) => rank(a.gid) - rank(b.gid));
+  // 묶음 순서는 막대를 끌어서 바꿈 (db.docGroupOrder). 색은 원래 순서대로 (고르면 그 색)
+  const all = docGroups(), order = db.docGroupOrder || [], rank = gid => (order.includes(gid) ? order.indexOf(gid) : 999 + all.findIndex(g => g.gid === gid));
+  const groups = all.filter(g => g.custom || g.gid === 'trip' || F.list.some(f => formGroup(f) === g.gid)).sort((a, b) => rank(a.gid) - rank(b.gid));
   const folded = new Set(layout.docFold || []); // 접은 묶음 (이 브라우저에만)
-  groups.forEach(({ gid, gname, color }) => {
-    const fs = F.list.filter(f => f.group === gid), shut = folded.has(gid);
+  groups.forEach(g => {
+    const { gid, gname, color } = g, fs = F.list.filter(f => formGroup(f) === gid), shut = folded.has(gid);
     const head = h('div', 'cat-head static drag', h('span', 'caret', shut ? '▸' : '▾'), h('span', 'cat-name', gname), h('span', 'cat-count', String(fs.length)));
     head.style.setProperty('--c', color);
-    head.draggable = true;
     head.title = '누르면 접기·펴기 · 끌어서 순서 바꾸기 · 길게 누르거나 ✎ 로 이름·색 바꾸기';
-    groupEditable(head, () => ask('서류 묶음', [{ key: 'name', label: '이름', value: gname, required: true }, { key: 'color', label: '색', type: 'color', value: color }], v => {
-      db.docGroups = { ...db.docGroups, [gid]: { name: v.name.trim(), color: v.color || color } };
-      save();
-    }));
+    groupEditable(head, () => editDocGroup(g));
     head.onclick = () => { if (shut) folded.delete(gid); else folded.add(gid); layout.docFold = [...folded]; saveLayout(); render(); };
-    const side = e => (e.offsetY > head.offsetHeight / 2 ? 'after' : 'before');
-    head.ondragstart = e => { e.dataTransfer.setData('text/x-docgroup', gid); e.dataTransfer.effectAllowed = 'move'; };
-    head.ondragover = e => {
-      if (!e.dataTransfer.types.includes('text/x-docgroup')) return;
-      e.preventDefault();
-      head.classList.toggle('drop-before', side(e) === 'before');
-      head.classList.toggle('drop-after', side(e) === 'after');
-    };
-    head.ondragleave = () => head.classList.remove('drop-before', 'drop-after');
-    head.ondrop = e => {
-      e.preventDefault();
-      const from = e.dataTransfer.getData('text/x-docgroup');
-      if (!from || from === gid) return head.classList.remove('drop-before', 'drop-after');
-      const ids = groups.map(g => g.gid).filter(x => x !== from);
-      ids.splice(ids.indexOf(gid) + (side(e) === 'after' ? 1 : 0), 0, from);
-      db.docGroupOrder = ids;
-      save();
-    };
+    dragReorder(head, gid, groups.map(x => x.gid), ids => { db.docGroupOrder = ids; save(); });
     list.push(head);
     if (shut) return;
     if (gid === 'trip') {
@@ -1502,17 +1504,67 @@ function renderDocs() {
       list.push(row);
     }
   });
+  const addGroup = h('button', 'cat-new', '+ 묶음');
+  addGroup.onclick = () => editDocGroup(null);
   const me = h('button', 'cat-new', '👤 내 정보 (소속·성명·도장·서명)');
   me.onclick = editProfile;
-  $('formList').replaceChildren(h('h2', 'note-list-title', '서류'), ...list, me);
+  $('formList').replaceChildren(h('h2', 'note-list-title', '서류'), ...list, addGroup, me);
   const f = form(selForm);
   $('docMain').replaceChildren(...(selForm === TRIPS ? tripPage() : pagesOf(f).length ? docPage(f) : formTodo(f)));
   fitAll(); // 붙인 바로 뒤에 잼 (탭이 안 보이면 건너뜀)
 }
 
+// 서류 묶음 = 양식 파일(forms.js)의 묶음 + 직접 만든 묶음. 고친 이름·색, 만든 묶음, 지운 묶음은 db.docGroups = { 묶음 id: { name, color, custom, hidden } }
+// 서류를 다른 묶음으로 옮기면 db.docFormGroup = { 양식 id: 묶음 id } (없거나 지운 묶음이면 원래 묶음, 그것도 지웠으면 남은 첫 묶음)
+function docGroups() {
+  const own = db.docGroups || {};
+  return [...window.FORMS.groups.map(([gid, gname]) => ({ gid, gname })), ...Object.keys(own).filter(gid => own[gid].custom).map(gid => ({ gid, gname: '', custom: true }))]
+    .map((g, gi) => ({ ...g, gname: own[g.gid]?.name || g.gname, color: own[g.gid]?.color || PALETTE[gi % PALETTE.length] }))
+    .filter(g => !own[g.gid]?.hidden);
+}
+const formGroup = f => {
+  const gs = docGroups(), ok = gid => gs.some(x => x.gid === gid), g = db.docFormGroup?.[f.id];
+  return ok(g) ? g : ok(f.group) ? f.group : gs[0]?.gid;
+};
+const moveForm = (f, gid) => { db.docFormGroup = { ...db.docFormGroup, [f.id]: gid }; if (gid === f.group) delete db.docFormGroup[f.id]; };
+function editDocGroup(g) {
+  let extra = [h('p', 'hint', '서류를 다른 묶음으로 옮기려면 서류 화면 위의 묶음 칸에서 골라요.')];
+  if (g) { // 지우기: 양식은 못 지우니 안의 서류는 고른 묶음으로 옮김. 출장 묶음은 출장 관리가 있어서 못 지움
+    const fs = window.FORMS.list.filter(f => formGroup(f) === g.gid), others = docGroups().filter(x => x.gid !== g.gid);
+    const to = h('select', 'note-cat', others.map(x => { const o = h('option', null, x.gname); o.value = x.gid; o.selected = x.gid === 'etc'; return o; }));
+    const del = h('button', 'btn danger small', '이 묶음 지우기');
+    del.type = 'button';
+    del.disabled = g.gid === 'trip' || (fs.length > 0 && !others.length);
+    del.title = g.gid === 'trip' ? '출장 관리가 들어 있어서 지울 수 없어요' : '';
+    del.onclick = () => {
+      const target = to.selectedOptions[0]?.text;
+      if (!confirm(`'${g.gname}' 묶음을 지울까요?${fs.length ? `\n안의 서류 ${fs.length}개는 '${target}' 묶음으로 옮겨요.` : ''}`)) return;
+      for (const f of fs) moveForm(f, to.value);
+      if (g.custom) delete db.docGroups[g.gid];
+      else db.docGroups = { ...db.docGroups, [g.gid]: { ...db.docGroups?.[g.gid], hidden: true } };
+      dlg.close();
+      save();
+    };
+    extra.push(h('p', null, del, fs.length && others.length ? [` 안의 서류 ${fs.length}개는 `, to, ' 묶음으로'] : null));
+  } else extra = [h('p', 'hint', '만든 뒤 서류 화면 위의 묶음 칸에서 이 묶음을 고르면 서류가 옮겨져요.')];
+  const color = g?.color || PALETTE[docGroups().length % PALETTE.length];
+  ask(g ? '서류 묶음' : '새 서류 묶음', [{ key: 'name', label: '이름', value: g?.gname ?? '', required: true },
+    { key: 'color', label: '색', type: 'color', value: color }], v => {
+    const gid = g?.gid || uid();
+    db.docGroups = { ...db.docGroups, [gid]: { ...db.docGroups?.[gid], name: v.name.trim(), color: v.color || color, ...(g ? null : { custom: true }) } };
+    save();
+  }, extra);
+}
+function formGroupSelect(f) {
+  const sel = h('select', 'note-cat', docGroups().map(g => { const o = h('option', null, g.gname); o.value = g.gid; o.selected = g.gid === formGroup(f); return o; }));
+  sel.title = '묶음 옮기기';
+  sel.onchange = () => { moveForm(f, sel.value); save(); };
+  return sel;
+}
+
 function formTodo(f) {
   return [h('div', 'panel todo-card',
-    h('div', 'note-head', h('span', 'todo-emoji', f.emoji), h('h2', null, f.title), h('span', 'tag', f.note ? '안내' : '준비 중')),
+    h('div', 'note-head', h('span', 'todo-emoji', f.emoji), h('h2', null, f.title), h('span', 'tag', f.note ? '안내' : '준비 중'), formGroupSelect(f)),
     h('p', null, f.note || '아직 양식을 옮기지 않았어요. 원본을 보고 HTML 양식으로 옮기면, 여기서 내용을 채우고 A4 그대로 PDF로 저장할 수 있어요.'),
     h('div', 'hint', '원본 파일'), h('code', 'src-path', f.src))];
 }
@@ -1527,7 +1579,7 @@ function docPage(f) {
     const b = h('button', cls('doc-chip', x === d && 'on'), tripOf(x)?.title ?? x.title);
     b.onclick = () => { selDoc = x.id; render(); };
     return b;
-  }), add);
+  }), add, h('span', 'spacer'), formGroupSelect(f));
   if (!d) return [bar, h('p', 'hint', '‘+ 새로 만들기’로 문서를 만들어요.')];
   const trip = tripOf(d);
   const back = trip ? h('button', 'btn small', `← 출장: ${trip.title}`) : null;
@@ -1958,7 +2010,14 @@ function renderStock() {
     const n = S.items.filter(it => it.cat === c.id).length, b = h('button', cls('cat-head pick', stockView === c.id && 'on'), h('span', 'cat-name', c.name), h('span', 'cat-count', String(n)));
     b.style.setProperty('--c', catColor(c.id));
     b.onclick = () => { stockView = c.id; render(); };
+    b.title = '누르면 오른쪽에 · 끌어서 순서 바꾸기 · 길게 누르거나 ✎ 로 이름·색 바꾸기';
     groupEditable(b, () => editStockCat(c));
+    dragReorder(b, c.id, S.cats.map(x => x.id), ids => {
+      const colors = S.cats.map(x => catColor(x.id)); // 순서대로 붙던 색은 그대로 두고
+      S.cats.forEach((x, i) => { x.color ||= colors[i]; });
+      S.cats = byIds(S.cats, ids);
+      save();
+    });
     return b;
   });
   const addCat = h('button', 'cat-new', '+ 묶음');
@@ -2096,8 +2155,13 @@ function renderProtocol() {
     add.onclick = e => { e.stopPropagation(); editProtocol(null, g.id); };
     const head = h('div', 'cat-head', h('span', 'caret', shut ? '▸' : '▾'), h('span', 'cat-name', g.name), h('span', 'cat-count', String(ps.length)), add);
     head.style.setProperty('--c', g.color || PALETTE[(gi + 3) % PALETTE.length]);
-    head.title = '누르면 접기·펴기 · 길게 누르거나 ✎ 로 이름·색 바꾸기';
+    head.title = '누르면 접기·펴기 · 끌어서 순서 바꾸기 · 길게 누르거나 ✎ 로 이름·색 바꾸기';
     groupEditable(head, () => editProtoGroup(g, gi));
+    dragReorder(head, g.id, S.protoGroups.map(x => x.id), ids => {
+      S.protoGroups.forEach((x, i) => { x.color ||= PALETTE[(i + 3) % PALETTE.length]; }); // 순서대로 붙던 색은 그대로 두고
+      S.protoGroups = byIds(S.protoGroups, ids);
+      save();
+    });
     head.onclick = () => { if (shut) folded.delete(g.id); else folded.add(g.id); layout.protoFold = [...folded]; saveLayout(); render(); };
     return shut ? [head] : [head, ...ps.map(row)];
   });
