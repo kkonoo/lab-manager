@@ -404,7 +404,16 @@ tfoot td.name { background: var(--surface-2); }
 .tbl td.line-name { position: relative; }
 .line-move { position: absolute; top: 50%; right: 2px; transform: translateY(-50%); padding: 2px 4px; border-radius: 6px; background: var(--surface); color: var(--muted); cursor: grab; user-select: none; opacity: 0; } /* 자리 차지하지 않게 이름 칸 오른쪽 끝에 떠 있음 */
 .tbl.lines tr:hover .line-move { opacity: .75; }
-@media (hover: none) { .line-move { display: none; } }
+/* 폰 끌기 손잡이 (touchHandle): ≡ 를 누른 채 움직이면 끌기. 막대·줄에 붙는 ≡ 는 폰에서만 (PC는 막대·줄을 바로 끎) */
+.touch-drag { touch-action: none; -webkit-user-select: none; user-select: none; }
+.touch-only { display: none; }
+@media (hover: none) {
+  .touch-only { display: inline-flex; align-items: center; justify-content: center; flex: none; min-width: 32px; min-height: 32px; margin: -6px -4px; color: var(--muted); font-size: calc(16px * var(--fs)); }
+  .place-head .touch-only { margin-left: auto; }
+  .line-move { opacity: .7; padding: 6px 8px; }
+  .icon-mini.col-move { opacity: .7; }
+}
+.touch-src { opacity: .45; }
 .tbl.lines tr.drop-before td { box-shadow: inset 0 2px 0 var(--accent); }
 .tbl.lines tr.drop-after td { box-shadow: inset 0 -2px 0 var(--accent); }
 .tbl.lines.fixed { table-layout: fixed; }
@@ -444,9 +453,6 @@ tfoot td.name { background: var(--surface-2); }
 .proto-title { flex-wrap: wrap; align-items: center; }
 .note-title-input.proto-name { flex: 0 1 auto; min-width: 120px; max-width: 100%; field-sizing: content; font-size: calc(20px * var(--fs)); }
 .proto-memo { min-width: 90px; max-width: 280px; field-sizing: content; padding: 4px 6px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--muted); font: inherit; font-size: calc(12px * var(--fs)); outline: none; }
-.proto-steps { display: inline-flex; flex: none; gap: 4px; }
-.proto-step { padding: 4px 9px; }
-.proto-step:disabled { opacity: .35; cursor: default; }
 .proto-memo:hover { border-color: var(--line); }
 .proto-memo:focus { border-color: var(--accent); background: var(--surface); color: var(--text); }
 .note-row.drop-before { box-shadow: inset 0 3px 0 var(--accent); }

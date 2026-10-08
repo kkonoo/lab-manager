@@ -912,7 +912,7 @@ function groupEditable(head, onEdit) {
   const fire = () => { clearTimeout(timer); if (!fired) { fired = true; onEdit(); } };
   head.addEventListener('pointerdown', e => {
     fired = false;
-    if (e.pointerType === 'mouse') return;
+    if (e.pointerType === 'mouse' || e.target.closest('.touch-drag')) return; // ≡ 는 끌기
     [x0, y0] = [e.clientX, e.clientY];
     timer = setTimeout(fire, 500);
   });
@@ -921,9 +921,60 @@ function groupEditable(head, onEdit) {
   head.addEventListener('contextmenu', e => { e.preventDefault(); fire(); });
   head.addEventListener('click', e => { if (fired) { e.stopImmediatePropagation(); fired = false; } }, true); // 길게 누른 뒤 손을 떼도 접기·고르기는 안 함
 }
+// 폰 끌기: 폰 브라우저는 터치로 HTML 끌어 놓기(draggable)를 일으키지 않음 → 손잡이(≡, 폰에서만 보임)를 누른 채 움직이면
+// dragstart·dragover·drop 을 흉내 내서 PC용 끌기 코드를 그대로 씀. 손잡이만 touch-action: none 이라 나머지 칸은 그대로 스크롤
+function touchHandle(handle = h('span', 'touch-only', '≡')) {
+  handle.classList.add('touch-drag');
+  let src = null, dt = null, over = null, ok = false, last = null, timer = 0;
+  const fire = (el, type, t) => {
+    const e = new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: dt, clientX: t.clientX, clientY: t.clientY });
+    el.dispatchEvent(e);
+    return e.defaultPrevented;
+  };
+  const track = t => { // 손가락 아래 칸에 dragover (칸이 바뀌면 앞 칸에 dragleave)
+    const el = document.elementFromPoint(t.clientX, t.clientY);
+    if (el !== over) { if (over) fire(over, 'dragleave', t); over = el; }
+    ok = !!over && fire(over, 'dragover', t);
+  };
+  const edgeScroll = () => { // 손가락이 화면 끝에 있으면 위아래(페이지)·옆(넓은 표)으로 넘김
+    if (!last) return;
+    const wrap = src?.closest('.tbl-wrap'), m = 70;
+    const dy = last.clientY < m ? -10 : last.clientY > innerHeight - m ? 10 : 0, dx = wrap ? (last.clientX < 40 ? -10 : last.clientX > innerWidth - 40 ? 10 : 0) : 0;
+    if (dy) scrollBy(0, dy);
+    if (dx) wrap.scrollLeft += dx;
+    if (dx || dy) track(last);
+  };
+  handle.addEventListener('touchstart', e => {
+    src = handle.closest('[draggable="true"]');
+    if (!src || e.touches.length > 1 || typeof DataTransfer !== 'function') { src = null; return; }
+    e.preventDefault(); // 누른 칸 접기·고르기(click)·길게 누르기 메뉴 막음
+    dt = new DataTransfer(); over = null; ok = false; last = null;
+    fire(src, 'dragstart', e.touches[0]);
+    src.classList.add('touch-src');
+    timer = setInterval(edgeScroll, 30);
+  }, { passive: false });
+  handle.addEventListener('touchmove', e => {
+    if (!dt) return;
+    last = { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
+    track(last);
+  }, { passive: true });
+  const end = e => {
+    if (!dt) return;
+    clearInterval(timer);
+    const t = e.changedTouches[0];
+    if (over) fire(over, ok ? 'drop' : 'dragleave', t);
+    fire(src, 'dragend', t);
+    src.classList.remove('touch-src');
+    src = dt = over = last = null;
+  };
+  handle.addEventListener('touchend', end);
+  handle.addEventListener('touchcancel', end);
+  return handle;
+}
 // 묶음 순서: 막대를 끌어 다른 막대 위(위쪽 절반 = 앞, 아래쪽 절반 = 뒤)에 놓으면 onMove(새 id 순서). ids = 지금 순서
 function dragReorder(head, id, ids, onMove) {
   head.draggable = true;
+  head.insertBefore(touchHandle(), head.querySelector('.cat-add')); // 폰: + 앞 ≡
   const side = e => (e.clientY - head.getBoundingClientRect().top > head.offsetHeight / 2 ? 'after' : 'before');
   const clear = () => head.classList.remove('drop-before', 'drop-after');
   head.ondragstart = e => { e.dataTransfer.setData('text/x-group', id); e.dataTransfer.effectAllowed = 'move'; };
@@ -1302,7 +1353,7 @@ function linesPanel(g, pd) {
     name.value = l.name;
     name.onchange = () => { l.name = name.value.trim() || l.name; save(); };
     // ≡ 를 끌어 다른 줄 위쪽·아래쪽 절반에 놓으면 그 앞·뒤로 (db.lines 순서 = 보이는 순서)
-    const move = h('span', 'line-move', '≡');
+    const move = touchHandle(h('span', 'line-move', '≡'));
     move.draggable = true;
     move.title = '끌어서 순서 바꾸기';
     const tr = h('tr', null,
@@ -1503,7 +1554,7 @@ function tableBody(n) {
     x.onclick = () => { if (confirm(`'${c.name}' 칸을 지울까요?`)) { n.columns = n.columns.filter(y => y !== c); n.rows.forEach(r => delete r.cells[c.id]); save(); } };
     const grip = colGrip(w => { c.width = w; cols[i].style.width = `${w}px`; fit(); }, persist, 60);
     // ↔ 를 끌어 다른 머리칸 왼쪽·오른쪽 절반에 놓으면 그 앞·뒤로 (칸 이름 입력은 그대로 쓰게 손잡이만 끌림)
-    const move = h('span', 'icon-mini col-move', '↔');
+    const move = touchHandle(h('span', 'icon-mini col-move', '↔'));
     move.draggable = true;
     move.title = '끌어서 열 순서 바꾸기';
     move.ondragstart = e => { e.dataTransfer.setData('text/x-col', c.id); e.dataTransfer.effectAllowed = 'move'; };
@@ -2290,6 +2341,7 @@ function renderProtocol() {
     b.onclick = () => { selProto = p.id; editKey = null; render(); };
     // 다른 프로토콜 위쪽·아래쪽 절반에 놓으면 그 앞·뒤로 (묶음이 다르면 그 묶음으로)
     b.draggable = true;
+    b.append(touchHandle());
     b.ondragstart = e => { e.dataTransfer.setData('text/x-proto', p.id); e.dataTransfer.effectAllowed = 'move'; };
     const side = e => (e.clientY - b.getBoundingClientRect().top > b.offsetHeight / 2 ? 'after' : 'before');
     const clear = () => b.classList.remove('drop-before', 'drop-after');
@@ -2353,7 +2405,7 @@ function protocolPage(p) {
   const print = h('button', 'btn small', '🖨 인쇄 / PDF');
   print.title = '실험대에 두고 볼 수 있게 A4로 인쇄해요 (인쇄 창에서 PDF로 저장도 돼요)';
   print.onclick = () => printProtocol(p);
-  // 제목·한 줄 메모는 눌러서 바로 고침, 묶음은 고르는 칸으로 옮김 (폰에선 목록 끌기가 안 돼서)
+  // 제목·한 줄 메모는 눌러서 바로 고침, 묶음은 고르는 칸으로도 옮김 (목록에서 끌어도 됨)
   const touched = () => { p.updatedAt = isoToday(); save(); };
   const enterBlur = e => { if (e.key === 'Enter' && !e.isComposing) e.target.blur(); };
   const title = h('input', 'note-title-input proto-name');
@@ -2365,22 +2417,13 @@ function protocolPage(p) {
     ...S.protoGroups.map(x => Object.assign(h('option', null, x.name), { value: x.id, selected: x.id === p.group }))]);
   grp.title = '묶음 옮기기';
   grp.onchange = () => { if (grp.value) moveProto(p, grp.value); };
-  // ↑ ↓ : 같은 묶음 안에서 한 칸씩 (폰에선 목록 끌기가 안 돼서)
-  const sibs = protosIn(p.group), at = sibs.indexOf(p);
-  const step = (label, dir, tip) => {
-    const b = h('button', 'btn small proto-step', label);
-    b.title = tip;
-    b.disabled = !g || !sibs[at + dir];
-    b.onclick = () => moveProto(p, p.group, sibs[at + dir], dir > 0 ? 'after' : 'before');
-    return b;
-  };
   const memo = h('input', 'proto-memo');
   memo.value = p.memo || '';
   memo.placeholder = '한 줄 메모';
   memo.title = '눌러서 메모 고치기 (예: 키트 버전, 샘플 8개 기준)';
   memo.onkeydown = enterBlur;
   memo.onchange = () => { p.memo = memo.value.trim() || undefined; touched(); };
-  const head = h('div', 'panel-head proto-title', title, grp, h('span', 'proto-steps', step('↑', -1, '묶음 안에서 위로'), step('↓', 1, '묶음 안에서 아래로')), memo,
+  const head = h('div', 'panel-head proto-title', title, grp, memo,
     p.updatedAt ? h('span', 'hint', `고친 날 ${p.updatedAt.slice(2).replaceAll('-', '.')}`) : null, h('span', 'spacer'), print, write, del);
   let body;
   if (editing) {
@@ -2550,6 +2593,7 @@ function stockMap() {
       head.draggable = true;
       head.title = '끌어서 위치 순서 바꾸기';
       head.ondragstart = e => { e.dataTransfer.setData('text/x-place', p.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setDragImage(card, 20, 20); };
+      head.append(touchHandle());
     }
     const side = e => (e.clientX - card.getBoundingClientRect().left > card.offsetWidth / 2 ? 'after' : 'before');
     const clear = () => card.classList.remove('drop', 'drop-before', 'drop-after');
