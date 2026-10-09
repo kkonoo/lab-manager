@@ -31,6 +31,7 @@
     <button type="button" data-tab="protocol">프로토콜</button>
     <button type="button" data-tab="stock">재고</button>
     <button type="button" data-tab="equip">기기</button>
+    <button type="button" data-tab="tips">팁</button>
   </div>
   <div class="tools">
     <a class="icon-btn" href="calc.html" target="_blank" rel="noopener" title="실험 계산기 (새 창)">🧮</a>
@@ -111,6 +112,14 @@
     </div>
   </section>
 
+  <!-- 팁 (Google 문서 링크를 탭 안에 띄움 — 내용은 Google 문서에서 고침) -->
+  <section class="tab" id="tab-tips">
+    <div class="proto-layout">
+      <nav class="note-list" id="tipList"></nav>
+      <div class="proto-main" id="tipMain"></div>
+    </div>
+  </section>
+
   <!-- 정보 (행정 노트) -->
   <section class="tab" id="tab-info">
     <div class="info-layout">
@@ -167,6 +176,7 @@
 <script src="js/protocol.js"></script>
 <script src="js/stock.js"></script>
 <script src="js/equip.js"></script>
+<script src="js/tips.js"></script>
 <script type="module" src="js/sync.js"></script>
 <script>
   // 오프라인에서도 열리게 (localhost에선 개발 중 캐시가 헷갈리니 끔)

@@ -72,6 +72,7 @@ h2 { margin: 0; font-size: calc(15px * var(--fs)); font-weight: 700; letter-spac
   cursor: pointer; white-space: nowrap;
 }
 .btn:hover { background: var(--surface-2); }
+a.btn { display: inline-block; color: var(--text); text-decoration: none; } /* 링크를 버튼 모양으로 (팁: Google 문서에서 열기) */
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .btn.primary:hover { filter: brightness(1.08); }
 .btn.danger { background: transparent; border-color: transparent; color: var(--bad); padding-inline: 8px; }
@@ -87,7 +88,7 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 main { padding: 0 24px 40px; }
 .tab { display: none; }
 body[data-tab="home"] #tab-home, body[data-tab="pay"] #tab-pay, body[data-tab="budget"] #tab-budget, body[data-tab="stock"] #tab-stock,
-body[data-tab="info"] #tab-info, body[data-tab="docs"] #tab-docs, body[data-tab="protocol"] #tab-protocol, body[data-tab="equip"] #tab-equip { display: block; }
+body[data-tab="info"] #tab-info, body[data-tab="docs"] #tab-docs, body[data-tab="protocol"] #tab-protocol, body[data-tab="equip"] #tab-equip, body[data-tab="tips"] #tab-tips { display: block; }
 
 .panel {
   min-width: 0; padding: 16px 18px; border-radius: var(--radius);
@@ -892,6 +893,10 @@ body[data-role="member"] #modeSeg { display: none; }
 .photo-tile > .hint { padding: 6px; } /* 올리는 중 · 못 불러옴 */
 .photo-tile.busy { border: 1.5px dashed var(--line); }
 .photo-x { position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; padding: 0; border: none; border-radius: 50%; background: rgba(0, 0, 0, .55); color: #fff; font-size: 16px; line-height: 1; cursor: pointer; }
+/* 팁: Google 문서를 탭 안에 */
+.tip-doc .panel-head { flex-wrap: wrap; align-items: center; }
+.tip-frame { display: block; width: 100%; height: max(480px, calc(100dvh - 230px)); border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.tip-note { margin: 8px 2px 0; }
 .equip-field { display: inline-flex; align-items: center; gap: 2px; font-size: calc(12px * var(--fs)); color: var(--muted); } /* 기기 제목 줄: '담당' + 담당자 칸 */
 .proto-del { margin-left: auto; } /* 폰에서 줄이 넘어가도 오른쪽에 (PC에선 앞 spacer가 자리를 다 가져가서 그대로) */
 

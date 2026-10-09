@@ -4,7 +4,7 @@
 //   users/{uid}/admin/{칸}        PI 전용: 과제·인건비·세목·정보·출장·내 정보 등 db의 나머지 칸 (칸 하나 = 문서 하나)
 //   users/{uid}/adminDocs/{id}    서류 한 건 = 문서 하나
 //   labs/{PI uid}                 랩 문서 { owner, ownerEmail, ownerName, members: [학생 구글 이메일] } — 보안 규칙이 이 목록으로 멤버 확인
-//   labs/{PI uid}/meta/stock      재고의 묶음·보관 위치·업체, 프로토콜·기기 묶음
+//   labs/{PI uid}/meta/stock      재고의 묶음·보관 위치·업체, 프로토콜·기기 묶음, 팁 링크, 기기 사진 저장 주소
 //   labs/{PI uid}/protocols/{id}  프로토콜 하나 = 문서 하나 (본문 노트를 여럿이 동시에 고쳐도 안 겹치게)
 //   labs/{PI uid}/equips/{id}     기기(공동기기 handbook) 하나 = 문서 하나
 //   labs/{PI uid}/items/{id}      재고 품목 하나 = 문서 하나 (학생 여럿이 동시에 고쳐도 안 겹치게)
@@ -14,7 +14,7 @@
 import { firebaseConfig } from './firebase-config.js';
 
 const SDK = 'https://www.gstatic.com/firebasejs/12.19.0';
-const LAB_META = ['cats', 'places', 'vendors', 'protoGroups', 'equipGroups', 'photoScript']; // db.stock 안에서 랩이 같이 쓰는 목록·설정 (프로토콜·기기·품목은 한 건씩 따로)
+const LAB_META = ['cats', 'places', 'vendors', 'protoGroups', 'equipGroups', 'tips', 'photoScript']; // db.stock 안에서 랩이 같이 쓰는 목록·설정 (프로토콜·기기·품목은 한 건씩 따로)
 const NOT_ADMIN = new Set(['docs', 'stock', 'orders', 'owner', 'member']); // users/{uid}/admin 으로 안 가는 칸
 
 if (firebaseConfig) start();
@@ -143,7 +143,7 @@ async function start() {
   function skeleton() { // 서버 값을 받아 채울 빈 틀 (예시 데이터 없이)
     return { version: VERSION, rates: structuredClone(db.rates), grants: [], people: [], pays: [], lines: [], info: { cats: [], notes: [] }, rows: [],
       docs: [], trips: [], profile: {}, buySeed: true, miscSeed: true, labMembers: [], orders: [],
-      stock: { cats: [], places: [], vendors: { columns: [], rows: [] }, protoGroups: [], protocols: [], equipGroups: [], equips: [], items: [] } };
+      stock: { cats: [], places: [], vendors: { columns: [], rows: [] }, protoGroups: [], protocols: [], equipGroups: [], equips: [], tips: [], items: [] } };
   }
   function whenLoaded() {
     const names = mode === 'pi' ? ['admin', 'docs', 'meta', 'protocols', 'equips', 'items', 'orders'] : ['meta', 'protocols', 'equips', 'items', 'orders'];

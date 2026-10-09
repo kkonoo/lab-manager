@@ -90,6 +90,7 @@ function withDocs(v) {
   v.stock.protocols ||= [];
   v.stock.equipGroups ||= []; // 공동기기 handbook: 묶음 → 기기 (프로토콜과 같은 틀)
   v.stock.equips ||= [];
+  v.stock.tips ||= []; // 팁: Google 문서 링크 목록
   v.labMembers ||= []; // 재고를 같이 쓰는 학생 구글 이메일 (sync.js가 랩 문서에 올림)
   // 가상 학생(시뮬레이션) 기능을 뺐음 → 남아 있던 가상 학생과 그 인건비는 지움
   const ghosts = new Set(v.people.filter(p => p.virtual).map(p => p.id));
@@ -264,11 +265,11 @@ function colGrip(onSize, onDone, min = 40) {
 }
 function openBudget(gid, n) { selGrant = gid; selN = n ?? null; setTab('budget'); }
 
-// 모드: 행정(한눈에·예산·인건비·서류·정보 — PI만) │ 연구(프로토콜·재고·기기 — 랩 멤버와 같이). 모드는 지금 탭으로 정해지고,
+// 모드: 행정(한눈에·예산·인건비·서류·정보 — PI만) │ 연구(프로토콜·재고·기기·팁 — 랩 멤버와 같이). 모드는 지금 탭으로 정해지고,
 // 모드를 바꾸면 그 모드에서 마지막에 본 탭으로. 마지막 모드는 이 브라우저에 기억 → 다음에 열면 그 모드의 첫 탭부터
 // 랩 멤버(학생)로 로그인하면 db.member = { lab, labName } 이고 연구 모드만 보임 (sync.js가 정함)
 const isMember = () => !!db.member;
-const LAB_TABS = ['protocol', 'stock', 'equip'];
+const LAB_TABS = ['protocol', 'stock', 'equip', 'tips'];
 const modeOf = t => (LAB_TABS.includes(t) ? 'lab' : 'admin');
 const MODE_KEY = 'lab-manager-mode';
 const lastTab = { admin: 'home', lab: 'protocol' };
@@ -285,6 +286,7 @@ function render() {
   renderProtocol();
   renderStock();
   renderEquip();
+  renderTips();
   if (isMember()) return;
   renderHome();
   renderPay();
@@ -777,7 +779,8 @@ $('noteView').before(splitter($('noteView').parentElement, '--info-w', 180));
 $('docMain').before(splitter($('docMain').parentElement, '--docs-w', 180));
 $('stockMain').before(splitter($('stockMain').parentElement, '--stock-w', 180));
 $('protoMain').before(splitter($('protoMain').parentElement, '--proto-w', 180));
-$('equipMain').before(splitter($('equipMain').parentElement, '--proto-w', 180)); // 기기 목록 너비는 프로토콜과 같이
+$('equipMain').before(splitter($('equipMain').parentElement, '--proto-w', 180)); // 기기·팁 목록 너비는 프로토콜과 같이
+$('tipMain').before(splitter($('tipMain').parentElement, '--proto-w', 180));
 
 // 처음 열면 마지막 모드의 첫 탭 (행정 = 한눈에, 연구 = 프로토콜 · 학생은 늘 연구). 폰에 설치한 앱은 닫아도 메모리에 남아 있다가 이어서 열리므로,
 // 1시간 넘게 내려 두었거나 날짜가 바뀌었으면 새로 불러옴 → 첫 화면부터, 오늘 날짜(TODAY·NOW)도 새로
