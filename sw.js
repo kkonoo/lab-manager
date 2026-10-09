@@ -5,7 +5,7 @@ const CACHE = 'lab-manager-v2';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/style.css', 'letterhead-knu.jpg',
   'js/data.js', 'js/forms.js', 'js/forms-trip.js', 'js/forms-buy.js', 'js/forms-misc.js', 'js/app.js',
-  'js/home.js', 'js/budget.js', 'js/pay.js', 'js/docs.js', 'js/info.js', 'js/protocol.js', 'js/stock.js', 'js/sync.js', 'js/firebase-config.js',
+  'js/home.js', 'js/budget.js', 'js/pay.js', 'js/docs.js', 'js/info.js', 'js/pages.js', 'js/protocol.js', 'js/stock.js', 'js/equip.js', 'js/sync.js', 'js/firebase-config.js',
   'icons/app-192.png', 'icons/app-512.png', 'icons/app-maskable-192.png', 'icons/app-maskable-512.png',
 ];
 

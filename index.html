@@ -30,6 +30,7 @@
     <button type="button" data-tab="info">정보</button>
     <button type="button" data-tab="protocol">프로토콜</button>
     <button type="button" data-tab="stock">재고</button>
+    <button type="button" data-tab="equip">기기</button>
   </div>
   <div class="tools">
     <a class="icon-btn" href="calc.html" target="_blank" rel="noopener" title="실험 계산기 (새 창)">🧮</a>
@@ -102,6 +103,14 @@
     </div>
   </section>
 
+  <!-- 기기 (공동기기 handbook: 묶음 → 기기. 프로토콜과 같은 틀 + 담당자·위치·사진) -->
+  <section class="tab" id="tab-equip">
+    <div class="proto-layout">
+      <nav class="note-list" id="equipList"></nav>
+      <div class="proto-main" id="equipMain"></div>
+    </div>
+  </section>
+
   <!-- 정보 (행정 노트) -->
   <section class="tab" id="tab-info">
     <div class="info-layout">
@@ -154,8 +163,10 @@
 <script src="js/pay.js"></script>
 <script src="js/docs.js"></script>
 <script src="js/info.js"></script>
+<script src="js/pages.js"></script>
 <script src="js/protocol.js"></script>
 <script src="js/stock.js"></script>
+<script src="js/equip.js"></script>
 <script type="module" src="js/sync.js"></script>
 <script>
   // 오프라인에서도 열리게 (localhost에선 개발 중 캐시가 헷갈리니 끔)

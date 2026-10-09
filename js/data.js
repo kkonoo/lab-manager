@@ -213,6 +213,18 @@ window.SEED = {
       ].join('\n') }, { id: 'pr2', group: 'ngs', name: 'DNA 정량·QC' },
       { id: 'pr3', group: 'data', name: '시퀀싱 데이터 백업' },
     ],
+    equipGroups: [{ id: 'shared', name: '공동기기' }],
+    equips: [
+      { id: 'eq1', group: 'shared', name: '원심분리기', memo: '예시 — 지워도 돼요', owner: '홍길동', note: [
+        '## 사용법',
+        '1. 로터·뚜껑 확인 → 튜브 무게 맞춰 마주 보게 넣기',
+        '2. 속도·시간·온도 설정 → 시작',
+        '3. 끝나면 로터 꺼내 말리기',
+        '## 주의사항',
+        '> 주의: 균형이 안 맞으면 바로 정지 버튼 (예시)',
+        '- [ ] 사용 기록 적기',
+      ].join('\n') },
+    ],
     items: [
       { id: 'st1', cat: 'kit', name: 'Qubit dsDNA HS Assay Kit', maker: 'Thermo Fisher', catNo: 'Q32851', place: 'fridge', memo: '예시 — 지워도 돼요', need: true, protocols: ['pr2'] },
       { id: 'st2', cat: 'kit', name: 'AMPure XP', maker: 'Beckman Coulter', catNo: 'A63881', place: 'fridge', memo: '예시 — 지워도 돼요', protocols: ['pr1'] },
