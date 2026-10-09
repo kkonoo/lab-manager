@@ -1,15 +1,7 @@
 'use strict';
-// 실험 계산기 (calc.html) — 몰농도 · 희석 · 버퍼 조제 · 세포 seeding
-// 랩 매니저 위 🧮로 여는 따로 페이지: app.js·sync.js(랩 매니저 데이터)는 읽지 않고, 계산 값은 저장하지 않음 (버퍼 프리셋만 calc-sync.js)
-// 카드 안의 칸을 고칠 때마다(input·change) 그 카드만 다시 계산
-
-const $ = id => document.getElementById(id);
-function h(tag, cls, ...kids) { // app.js와 같음
-  const el = document.createElement(tag);
-  if (cls) el.className = cls;
-  el.append(...kids.flat(9).filter(k => k != null && k !== false).map(k => typeof k === 'number' ? String(k) : k));
-  return el;
-}
+// ---------- 계산기 탭 (연구 모드 — 랩 멤버와 같이 씀): 몰농도 · 희석 · 버퍼 조제 · 세포 seeding ----------
+// 계산 값은 저장하지 않음 (다른 탭에 갔다 와도 화면에 그대로). 버퍼 프리셋만 sync.js가 calcPresets/{PI uid}로 랩과 같이 봄
+// 카드 안의 칸을 고칠 때마다(input·change) 그 카드만 다시 계산. 화면은 처음에 한 번만 그림 (db를 안 써서 render()와 상관없음)
 
 // ---------- 단위: 기준 단위(질량 g · 몰농도 M · 질량 농도 mg/mL · 배수 X · 부피 L)로 바꿀 때 곱하는 값 ----------
 const MASS = { g: 1, mg: 1e-3, 'µg': 1e-6 };
@@ -26,8 +18,8 @@ function sci(x) {
   if (m >= 10) { m /= 10; e++; }
   return `${Number.isInteger(m) ? m.toFixed(1) : m} × 10${sup(e)}`;
 }
-const fmt = x => (x && (x < 1e-4 || x >= 1e6) ? sci(x) : String(+x.toPrecision(4)));
-const fmtVol = L => (L < 2e-3 ? `${fmt(L * 1e6)} µL` : `${fmt(L * 1e3)} mL`); // 2 mL 아래는 µL (피펫으로 재기 좋게)
+const fmtN = x => (x && (x < 1e-4 || x >= 1e6) ? sci(x) : String(+x.toPrecision(4)));
+const fmtVol = L => (L < 2e-3 ? `${fmtN(L * 1e6)} µL` : `${fmtN(L * 1e3)} mL`); // 2 mL 아래는 µL (피펫으로 재기 좋게)
 const rest = (all, part) => (all - part > all * 1e-9 ? all - part : 0); // 나머지 (같으면 소수 오차 대신 0)
 
 // ---------- 입력 칸 ----------
@@ -74,25 +66,7 @@ function card(title, hint, update, ...kids) {
   return el;
 }
 
-// ---------- 입력 창 (app.js ask 와 같은 모양, 글 칸만) · 길게 누르기 (app.js groupEditable 과 같은 방식) ----------
-const dlg = $('dlg');
-function ask(title, fields, onOk, extra = [], canOk = true) {
-  $('dlgTitle').textContent = title;
-  $('dlgBody').replaceChildren(...fields.map(f => {
-    const input = h('input');
-    input.name = f.key;
-    input.value = f.value ?? '';
-    input.placeholder = f.placeholder || '';
-    input.required = !!f.required;
-    input.enterKeyHint = 'enter'; // 모바일 키보드가 '다음' 대신 Enter → 확인
-    return h('label', 'field', f.label, input);
-  }), ...extra.filter(Boolean));
-  $('dlgOk').disabled = !canOk;
-  dlg.returnValue = '';
-  dlg.onclose = () => { if (dlg.returnValue === 'ok') onOk(Object.fromEntries(new FormData($('dlgForm')))); };
-  dlg.showModal();
-}
-// 길게 누르기(폰) · 오른쪽 클릭(PC) → onHold. 길게 누른 뒤 손을 떼도 click 은 안 함
+// ---------- 길게 누르기(폰) · 오른쪽 클릭(PC) → onHold. 길게 누른 뒤 손을 떼도 click 은 안 함
 function holdable(el, onHold) {
   let timer = 0, fired = false, x0 = 0, y0 = 0;
   const fire = () => { clearTimeout(timer); if (!fired) { fired = true; onHold(); } };
@@ -123,7 +97,7 @@ function molarCard() {
     if (blank !== 1) return say(out, blank ? '질량·몰농도·부피 중 두 칸을 넣어 주세요' : '계산할 칸 하나를 비워 두세요');
     const [m, c, v] = vs, i = vs.indexOf(null), x = xs[i];
     const r = [c * v * w, m / (v * w), m / (c * w)][i]; // g · M · L
-    show(out, `${x.name} ${fmt(r / x.units[x.sel.value])} ${x.sel.value}`);
+    show(out, `${x.name} ${fmtN(r / x.units[x.sel.value])} ${x.sel.value}`);
   };
   return card('⚖️ 몰농도', '질량 = 몰농도 × 부피 × MW · 하나를 비우면 계산해요', update,
     h('div', 'calc-fields', mw.el, xs.map(x => x.el)), out);
@@ -146,9 +120,9 @@ function dilutionCard() {
     vs[i] = [c2 * v2 / v1, c2 * v2 / c1, c1 * v1 / v2, c1 * v1 / c2][i];
     const [C1, V1, C2, V2] = vs;
     if (C1 < C2 * (1 - 1e-9)) return say(out, 'stock이 최종 농도보다 묽어요. 희석으로는 만들 수 없어요', 'warn');
-    const mix = `stock ${fmtVol(V1)} + 용매 ${fmtVol(rest(V2, V1))}`, fold = `${fmt(C1 / C2)}배 희석`;
+    const mix = `stock ${fmtVol(V1)} + 용매 ${fmtVol(rest(V2, V1))}`, fold = `${fmtN(C1 / C2)}배 희석`;
     if (i % 2) show(out, mix, `최종 ${i === 3 ? fmtVol(V2) : `${xs[3].input.value} ${xs[3].sel.value}`} · ${fold}`); // 넣은 최종 부피는 넣은 그대로
-    else show(out, `${i ? '최종 농도' : 'stock 농도'} ${fmt(vs[i] / CONC[xs[i].sel.value])} ${xs[i].sel.value}`, `${mix} · ${fold}`);
+    else show(out, `${i ? '최종 농도' : 'stock 농도'} ${fmtN(vs[i] / CONC[xs[i].sel.value])} ${xs[i].sel.value}`, `${mix} · ${fold}`);
   };
   return card('💧 희석', 'C1V1 = C2V2 · 하나를 비우면 계산해요', update, h('div', 'calc-fields', xs.map(x => x.el)), out);
 }
@@ -170,10 +144,10 @@ const BASE_PRESETS = [
     { name: '빙초산', kind: 'stock', val: 17.4, unit: 'M', fin: 200 },
     { name: 'EDTA (pH 8.0)', kind: 'stock', val: 0.5, unit: 'M', fin: 10 }] },
 ];
-// 지금 프리셋 목록. calc.html?lab={PI uid} 로 열면 calc-sync.js가 그 PI의 프리셋으로 바꾸고(setPresets),
-// 그 PI가 이 브라우저에서 로그인해 있으면 고칠 수 있게 저장 함수를 줌(setPresetOwner) — 랩 학생은 보기만
+// 지금 프리셋 목록. 로그인하면 sync.js가 이 랩(PI)의 프리셋으로 바꾸고(setPresets),
+// PI면 고칠 수 있게 저장 함수를 줌(setPresetOwner) — 랩 학생은 보기만. 로그인 전엔 기본 프리셋만 (고치기 없음)
 let presets = structuredClone(BASE_PRESETS), savePresets = null, drawPresets = () => {};
-function setPresets(list) { if (Array.isArray(list)) { presets = list; drawPresets(); } }
+function setPresets(list) { if (Array.isArray(list) && JSON.stringify(list) !== JSON.stringify(presets)) { presets = list; drawPresets(); } } // 같으면 그대로 (고치는 창이 잡고 있는 프리셋을 안 바꾸게)
 function setPresetOwner(save) { savePresets = save; drawPresets(); }
 // 그 PI인데 프리셋을 못 불러왔을 때만 (덮어쓰지 않게 고치기는 끔)
 function presetError(text) { const box = $('calcNotice'); box.hidden = false; box.replaceChildren(`⚠️ ${text}`); }
@@ -215,7 +189,7 @@ function bufferCard() {
       const a = num(r.val.input), c = num(r.fin.input), au = r.val.sel?.value, cu = r.fin.sel.value, note = t => h('span', 'hint', t);
       if (a == null || c == null) return note('값을 채워 주세요');
       if (bad(a) || bad(c)) return note('0보다 큰 값을 넣어 주세요');
-      if (!au) return h('b', null, `${fmt(c * MOLAR[cu] * L * a)} g`); // 고체 (MW 칸엔 단위 고르기가 없음)
+      if (!au) return h('b', null, `${fmtN(c * MOLAR[cu] * L * a)} g`); // 고체 (MW 칸엔 단위 고르기가 없음)
       if (concKind(au) !== concKind(cu)) return note('stock과 단위 종류를 맞춰 주세요');
       if (c * CONC[cu] > a * CONC[au]) return note('stock보다 진할 수 없어요');
       return h('b', null, fmtVol(c * CONC[cu] * L / (a * CONC[au])));
@@ -263,7 +237,7 @@ function bufferCard() {
       { key: 'ph', label: 'pH·메모 (불러오면 아래에 보여요)', placeholder: '예: 목표 pH 8.0' }] : [], v => {
       presets.push({ id: Math.random().toString(36).slice(2, 9), name: v.name.trim(), ph: v.ph.trim(), rows: data });
       commit();
-    }, [h('p', 'hint', data.length ? `지금 표의 성분 ${data.length}개를 저장해요. 랩 학생도 🧮로 열면 같이 보여요.` : '성분 행을 먼저 채우면 지금 표를 프리셋으로 저장할 수 있어요.'),
+    }, [h('p', 'hint', data.length ? `지금 표의 성분 ${data.length}개를 저장해요. 랩 학생도 계산기 탭에서 같이 봐요.` : '성분 행을 먼저 채우면 지금 표를 프리셋으로 저장할 수 있어요.'),
       h('p', 'hint', '프리셋을 길게 누르면(PC는 오른쪽 클릭) 이름을 바꾸거나 지울 수 있어요.'), h('p', null, restore)], data.length > 0);
   };
   const editPreset = p => {
@@ -366,24 +340,13 @@ function cellCard() {
     const W = Math.ceil(+(n * (1 + m / 100)).toFixed(6)); // 여유분까지 웰 수 (소수면 올림, 60 × 1.1 = 66.00000000000001 같은 오차는 버림)
     const total = W * vml, susp = W * perWell / c;
     if (susp > total) return say(out, `세포가 묽어요. 최소 ${sci(perWell / vml)} cells/mL이 있어야 해요 (원심분리해 농축해 주세요)`, 'warn');
-    show(out, `현탁액 ${fmt(susp)} mL + 배지 ${fmt(rest(total, susp))} mL`, `총 ${fmt(total)} mL · ${W} well 분량 (${n} + 여유 ${m}%) · 세포 ${sci(W * perWell)}개`);
+    show(out, `현탁액 ${fmtN(susp)} mL + 배지 ${fmtN(rest(total, susp))} mL`, `총 ${fmtN(total)} mL · ${W} well 분량 (${n} + 여유 ${m}%) · 세포 ${sci(W * perWell)}개`);
   };
   return card('🧫 세포 seeding', 'hemocytometer → cells/mL → 현탁액 + 배지', update,
     h('div', 'calc-sec', '① 세포 세기'), h('div', 'seg calc-seg', modes), hemo, own,
     h('div', 'calc-sec', '② 심기'),
     h('div', 'calc-fields', h('label', 'field', '플레이트', plate), area.el, target.el, vpw.el, wells.el, margin.el), out);
 }
-
-// ---------- 테마: 앱(◐)과 같은 저장 키 → 같은 기기면 같은 테마 ----------
-const THEME_KEY = 'lab-manager-theme';
-function applyTheme(t) { if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; }
-try { applyTheme(localStorage.getItem(THEME_KEY)); } catch { /* 없음 */ }
-$('themeBtn').onclick = () => {
-  const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
-  const t = dark ? 'light' : 'dark';
-  applyTheme(t);
-  try { localStorage.setItem(THEME_KEY, t); } catch { /* 없음 */ }
-};
 
 // ---------- 왼쪽 목록: 누른 계산기만 보임 (나머지는 숨겨 두기만 해서 넣은 값은 그대로) ----------
 const CALCS = [['⚖️', '몰농도', molarCard()], ['💧', '희석', dilutionCard()], ['🧪', '버퍼 조제', bufferCard()], ['🧫', '세포 seeding', cellCard()]];

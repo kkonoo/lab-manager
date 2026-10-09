@@ -4,47 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>실험 계산기</title>
-<meta name="description" content="실험 계산기 — 몰농도·희석·버퍼 조제·세포 seeding">
-<meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#F5F4F0">
-<link rel="icon" href="icons/app-192.png">
-<link rel="apple-touch-icon" href="icons/app-maskable-192.png">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-<link rel="stylesheet" href="css/style.css">
+<!-- 실험 계산기는 랩 매니저의 연구 모드 '계산기' 탭으로 옮겼어요. 예전 주소(calc.html)로 오면 그 탭으로 -->
+<script>try { localStorage.setItem('lab-manager-mode', 'lab'); } catch { /* 없음 */ } location.replace('./#calc');</script>
 </head>
-<body>
-<!-- 랩 매니저 위 🧮로 여는 따로 페이지: 랩 매니저 데이터(app.js·sync.js)는 읽지 않음. 🧮가 붙여 주는 ?lab= 이 있으면 버퍼 프리셋만 Firestore에서 (calc-sync.js) -->
-<header class="topbar">
-  <h1 class="app-title">실험 계산기</h1>
-  <div class="tools">
-    <button class="icon-btn" id="themeBtn" title="라이트/다크 전환">◐</button>
-  </div>
-</header>
-
-<main>
-  <p class="hint calc-lead">칸을 채우면 바로 계산돼요.</p>
-  <p class="hint calc-lead calc-notice" id="calcNotice" hidden></p> <!-- PI인데 버퍼 프리셋을 못 불러왔을 때만 -->
-  <!-- 왼쪽 목록에서 고른 계산기 하나만 (폰에선 목록이 위에 2×2) -->
-  <div class="calc-layout">
-    <nav class="note-list calc-nav" id="calcNav"></nav>
-    <div class="calc-main" id="calcMain"></div>
-  </div>
-</main>
-
-<!-- 입력 창 (버퍼 프리셋 추가·고치기) — index.html 과 같은 모양 -->
-<dialog id="dlg" class="calc-dlg">
-  <form method="dialog" id="dlgForm">
-    <h3 id="dlgTitle"></h3>
-    <div id="dlgBody"></div>
-    <!-- 확인을 먼저 둬야 Enter(폼 기본 제출)가 확인을 누름. 화면엔 CSS(row-reverse)로 '취소 · 확인' 순서 -->
-    <div class="dlg-btns">
-      <button class="btn primary" value="ok" id="dlgOk">확인</button>
-      <button class="btn" value="cancel" formnovalidate>취소</button>
-    </div>
-  </form>
-</dialog>
-
-<script src="js/calc.js"></script>
-<script type="module" src="js/calc-sync.js"></script>
-</body>
+<body><p><a href="./#calc">랩 매니저 › 계산기</a></p></body>
 </html>

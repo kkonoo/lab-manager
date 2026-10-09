@@ -270,11 +270,12 @@ function openBudget(gid, n) { selGrant = gid; selN = n ?? null; setTab('budget')
 // 모드를 바꾸면 그 모드에서 마지막에 본 탭으로. 마지막 모드는 이 브라우저에 기억 → 다음에 열면 그 모드의 첫 탭부터
 // 랩 멤버(학생)로 로그인하면 db.member = { lab, labName } 이고 연구 모드만 보임 (sync.js가 정함)
 const isMember = () => !!db.member;
-const LAB_TABS = ['protocol', 'stock', 'equip', 'tips'];
+const LAB_TABS = ['protocol', 'calc', 'stock', 'equip', 'tips'];
 const modeOf = t => (LAB_TABS.includes(t) ? 'lab' : 'admin');
 const MODE_KEY = 'lab-manager-mode';
 const lastTab = { admin: 'home', lab: 'protocol' };
 try { if (localStorage.getItem(MODE_KEY) === 'lab') tab = 'protocol'; } catch { /* 처음 */ }
+if (location.hash === '#calc') { tab = 'calc'; history.replaceState(null, '', location.pathname); } // 예전 계산기 주소(calc.html)에서 넘어옴
 function render() {
   if (isMember() && !LAB_TABS.includes(tab)) tab = 'protocol';
   const mode = modeOf(tab);
@@ -406,11 +407,12 @@ function field(f) {
   return h('label', 'field', f.label, input);
 }
 // 칸: { key… } 하나 · [ … ] 한 줄에 여럿 · { fold: 제목, hint, fields } 접는 묶음 (접혀 있어도 값은 같이 넘어감) · 화면 요소 그대로
-function ask(title, fields, onOk, extra = []) {
+function ask(title, fields, onOk, extra = [], canOk = true) {
   $('dlgTitle').textContent = title;
   const draw = f => f instanceof Node ? f : Array.isArray(f) ? h('div', 'row3', f.map(field))
     : f.fold ? Object.assign(fold(f.fold, f.hint, ...f.fields.map(draw)), { className: 'fold-box set-box' }) : field(f);
   $('dlgBody').replaceChildren(...fields.map(draw), ...extra.filter(Boolean));
+  $('dlgOk').disabled = !canOk; // 확인할 게 없을 때 (계산기 프리셋 추가 — 표가 비었을 때)
   dlg.returnValue = '';
   dlg.onclose = () => { if (dlg.returnValue === 'ok') onOk(Object.fromEntries(new FormData($('dlgForm')))); };
   dlg.showModal();

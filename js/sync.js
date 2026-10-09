@@ -10,7 +10,8 @@
 //   labs/{PI uid}/photos/{id}     기기 사진(앱 안 저장) 하나 = 문서 하나 — 동기화 목록엔 없고 기기 페이지에서 직접 읽고 씀 (window.cloud.photo)
 //   labs/{PI uid}/items/{id}      재고 품목 하나 = 문서 하나 (학생 여럿이 동시에 고쳐도 안 겹치게)
 //   labs/{PI uid}/orders/{id}     주문 하나 = 문서 하나
-// 랩 멤버(학생)로 로그인하면 랩 쪽만 주고받고 db.member 를 켬 → app.js가 연구 모드(프로토콜·재고·기기·팁)만 보여 줌
+//   calcPresets/{PI uid}          계산기 버퍼 프리셋 — 동기화 목록엔 없고 calc.js에 바로 넘김 (setPresets · setPresetOwner)
+// 랩 멤버(학생)로 로그인하면 랩 쪽만 주고받고 db.member 를 켬 → app.js가 연구 모드(프로토콜·계산기·재고·기기·팁)만 보여 줌
 // app.js 의 db, persist, render, withDocs, fresh, VERSION 을 그대로 씀
 import { firebaseConfig } from './firebase-config.js';
 
@@ -44,9 +45,6 @@ async function start() {
     get: async id => (await F.getDoc(photoRef(id))).data()?.d,
     del: async id => F.deleteDoc(photoRef(id)),
   };
-  // 위 🧮 실험 계산기 링크에 이 랩(PI uid)을 붙임 → 계산기에서 이 랩의 버퍼 프리셋을 보고, PI면 고침 (calc-sync.js)
-  const calcLink = document.querySelector('a[href^="calc.html"]');
-  const setCalcLink = l => { if (calcLink) calcLink.href = l ? `calc.html?lab=${l}` : 'calc.html'; };
   const btn = $('accountBtn');
   btn.hidden = false;
   btn.onclick = () => (user ? $('settingsBtn').click() : login());
@@ -185,7 +183,8 @@ async function start() {
     if (!u) {
       // 로그아웃: 이 기기에 남은 계정 데이터는 지우고 예시로 (계정에는 그대로 있음)
       if (db.owner) { db = fresh(); persistLocal(); render(); }
-      setCalcLink(null);
+      setPresetOwner(null);
+      setPresets(structuredClone(BASE_PRESETS));
       window.cloud.lab = null;
       showAccount();
       return;
@@ -204,7 +203,6 @@ async function start() {
       console.error('계정 확인 실패', e);
       mode = 'pi'; lab = u.uid;
     }
-    setCalcLink(lab);
     window.cloud.lab = lab;
     showAccount();
     remote = skeleton();
@@ -217,5 +215,17 @@ async function start() {
     listen('equips', F.collection(fs, 'labs', lab, 'equips'), id => `e:${id}`);
     listen('items', F.collection(fs, 'labs', lab, 'items'), id => `i:${id}`);
     listen('orders', F.collection(fs, 'labs', lab, 'orders'), id => `o:${id}`);
+    // 계산기 버퍼 프리셋: calcPresets/{PI uid} = { j: 목록 JSON } — 랩 멤버도 같이 봄, 고치기는 PI만 (calc.js · firestore.rules)
+    // 서버에서 한 번 받은 뒤에만 PI가 고칠 수 있게 (기기 캐시만 보고 기본 프리셋으로 덮어쓰지 않게)
+    const presetRef = F.doc(fs, 'calcPresets', lab), pi = mode === 'pi';
+    const savePresets = list => F.setDoc(presetRef, { j: JSON.stringify(list) })
+      .catch(e => { console.error('프리셋 저장 실패', e); alert(`프리셋을 저장하지 못했어요 (${e.code}). 인터넷 연결을 확인해 주세요.`); });
+    unsubs.push(F.onSnapshot(presetRef, { includeMetadataChanges: true }, snap => {
+      setPresets(snap.exists() ? JSON.parse(snap.data().j) : structuredClone(BASE_PRESETS)); // 아직 없으면(PI가 고친 적 없음) 기본 프리셋
+      if (pi && !snap.metadata.fromCache) setPresetOwner(savePresets);
+    }, e => {
+      console.error('프리셋을 불러오지 못했어요', e);
+      if (pi) presetError('버퍼 프리셋을 불러오지 못해서 지금은 고칠 수 없어요. 인터넷 연결과 Firestore 규칙(calcPresets)을 확인해 주세요.');
+    }));
   });
 }

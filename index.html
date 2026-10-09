@@ -29,12 +29,12 @@
     <button type="button" data-tab="docs">서류</button>
     <button type="button" data-tab="info">정보</button>
     <button type="button" data-tab="protocol">프로토콜</button>
+    <button type="button" data-tab="calc">계산기</button>
     <button type="button" data-tab="stock">재고</button>
     <button type="button" data-tab="equip">기기</button>
     <button type="button" data-tab="tips">팁</button>
   </div>
   <div class="tools">
-    <a class="icon-btn" href="calc.html" target="_blank" rel="noopener" title="실험 계산기 (새 창)">🧮</a>
     <button class="icon-btn" id="themeBtn" title="라이트/다크 전환">◐</button>
     <button class="btn" id="accountBtn" hidden>로그인</button>
     <button class="btn" id="settingsBtn">설정</button>
@@ -93,6 +93,16 @@
     <div class="proto-layout">
       <nav class="note-list" id="protoList"></nav>
       <div class="proto-main" id="protoMain"></div>
+    </div>
+  </section>
+
+  <!-- 실험 계산기 (몰농도·희석·버퍼 조제·세포 seeding). 왼쪽 목록에서 고른 계산기 하나만 (폰에선 목록이 위에 2×2) — calc.js -->
+  <section class="tab" id="tab-calc">
+    <p class="hint calc-lead">칸을 채우면 바로 계산돼요.</p>
+    <p class="hint calc-lead calc-notice" id="calcNotice" hidden></p> <!-- PI인데 버퍼 프리셋을 못 불러왔을 때만 -->
+    <div class="calc-layout">
+      <nav class="note-list calc-nav" id="calcNav"></nav>
+      <div class="calc-main" id="calcMain"></div>
     </div>
   </section>
 
@@ -174,6 +184,7 @@
 <script src="js/info.js"></script>
 <script src="js/pages.js"></script>
 <script src="js/protocol.js"></script>
+<script src="js/calc.js"></script>
 <script src="js/stock.js"></script>
 <script src="js/equip.js"></script>
 <script src="js/tips.js"></script>
