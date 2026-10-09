@@ -884,3 +884,44 @@ body[data-role="member"] #tabSeg > :not([data-tab="protocol"]):not([data-tab="st
 .period-btn { padding: 0; border: none; background: none; color: inherit; font: inherit; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
 .period-btn:hover { color: var(--accent); }
 .proto-del { margin-left: auto; } /* 폰에서 줄이 넘어가도 오른쪽에 (PC에선 앞 spacer가 자리를 다 가져가서 그대로) */
+
+/* ---------- 실험 계산기 (calc.html + js/calc.js — 로그인 없이 쓰는 따로 페이지) ---------- */
+.calc-lead { margin: 0 2px 14px; }
+.calc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; } /* PC 2×2, 폰 한 줄 */
+@media (max-width: 900px) { .calc-grid { grid-template-columns: minmax(0, 1fr); } }
+.calc-card .panel-head { flex-wrap: wrap; row-gap: 2px; }
+.calc-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 10px; }
+.calc-fields > .wide { grid-column: 1 / -1; }
+.calc-fields .field { margin-bottom: 10px; }
+/* 폰에서 칸을 누를 때 화면이 커지지 않게 글씨 16px 이상 */
+.calc-card input, .calc-card select { font-size: max(16px, calc(15px * var(--fs))); }
+/* 숫자 칸 + 단위를 한 테두리 안에 */
+.calc-num { display: flex; min-width: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); overflow: hidden; }
+.calc-num:focus-within { border-color: var(--accent); }
+.calc-num input { flex: 1; width: 100%; min-width: 0; padding: 8px 10px; border: none; border-radius: 0; background: transparent; -moz-appearance: textfield; appearance: textfield; }
+.calc-num input::-webkit-inner-spin-button, .calc-num input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.calc-num select, .calc-unit { flex: none; width: auto; min-width: 0; padding: 0 4px 0 8px; border: none; border-left: 1px solid var(--line); border-radius: 0; background: var(--surface-2); color: var(--muted); }
+.calc-unit { display: flex; align-items: center; padding: 0 10px; font-size: calc(13px * var(--fs)); }
+.calc-text, .calc-kind { min-width: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); outline: none; }
+.calc-text:focus, .calc-kind:focus { border-color: var(--accent); }
+/* 결과 칸 (msg = 안내, warn = 만들 수 없는 값) */
+.calc-out { display: grid; gap: 2px; padding: 12px 14px; border-radius: 10px; background: var(--accent-soft); }
+.calc-out b { font-size: calc(18px * var(--fs)); font-variant-numeric: tabular-nums; }
+.calc-out small { font-size: calc(12px * var(--fs)); color: var(--muted); }
+.calc-out.msg { background: var(--surface-2); color: var(--muted); font-size: calc(13px * var(--fs)); }
+.calc-out.warn { background: color-mix(in srgb, var(--warn) 14%, transparent); color: var(--warn); font-size: calc(13px * var(--fs)); font-weight: 600; }
+.calc-tbl { margin-bottom: 4px; }
+.calc-tbl td:first-child { white-space: normal; }
+.calc-tbl b { font-size: calc(15px * var(--fs)); }
+.calc-note { margin: 10px 2px 0; }
+.calc-formula { margin: -2px 2px 10px; }
+/* 버퍼: 프리셋 · 성분 행 */
+.calc-presets { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 12px; }
+.calc-row { padding-top: 10px; border-top: 1px solid var(--line); }
+.calc-row-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.calc-row-head .calc-text { flex: 1; }
+.calc-add { width: 100%; margin: 2px 0 12px; padding: 10px; }
+/* 세포: ① 세기 ② 심기 */
+.calc-sec { margin: 0 2px 8px; font-size: calc(12px * var(--fs)); font-weight: 700; color: var(--muted); }
+.calc-sec ~ .calc-sec { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
+.calc-seg { display: inline-flex; margin-bottom: 10px; }
