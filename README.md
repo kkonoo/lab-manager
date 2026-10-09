@@ -45,8 +45,10 @@ http://localhost:8768 에서 열려요. 아이콘은 `tools/make-icons.ps1`, HWP
 
 | 파일 | 내용 |
 |---|---|
-| `js/app.js` | 화면 전부 (탭별 render 함수), 저장(localStorage) |
+| `js/app.js` | 공통: 상태·저장(localStorage)·탭 전환(render)·입력 창·설정·테마. 탭 파일보다 먼저 읽음 |
+| `js/home.js` `budget.js` `pay.js` `docs.js` `info.js` `protocol.js` `stock.js` | 탭별 화면 (한눈에 보기·재원별 예산·인건비·서류(출장·내 정보 포함)·정보·프로토콜·재고) |
 | `js/sync.js` | 구글 로그인 + Firestore 동기화 (PI 데이터는 부분별 문서, 프로토콜·품목·주문은 한 건씩) |
 | `js/data.js` | 처음 예시 데이터 |
 | `js/forms*.js` | 서류 양식 (HTML 표로 옮긴 학교 양식) |
+| `css/style.css` | 화면·인쇄 스타일 |
 | `firestore.rules` | 보안 규칙 (콘솔에 붙여 넣는 원본) |
