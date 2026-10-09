@@ -35,6 +35,9 @@ async function start() {
   });
   const logout = () => { flush(); A.signOut(auth); };
   window.cloud = { user: null, login, logout };
+  // 위 🧮 실험 계산기 링크에 이 랩(PI uid)을 붙임 → 계산기에서 이 랩의 버퍼 프리셋을 보고, PI면 고침 (calc-sync.js)
+  const calcLink = document.querySelector('a[href^="calc.html"]');
+  const setCalcLink = l => { if (calcLink) calcLink.href = l ? `calc.html?lab=${l}` : 'calc.html'; };
   const btn = $('accountBtn');
   btn.hidden = false;
   btn.onclick = () => (user ? $('settingsBtn').click() : login());
@@ -170,6 +173,7 @@ async function start() {
     if (!u) {
       // 로그아웃: 이 기기에 남은 계정 데이터는 지우고 예시로 (계정에는 그대로 있음)
       if (db.owner) { db = fresh(); persistLocal(); render(); }
+      setCalcLink(null);
       showAccount();
       return;
     }
@@ -187,6 +191,7 @@ async function start() {
       console.error('계정 확인 실패', e);
       mode = 'pi'; lab = u.uid;
     }
+    setCalcLink(lab);
     showAccount();
     remote = skeleton();
     if (mode === 'pi') {

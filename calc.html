@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<!-- 수업 학생에게 링크로 나눠 주는 따로 페이지: 로그인·데이터(app.js·sync.js)는 읽지 않음 -->
+<!-- 수업 학생에게 링크로 나눠 주는 따로 페이지: 랩 매니저 데이터(app.js·sync.js)는 읽지 않음. ?lab= 링크면 버퍼 프리셋만 Firestore에서 (calc-sync.js) -->
 <header class="topbar">
   <h1 class="app-title">실험 계산기</h1>
   <div class="tools">
@@ -23,6 +23,7 @@
 
 <main>
   <p class="hint calc-lead">칸을 채우면 바로 계산돼요.</p>
+  <p class="hint calc-lead calc-share" id="calcShare" hidden></p> <!-- 버퍼 프리셋을 고칠 수 있는 PI에게만 -->
   <!-- 왼쪽 목록에서 고른 계산기 하나만 (폰에선 목록이 위에 2×2) -->
   <div class="calc-layout">
     <nav class="note-list calc-nav" id="calcNav"></nav>
@@ -30,6 +31,20 @@
   </div>
 </main>
 
+<!-- 입력 창 (버퍼 프리셋 추가·고치기) — index.html 과 같은 모양 -->
+<dialog id="dlg" class="calc-dlg">
+  <form method="dialog" id="dlgForm">
+    <h3 id="dlgTitle"></h3>
+    <div id="dlgBody"></div>
+    <!-- 확인을 먼저 둬야 Enter(폼 기본 제출)가 확인을 누름. 화면엔 CSS(row-reverse)로 '취소 · 확인' 순서 -->
+    <div class="dlg-btns">
+      <button class="btn primary" value="ok" id="dlgOk">확인</button>
+      <button class="btn" value="cancel" formnovalidate>취소</button>
+    </div>
+  </form>
+</dialog>
+
 <script src="js/calc.js"></script>
+<script type="module" src="js/calc-sync.js"></script>
 </body>
 </html>

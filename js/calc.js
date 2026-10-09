@@ -74,6 +74,40 @@ function card(title, hint, update, ...kids) {
   return el;
 }
 
+// ---------- 입력 창 (app.js ask 와 같은 모양, 글 칸만) · 길게 누르기 (app.js groupEditable 과 같은 방식) ----------
+const dlg = $('dlg');
+function ask(title, fields, onOk, extra = [], canOk = true) {
+  $('dlgTitle').textContent = title;
+  $('dlgBody').replaceChildren(...fields.map(f => {
+    const input = h('input');
+    input.name = f.key;
+    input.value = f.value ?? '';
+    input.placeholder = f.placeholder || '';
+    input.required = !!f.required;
+    input.enterKeyHint = 'enter'; // 모바일 키보드가 '다음' 대신 Enter → 확인
+    return h('label', 'field', f.label, input);
+  }), ...extra.filter(Boolean));
+  $('dlgOk').disabled = !canOk;
+  dlg.returnValue = '';
+  dlg.onclose = () => { if (dlg.returnValue === 'ok') onOk(Object.fromEntries(new FormData($('dlgForm')))); };
+  dlg.showModal();
+}
+// 길게 누르기(폰) · 오른쪽 클릭(PC) → onHold. 길게 누른 뒤 손을 떼도 click 은 안 함
+function holdable(el, onHold) {
+  let timer = 0, fired = false, x0 = 0, y0 = 0;
+  const fire = () => { clearTimeout(timer); if (!fired) { fired = true; onHold(); } };
+  el.addEventListener('pointerdown', e => {
+    fired = false;
+    if (e.pointerType === 'mouse') return;
+    [x0, y0] = [e.clientX, e.clientY];
+    timer = setTimeout(fire, 500);
+  });
+  el.addEventListener('pointermove', e => { if (Math.hypot(e.clientX - x0, e.clientY - y0) > 10) clearTimeout(timer); }); // 스크롤
+  for (const t of ['pointerup', 'pointercancel']) el.addEventListener(t, () => clearTimeout(timer));
+  el.addEventListener('contextmenu', e => { e.preventDefault(); fire(); });
+  el.addEventListener('click', e => { if (fired) { e.stopImmediatePropagation(); fired = false; } }, true);
+}
+
 // ---------- 1. 몰농도: 질량 = 몰농도 × 부피 × MW (셋 중 빈 칸 하나를 계산) ----------
 function molarCard() {
   const mw = numField('분자량 MW', 'g/mol', null, { ph: '58.44' });
@@ -120,21 +154,39 @@ function dilutionCard() {
 }
 
 // ---------- 3. 버퍼 조제: 최종 부피 + 성분 행 → 성분별 넣을 양 (고체는 MW로 g, stock 용액은 µL·mL) ----------
-// 최종 농도 단위는 mM (fin), stock 농도 단위는 unit
-const PRESETS = [
-  { name: 'PBS 1X', ph: '목표 pH 7.4', rows: [
+// 프리셋 행: 최종 농도 fin (단위 finUnit, 없으면 mM) · 고체는 MW val, stock 용액은 stock 농도 val (단위 unit)
+// 기본 프리셋은 id가 정해져 있음 → '기본 프리셋 되돌리기'가 이 id로 찾아 처음 값으로
+const BASE_PRESETS = [
+  { id: 'pbs', name: 'PBS 1X', ph: '목표 pH 7.4', rows: [
     { name: 'NaCl', val: 58.44, fin: 137 },
     { name: 'KCl', val: 74.55, fin: 2.7 },
     { name: 'Na₂HPO₄ (무수)', val: 141.96, fin: 10 },
     { name: 'KH₂PO₄', val: 136.09, fin: 1.8 }] },
-  { name: 'TBS 1X', ph: '목표 pH 7.6 (HCl로)', rows: [
+  { id: 'tbs', name: 'TBS 1X', ph: '목표 pH 7.6 (HCl로)', rows: [
     { name: 'Tris base', val: 121.14, fin: 50 },
     { name: 'NaCl', val: 58.44, fin: 150 }] },
-  { name: '10X TAE', ph: '보통 pH를 따로 맞추지 않아요 (1X에서 약 8.3)', rows: [
+  { id: 'tae', name: '10X TAE', ph: '보통 pH를 따로 맞추지 않아요 (1X에서 약 8.3)', rows: [
     { name: 'Tris base', val: 121.14, fin: 400 },
     { name: '빙초산', kind: 'stock', val: 17.4, unit: 'M', fin: 200 },
     { name: 'EDTA (pH 8.0)', kind: 'stock', val: 0.5, unit: 'M', fin: 10 }] },
 ];
+// 지금 프리셋 목록. calc.html?lab={PI uid} 로 열면 calc-sync.js가 그 PI의 프리셋으로 바꾸고(setPresets),
+// 그 PI가 이 브라우저에서 로그인해 있으면 고칠 수 있게 저장 함수를 줌(setPresetOwner) — 학생은 보기만
+let presets = structuredClone(BASE_PRESETS), savePresets = null, drawPresets = () => {};
+function setPresets(list) { if (Array.isArray(list)) { presets = list; drawPresets(); } }
+function setPresetOwner(save, lab) {
+  savePresets = save;
+  drawPresets();
+  const box = $('calcShare'), link = `${location.origin}${location.pathname}?lab=${lab}`;
+  box.hidden = !save;
+  if (!save) return;
+  const copy = h('button', 'link-btn calc-copy', '링크 복사');
+  copy.type = 'button';
+  copy.onclick = () => navigator.clipboard.writeText(link).then(() => { copy.textContent = '복사했어요'; }, () => prompt('이 링크를 복사해 주세요', link));
+  box.replaceChildren('🔗 학생에게는 이 링크를 나눠 주세요 (버퍼 프리셋이 같이 보여요) ', copy);
+}
+// 그 PI인데 프리셋을 못 불러왔을 때만 (덮어쓰지 않게 고치기는 끔)
+function presetError(text) { const box = $('calcShare'); box.hidden = false; box.replaceChildren(`⚠️ ${text}`); }
 // 성분 한 행: 이름 · 종류(고체 MW / stock 용액) · MW 또는 stock 농도 · 최종 농도. 종류를 바꾸면 단위 칸을 새로 그림 (최종 농도는 그대로)
 function bufRow(d, onDel) {
   const r = {};
@@ -156,6 +208,7 @@ function bufRow(d, onDel) {
   draw(d);
   r.kind.onchange = () => draw({ fin: r.fin.input.value, finUnit: r.fin.sel.value });
   r.el = h('div', 'calc-row', h('div', 'calc-row-head', r.name, r.kind, del), fields);
+  r.data = () => ({ name: r.name.value.trim(), kind: r.kind.value, val: r.val.input.value, unit: r.val.sel?.value, fin: r.fin.input.value, finUnit: r.fin.sel.value });
   return r;
 }
 function bufferCard() {
@@ -195,21 +248,71 @@ function bufferCard() {
     list.replaceChildren();
     p.rows.forEach(add);
     if (vol.input.value === '') { vol.input.value = 1; vol.sel.value = 'L'; }
-    presetNote.textContent = ` ${p.name}: ${p.ph}.`;
+    presetNote.textContent = p.ph ? ` ${p.name}: ${p.ph}.` : '';
     update();
   };
   add({});
   const plus = h('button', 'cat-new calc-add', '+ 성분 추가');
   plus.type = 'button';
   plus.onclick = () => { add({}).name.focus(); update(); };
-  const presets = h('div', 'calc-presets', h('span', 'hint', '프리셋'), PRESETS.map(p => {
-    const b = h('button', 'btn small', p.name);
-    b.type = 'button';
-    b.onclick = () => load(p);
-    return b;
-  }));
+  // 프리셋 줄: 누르면 불러오기. 고칠 수 있으면(그 PI) 길게 눌러(PC는 오른쪽 클릭) 고치기·지우기, 끝의 + 로 지금 표를 저장
+  const presetRow = h('div', 'calc-presets');
+  const filled = () => rows.map(r => r.data()).filter(x => x.name || x.val || x.fin); // 지금 표 (빈 행 빼고)
+  const commit = () => { drawPresets(); savePresets?.(presets); };
+  const addPreset = () => {
+    const data = filled();
+    const restore = h('button', 'link-btn', '기본 프리셋 되돌리기');
+    restore.type = 'button';
+    restore.onclick = () => {
+      if (!confirm('기본 프리셋(PBS 1X·TBS 1X·10X TAE)을 처음 값으로 되돌릴까요?\n직접 만든 프리셋은 그대로예요.')) return;
+      presets = [...structuredClone(BASE_PRESETS), ...presets.filter(p => !BASE_PRESETS.some(b => b.id === p.id))];
+      dlg.close();
+      commit();
+    };
+    ask('버퍼 프리셋 추가', data.length ? [{ key: 'name', label: '이름', required: true, placeholder: '예: RIPA buffer' },
+      { key: 'ph', label: 'pH·메모 (불러오면 아래에 보여요)', placeholder: '예: 목표 pH 8.0' }] : [], v => {
+      presets.push({ id: Math.random().toString(36).slice(2, 9), name: v.name.trim(), ph: v.ph.trim(), rows: data });
+      commit();
+    }, [h('p', 'hint', data.length ? `지금 표의 성분 ${data.length}개를 저장해요. 학생이 링크를 열면 같이 보여요.` : '성분 행을 먼저 채우면 지금 표를 프리셋으로 저장할 수 있어요.'),
+      h('p', 'hint', '프리셋을 길게 누르면(PC는 오른쪽 클릭) 이름을 바꾸거나 지울 수 있어요.'), h('p', null, restore)], data.length > 0);
+  };
+  const editPreset = p => {
+    const data = filled(), replace = h('input'), del = h('button', 'btn danger small', '이 프리셋 지우기');
+    replace.type = 'checkbox';
+    replace.name = 'replace';
+    del.type = 'button';
+    del.onclick = () => {
+      if (!confirm(`'${p.name}' 프리셋을 지울까요?`)) return;
+      presets = presets.filter(x => x !== p);
+      dlg.close();
+      commit();
+    };
+    ask('버퍼 프리셋 고치기', [{ key: 'name', label: '이름', value: p.name, required: true }, { key: 'ph', label: 'pH·메모', value: p.ph }], v => {
+      p.name = v.name.trim();
+      p.ph = v.ph.trim();
+      if (v.replace) p.rows = data;
+      commit();
+    }, [data.length ? h('label', 'check calc-check', replace, `성분을 지금 표(${data.length}개)로 바꾸기`) : null, h('p', null, del)]);
+  };
+  drawPresets = () => {
+    const chips = presets.map(p => {
+      const b = h('button', 'btn small', p.name);
+      b.type = 'button';
+      b.onclick = () => load(p);
+      if (savePresets) {
+        b.title = '누르면 불러오기 · 길게 누르면(PC는 오른쪽 클릭) 고치기';
+        holdable(b, () => editPreset(p));
+      }
+      return b;
+    });
+    const more = savePresets ? h('button', 'btn small calc-preset-add', '+') : null;
+    if (more) { more.type = 'button'; more.title = '지금 표를 프리셋으로 저장'; more.onclick = addPreset; }
+    presetRow.hidden = !chips.length && !more;
+    presetRow.replaceChildren(h('span', 'hint', '프리셋'), ...chips, ...(more ? [more] : []));
+  };
+  drawPresets();
   return card('🧪 버퍼 조제', '성분별로 넣을 양을 계산해요 · 프리셋은 불러온 뒤 고칠 수 있어요', update,
-    presets, h('div', 'calc-fields', vol.el), list, plus, out, h('p', 'hint calc-note', '💡 pH는 pH 미터로 직접 맞춰 주세요.', presetNote));
+    presetRow, h('div', 'calc-fields', vol.el), list, plus, out, h('p', 'hint calc-note', '💡 pH는 pH 미터로 직접 맞춰 주세요.', presetNote));
 }
 
 // ---------- 4. 세포 seeding: hemocytometer(또는 직접 입력) → cells/mL → 현탁액 + 배지 ----------
