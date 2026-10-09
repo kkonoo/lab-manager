@@ -4,7 +4,7 @@
 //   users/{uid}/admin/{칸}        PI 전용: 과제·인건비·세목·정보·출장·내 정보 등 db의 나머지 칸 (칸 하나 = 문서 하나)
 //   users/{uid}/adminDocs/{id}    서류 한 건 = 문서 하나
 //   labs/{PI uid}                 랩 문서 { owner, ownerEmail, ownerName, members: [학생 구글 이메일] } — 보안 규칙이 이 목록으로 멤버 확인
-//   labs/{PI uid}/meta/stock      재고의 묶음·보관 위치·업체, 프로토콜·기기 묶음, 팁 링크, 기기 사진 저장 주소
+//   labs/{PI uid}/meta/stock      재고의 묶음·보관 위치·업체, 프로토콜·기기 묶음, 팁 링크, 기기 사진 Google Drive 연결
 //   labs/{PI uid}/protocols/{id}  프로토콜 하나 = 문서 하나 (본문 노트를 여럿이 동시에 고쳐도 안 겹치게)
 //   labs/{PI uid}/equips/{id}     기기(공동기기 handbook) 하나 = 문서 하나
 //   labs/{PI uid}/photos/{id}     기기 사진(앱 안 저장) 하나 = 문서 하나 — 동기화 목록엔 없고 기기 페이지에서 직접 읽고 씀 (window.cloud.photo)
@@ -15,7 +15,7 @@
 import { firebaseConfig } from './firebase-config.js';
 
 const SDK = 'https://www.gstatic.com/firebasejs/12.19.0';
-const LAB_META = ['cats', 'places', 'vendors', 'protoGroups', 'equipGroups', 'tips', 'photoScript']; // db.stock 안에서 랩이 같이 쓰는 목록·설정 (프로토콜·기기·품목은 한 건씩 따로)
+const LAB_META = ['cats', 'places', 'vendors', 'protoGroups', 'equipGroups', 'tips', 'photoDrive']; // db.stock 안에서 랩이 같이 쓰는 목록·설정 (프로토콜·기기·품목은 한 건씩 따로)
 const NOT_ADMIN = new Set(['docs', 'stock', 'orders', 'owner', 'member']); // users/{uid}/admin 으로 안 가는 칸
 
 if (firebaseConfig) start();
@@ -36,7 +36,7 @@ async function start() {
     if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') alert(`로그인하지 못했어요: ${e.code}`);
   });
   const logout = () => { flush(); A.signOut(auth); };
-  window.cloud = { user: null, login, logout, lab: null, token: () => user?.getIdToken() }; // lab·token: 기기 사진 웹 앱이 이 랩 사람인지 확인할 때 (equip.js)
+  window.cloud = { user: null, login, logout, lab: null }; // lab: 기기 사진을 이 랩에 넣고 읽을 때 (아래 photo, equip.js)
   // 기기 사진(앱 안에 저장): labs/{PI}/photos/{id} = { d: 줄인 JPEG base64 }. 기기 페이지를 볼 때만 한 장씩 읽음 (db·localStorage엔 안 넣음)
   const photoRef = id => { if (!lab) throw new Error('로그인해야 해요'); return F.doc(fs, 'labs', lab, 'photos', id); };
   window.cloud.photo = {

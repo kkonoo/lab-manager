@@ -55,8 +55,10 @@ function renderEquip() { EQUIP.render(); }
 
 // ---------- 기기 사진: PI가 교재처럼 넣어 두고 랩 학생은 봐요 ----------
 // 기본은 앱 안에 저장: 긴 변 1600px JPEG로 줄여 labs/{PI}/photos/{id} (설정할 것 없음 — sync.js window.cloud.photo)
-// 설정에 Apps Script 주소(db.stock.photoScript)가 있으면 원본을 PI의 Google Drive에 (tools/photo-upload.gs)
-// e.photos [{ id, store: 'fs' }] = 앱 안 · [{ id }] = Drive 파일 id
+// PI가 설정에서 'Google Drive 연결'을 하면(db.stock.photoDrive { folder, email }) 원본을 PI의 Drive 폴더에 — 구글 로그인 창으로 drive.file 권한만 받음 (앱이 만든 파일만 다룸)
+// e.photos [{ id, store: 'fs' }] = 앱 안 · [{ id }] = Drive 파일 id ('링크가 있는 모든 사용자: 보기'라 학생 폰에서도 썸네일이 보임)
+const DRIVE_CLIENT_ID = '973126235173-2v90sa0juds48o2ol742jue4r4074ot3.apps.googleusercontent.com'; // Google Cloud 콘솔 > Google 인증 플랫폼 > 클라이언트 (공개돼도 괜찮음 — kkonoo.github.io에서만 작동)
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const photoSrc = (id, w) => `https://drive.google.com/thumbnail?id=${id}&sz=w${w}`;
 const photoView = id => `https://drive.google.com/file/d/${id}/view`;
 const uploading = {}; // 기기 id → 올리는 중인 사진 수
@@ -86,25 +88,94 @@ async function shrinkPhoto(file) {
     }
   } finally { URL.revokeObjectURL(url); }
 }
-async function photoCall(body) { // Drive 웹 앱
-  const c = window.cloud;
-  const res = await fetch(db.stock.photoScript, { method: 'POST', body: JSON.stringify({ ...body, lab: c.lab, idToken: await c.token() }) }); // 글(text/plain)로 보내야 브라우저가 미리 묻지 않음
-  const j = await res.json();
-  if (!j.ok) throw new Error(j.error || '알 수 없는 오류');
+// Google Drive: 구글 로그인 창(Google Identity Services)으로 1시간짜리 권한을 받아 Drive API를 바로 부름. 권한은 메모리에만
+let gisLoad = null, driveTok = null, driveJustOk = false;
+function gis() { // 처음 필요할 때 한 번 불러옴 (버튼이 보일 때 미리)
+  return gisLoad ||= new Promise((ok, no) => {
+    const sc = document.createElement('script');
+    sc.src = 'https://accounts.google.com/gsi/client';
+    sc.onload = ok;
+    sc.onerror = () => { gisLoad = null; no(new Error('구글 로그인 창을 불러오지 못했어요 (인터넷 확인)')); };
+    document.head.append(sc);
+  });
+}
+const driveToken = () => (driveTok && Date.now() < driveTok.until ? driveTok.token : null);
+// 구글 창(팝업)을 띄워 권한을 받음 — 버튼을 누른 바로 그때 불러야 팝업이 안 막혀요. 한 번 허용했으면 창이 잠깐 떴다 닫힘
+function driveAuth() {
+  return gis().then(() => new Promise((ok, no) => {
+    const o = google.accounts.oauth2;
+    o.initTokenClient({
+      client_id: DRIVE_CLIENT_ID, scope: DRIVE_SCOPE, prompt: '', login_hint: db.stock.photoDrive?.email || window.cloud?.user?.email,
+      callback: r => {
+        if (r.error) return no(new Error(r.error_description || r.error));
+        if (!o.hasGrantedAllScopes(r, DRIVE_SCOPE)) return no(new Error('Google Drive 권한에 체크하지 않았어요'));
+        driveTok = { token: r.access_token, until: Date.now() + (r.expires_in - 60) * 1000 };
+        ok();
+      },
+      error_callback: err => no(new Error(err.type === 'popup_closed' ? '구글 창을 닫았어요' : err.type === 'popup_failed_to_open' ? '팝업이 막혔어요. 이 사이트의 팝업을 허용해 주세요' : err.message || err.type)),
+    }).requestAccessToken();
+  }));
+}
+async function driveApi(path, opt = {}) {
+  const res = await fetch(`https://www.googleapis.com/${path}`, { ...opt, headers: { Authorization: `Bearer ${driveToken()}`, ...(typeof opt.body === 'string' ? { 'Content-Type': 'application/json' } : {}), ...opt.headers } });
+  const j = await res.json().catch(() => ({}));
+  if (res.status === 404) throw new Error('이 앱이 올린 파일이 아니거나 이미 지워졌어요');
+  if (!res.ok) throw new Error(j.error?.message || `Google Drive 오류 ${res.status}`);
   return j;
+}
+// 설정 › 기기 사진 저장: 연결하면 내 Drive에 '랩 매니저 기기 사진' 폴더를 만들고 그 뒤 넣는 사진 원본이 거기로
+function photoDriveBox() {
+  const d = db.stock.photoDrive, box = h('div', 'photo-drive');
+  const btn = (label, cl, fn) => { const b = h('button', cl, label); b.type = 'button'; b.onclick = fn; return b; };
+  const redraw = () => { // 접은 칸 제목 옆 글도 같이 (app.js 설정의 fold)
+    const hint = box.closest('details')?.querySelector('summary .hint');
+    if (hint) hint.textContent = db.stock.photoDrive ? 'Google Drive (원본)' : '앱 안 (줄여서)';
+    box.replaceWith(photoDriveBox());
+  };
+  if (!d) {
+    gis().catch(() => {});
+    box.append(h('p', 'hint', '지금은 사진을 앱 안에 줄여서(긴 변 1600px) 저장해요 — 따로 할 것 없어요. 원본을 내 Google Drive에 두려면 연결해요: 내 Drive에 ‘랩 매니저 기기 사진’ 폴더가 생기고, 그 뒤 넣는 사진이 거기로 가요. 앱은 자기가 만든 파일만 다뤄요.'),
+      btn('Google Drive 연결', 'btn small', async () => {
+        try {
+          await driveAuth();
+          const { user } = await driveApi('drive/v3/about?fields=user(emailAddress)');
+          const f = await driveApi('drive/v3/files?fields=id', { method: 'POST', body: JSON.stringify({ name: '랩 매니저 기기 사진', mimeType: 'application/vnd.google-apps.folder' }) });
+          db.stock.photoDrive = { folder: f.id, email: user.emailAddress };
+          save();
+          redraw();
+        } catch (err) { alert(`Google Drive에 연결하지 못했어요: ${err.message}`); }
+      }));
+    return box;
+  }
+  const open = h('a', 'btn small', '폴더 열기 ↗');
+  open.href = `https://drive.google.com/drive/folders/${d.folder}`;
+  open.target = '_blank';
+  open.rel = 'noopener';
+  box.append(h('p', 'hint', `${d.email}의 Google Drive ‘랩 매니저 기기 사진’ 폴더에 원본으로 저장해요.`), h('div', 'photo-drive-tools', open,
+    btn('연결 끊기', 'btn small', () => {
+      if (!confirm('Google Drive 연결을 끊을까요? 이미 올린 사진은 Drive에 그대로 있고 앱에서도 계속 보여요. 앞으로 넣는 사진은 앱 안에 저장돼요.')) return;
+      db.stock.photoDrive = null; // null로 랩 메타에 올라가야 다른 기기에서도 꺼짐
+      driveTok = null;
+      save();
+      redraw();
+    })));
+  return box;
 }
 async function uploadPhoto(e, file) {
   uploading[e.id] = (uploading[e.id] || 0) + 1;
   render();
   try {
-    if (db.stock.photoScript) { // Google Drive에 원본
-      const data = await new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = no; r.readAsDataURL(file); });
-      const { id } = await photoCall({ action: 'upload', name: file.name, type: file.type, data });
+    const d = db.stock.photoDrive;
+    if (d) { // Google Drive에 원본
+      const b = `lab${uid()}`, meta = { name: `${e.name}_${file.name}`, parents: [d.folder] };
+      const { id } = await driveApi('upload/drive/v3/files?uploadType=multipart&fields=id', { method: 'POST', headers: { 'Content-Type': `multipart/related; boundary=${b}` },
+        body: new Blob([`--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n--${b}\r\nContent-Type: ${file.type || 'application/octet-stream'}\r\n\r\n`, file, `\r\n--${b}--\r\n`]) });
+      await driveApi(`drive/v3/files/${id}/permissions`, { method: 'POST', body: JSON.stringify({ role: 'reader', type: 'anyone' }) }); // 학생 폰에서도 보이게
       e.photos = [...(e.photos || []), { id }];
     } else { // 앱 안에 줄여서
-      const d = await shrinkPhoto(file), id = uid();
-      await window.cloud.photo.put(id, d);
-      photoLoaded.set(id, `data:image/jpeg;base64,${d}`);
+      const d64 = await shrinkPhoto(file), id = uid();
+      await window.cloud.photo.put(id, d64);
+      photoLoaded.set(id, `data:image/jpeg;base64,${d64}`);
       e.photos = [...(e.photos || []), { id, store: 'fs' }];
     }
     e.updatedAt = isoToday();
@@ -113,9 +184,12 @@ async function uploadPhoto(e, file) {
   save();
 }
 async function deletePhoto(e, ph) {
-  const fs = ph.store === 'fs';
-  if (!confirm(fs ? '이 사진을 지울까요?' : '이 사진을 지울까요? Drive에서도 휴지통으로 가요 (30일 안에는 Drive에서 되살릴 수 있어요).')) return;
-  try { if (fs) await window.cloud.photo.del(ph.id); else await photoCall({ action: 'delete', id: ph.id }); } catch (err) {
+  const fs = ph.store === 'fs', drive = !fs && !!db.stock.photoDrive;
+  if (drive && !driveToken()) { // 구글 창은 누른 바로 그때 (물어보기 전에)
+    try { await driveAuth(); } catch (err) { alert(`Google Drive 확인을 못 했어요: ${err.message}`); return; }
+  }
+  if (!confirm(fs ? '이 사진을 지울까요?' : drive ? '이 사진을 지울까요? Google Drive에서는 휴지통으로 가요 (30일 안에는 되살릴 수 있어요).' : '이 사진을 목록에서 뺄까요? Google Drive의 파일은 Drive에서 직접 지워요.')) return;
+  try { if (fs) await window.cloud.photo.del(ph.id); else if (drive) await driveApi(`drive/v3/files/${ph.id}`, { method: 'PATCH', body: JSON.stringify({ trashed: true }) }); } catch (err) {
     if (!confirm(`${fs ? '' : 'Drive에서 '}지우지 못했어요 (${err.message}).\n목록에서만 뺄까요?`)) return;
   }
   e.photos = (e.photos || []).filter(x => x.id !== ph.id);
@@ -128,11 +202,6 @@ function zoomPhoto(src) {
   box.title = '누르면 닫혀요';
   box.onclick = () => box.remove();
   document.body.append(box);
-}
-// 설정에서 주소를 넣으면 웹 앱이 응답하는지 확인 (doGet)
-function checkPhotoScript(url) {
-  fetch(url).then(r => r.json()).then(j => alert(j.app === 'lab-manager-photos' ? '기기 사진 저장이 연결됐어요.' : '응답은 왔는데 랩 매니저 사진 저장 웹 앱이 아니에요. 주소를 확인해 주세요.'))
-    .catch(() => alert('기기 사진 저장에 연결하지 못했어요. 웹 앱 주소와 배포 설정(액세스: 모든 사용자)을 확인해 주세요.'));
 }
 function photoTile(ph) {
   const img = h('img');
@@ -165,8 +234,13 @@ function equipPhotos(e) {
   pick.multiple = true;
   pick.hidden = true;
   pick.onchange = () => { for (const f of pick.files) uploadPhoto(e, f); pick.value = ''; };
-  const add = h('button', 'btn small', '+ 사진');
-  add.onclick = () => pick.click();
+  const drive = !!db.stock.photoDrive, add = h('button', 'btn small', '+ 사진');
+  if (canEdit && drive) gis().catch(() => {}); // 구글 창을 바로 띄울 수 있게 미리
+  // Drive 권한(1시간)이 없으면 구글 창부터 → 한 번 더 눌러 사진 고르기 (팝업과 사진 고르기 창을 한 번에 못 띄움)
+  add.onclick = () => {
+    if (!drive || driveToken()) { if (driveJustOk) { driveJustOk = false; noteP?.remove(); } pick.click(); return; }
+    driveAuth().then(() => { driveJustOk = true; render(); }, err => alert(`Google Drive 확인을 못 했어요: ${err.message}`));
+  };
   const tiles = photos.map(ph => {
     const t = photoTile(ph);
     if (!canEdit) return t;
@@ -177,10 +251,12 @@ function equipPhotos(e) {
     return h('div', 'photo-cell', t, x);
   });
   for (let i = 0; i < busy; i++) tiles.push(h('div', 'photo-tile busy', h('span', 'hint', '올리는 중…')));
-  const where = db.stock.photoScript ? '원본은 PI의 Google Drive에 저장돼요.' : '앱 안에 줄여서(긴 변 1600px) 저장돼요.';
+  const where = drive ? '원본은 PI의 Google Drive에 저장돼요.' : '앱 안에 줄여서(긴 변 1600px) 저장돼요.';
   const note = isMember() ? (tiles.length ? null : '아직 사진이 없어요.')
     : !c?.user ? '로그인하면 사진을 넣을 수 있어요.'
+    : drive && driveJustOk && driveToken() ? 'Google Drive 확인이 끝났어요. ‘+ 사진’을 한 번 더 눌러 골라요.'
     : tiles.length ? null : `기기 전체·조작부·주의 표시 사진을 넣어 두면 좋아요. 랩 학생은 보기만 해요. ${where}`;
+  const noteP = note ? h('p', 'hint', note) : null;
   return h('div', 'panel equip-photos', h('div', 'panel-head', h('h2', null, '사진'), h('span', 'hint', photos.length ? `${photos.length}장 · 누르면 크게` : ''), h('span', 'spacer'), canEdit ? add : null, pick),
-    tiles.length ? h('div', 'photo-grid', tiles) : null, note ? h('p', 'hint', note) : null);
+    tiles.length ? h('div', 'photo-grid', tiles) : null, noteP);
 }
