@@ -198,7 +198,7 @@ let payShow = {}; // 구간에 인건비가 없어도 표에 꺼낸 학생: { �
 let payView = 'sem';
 try { payView = localStorage.getItem('lab-manager-payview') || 'sem'; } catch { /* 기본값 */ }
 function setPayView(v) { payView = v; payScroll = true; try { localStorage.setItem('lab-manager-payview', v); } catch { /* 없음 */ } render(); }
-function setTab(t) { tab = t; render(); }
+function setTab(t) { tab = t; try { localStorage.setItem(MODE_KEY, modeOf(t)); } catch { /* 없음 */ } render(); }
 function openPay(month, back = 0) { payFocus = semStart(semAdd(semOf(month), -back)); payScroll = true; setTab('pay'); }
 
 // 화면 배치(패널 너비·열 너비·글씨 크기)는 이 브라우저에만 따로 저장
@@ -262,14 +262,23 @@ function colGrip(onSize, onDone, min = 40) {
 }
 function openBudget(gid, n) { selGrant = gid; selN = n ?? null; setTab('budget'); }
 
-// 랩 멤버(학생)로 로그인하면 db.member = { lab, labName } 이고 연구실 탭(프로토콜·재고)만 보임 (sync.js가 정함)
+// 모드: 행정(한눈에·예산·인건비·서류·정보 — PI만) │ 연구(프로토콜·재고 — 랩 멤버와 같이). 모드는 지금 탭으로 정해지고,
+// 모드를 바꾸면 그 모드에서 마지막에 본 탭으로. 마지막 모드는 이 브라우저에 기억 → 다음에 열면 그 모드의 첫 탭부터
+// 랩 멤버(학생)로 로그인하면 db.member = { lab, labName } 이고 연구 모드만 보임 (sync.js가 정함)
 const isMember = () => !!db.member;
 const LAB_TABS = ['protocol', 'stock'];
+const modeOf = t => (LAB_TABS.includes(t) ? 'lab' : 'admin');
+const MODE_KEY = 'lab-manager-mode';
+const lastTab = { admin: 'home', lab: 'protocol' };
+try { if (localStorage.getItem(MODE_KEY) === 'lab') tab = 'protocol'; } catch { /* 처음 */ }
 function render() {
   if (isMember() && !LAB_TABS.includes(tab)) tab = 'protocol';
+  const mode = modeOf(tab);
+  lastTab[mode] = tab; // 이 모드에서 마지막에 본 탭
   document.body.dataset.tab = tab;
   document.body.dataset.role = isMember() ? 'member' : 'pi';
-  for (const b of $('tabSeg').querySelectorAll('[data-tab]')) b.classList.toggle('on', b.dataset.tab === tab);
+  for (const b of $('modeSeg').querySelectorAll('[data-mode]')) b.classList.toggle('on', b.dataset.mode === mode);
+  for (const b of $('tabSeg').querySelectorAll('[data-tab]')) { b.classList.toggle('on', b.dataset.tab === tab); b.hidden = modeOf(b.dataset.tab) !== mode; }
   $('cellPop').hidden = true;
   renderProtocol();
   renderStock();
@@ -750,6 +759,7 @@ $('themeBtn').onclick = () => {
   try { localStorage.setItem(THEME_KEY, t); } catch { /* 없음 */ }
 };
 for (const b of $('tabSeg').querySelectorAll('[data-tab]')) b.onclick = () => setTab(b.dataset.tab);
+for (const b of $('modeSeg').querySelectorAll('[data-mode]')) b.onclick = () => setTab(lastTab[b.dataset.mode]);
 $('homeGrid').insertBefore(splitter($('homeGrid'), '--home-l', 260), $('homeGrid').children[1]);
 $('budgetLayout').insertBefore(splitter($('budgetLayout'), '--list-w', 150), $('grantDetail'));
 $('noteView').before(splitter($('noteView').parentElement, '--info-w', 180));
@@ -757,7 +767,7 @@ $('docMain').before(splitter($('docMain').parentElement, '--docs-w', 180));
 $('stockMain').before(splitter($('stockMain').parentElement, '--stock-w', 180));
 $('protoMain').before(splitter($('protoMain').parentElement, '--proto-w', 180));
 
-// 처음 열면 PI는 한눈에, 학생은 프로토콜 (탭은 저장하지 않음). 폰에 설치한 앱은 닫아도 메모리에 남아 있다가 이어서 열리므로,
+// 처음 열면 마지막 모드의 첫 탭 (행정 = 한눈에, 연구 = 프로토콜 · 학생은 늘 연구). 폰에 설치한 앱은 닫아도 메모리에 남아 있다가 이어서 열리므로,
 // 1시간 넘게 내려 두었거나 날짜가 바뀌었으면 새로 불러옴 → 첫 화면부터, 오늘 날짜(TODAY·NOW)도 새로
 let hiddenAt = 0;
 document.addEventListener('visibilitychange', () => {

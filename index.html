@@ -17,16 +17,17 @@
 
 <header class="topbar">
   <h1 class="app-title">랩 매니저</h1>
-  <!-- 한눈에(PI 첫 화면) │ 행정(PI만) │ 연구실(학생과 같이 씀) -->
+  <!-- 모드: 행정(PI만) │ 연구(학생과 같이 씀). 탭은 지금 모드 것만 보임 (app.js render) -->
+  <div class="seg mode-seg" id="modeSeg">
+    <button type="button" data-mode="admin">행정</button>
+    <button type="button" data-mode="lab">연구</button>
+  </div>
   <div class="seg" id="tabSeg">
     <button type="button" data-tab="home">한눈에 보기</button>
-    <span class="seg-sep" aria-hidden="true"></span>
     <button type="button" data-tab="budget">재원별 예산</button>
     <button type="button" data-tab="pay">인건비</button>
-    <span class="seg-br" aria-hidden="true"></span>
     <button type="button" data-tab="docs">서류</button>
     <button type="button" data-tab="info">정보</button>
-    <span class="seg-sep" aria-hidden="true"></span>
     <button type="button" data-tab="protocol">프로토콜</button>
     <button type="button" data-tab="stock">재고</button>
   </div>
