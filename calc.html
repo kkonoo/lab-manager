@@ -23,7 +23,11 @@
 
 <main>
   <p class="hint calc-lead">칸을 채우면 바로 계산돼요.</p>
-  <div class="calc-grid" id="calcGrid"></div>
+  <!-- 왼쪽 목록에서 고른 계산기 하나만 (폰에선 목록이 위에 2×2) -->
+  <div class="calc-layout">
+    <nav class="note-list calc-nav" id="calcNav"></nav>
+    <div class="calc-main" id="calcMain"></div>
+  </div>
 </main>
 
 <script src="js/calc.js"></script>
