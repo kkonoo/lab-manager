@@ -292,4 +292,17 @@ $('themeBtn').onclick = () => {
   try { localStorage.setItem(THEME_KEY, t); } catch { /* 없음 */ }
 };
 
-$('calcGrid').replaceChildren(molarCard(), dilutionCard(), bufferCard(), cellCard());
+// ---------- 왼쪽 목록: 누른 계산기만 보임 (나머지는 숨겨 두기만 해서 넣은 값은 그대로) ----------
+const CALCS = [['⚖️', '몰농도', molarCard()], ['💧', '희석', dilutionCard()], ['🧪', '버퍼 조제', bufferCard()], ['🧫', '세포 seeding', cellCard()]];
+const tabs = CALCS.map(([emoji, name], i) => {
+  const b = h('button', 'note-row', h('span', 'note-emoji', emoji), h('span', 'note-title', name));
+  b.type = 'button';
+  b.onclick = () => pick(i);
+  return b;
+});
+function pick(i) {
+  CALCS.forEach(([, , el], j) => { el.hidden = j !== i; tabs[j].classList.toggle('on', j === i); });
+}
+$('calcNav').replaceChildren(...tabs);
+$('calcMain').replaceChildren(...CALCS.map(c => c[2]));
+pick(0);

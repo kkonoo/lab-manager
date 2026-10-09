@@ -888,8 +888,15 @@ body[data-role="member"] #tabSeg > :not([data-tab="protocol"]):not([data-tab="st
 
 /* ---------- 실험 계산기 (calc.html + js/calc.js — 로그인 없이 쓰는 따로 페이지) ---------- */
 .calc-lead { margin: 0 2px 14px; }
-.calc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; } /* PC 2×2, 폰 한 줄 */
-@media (max-width: 900px) { .calc-grid { grid-template-columns: minmax(0, 1fr); } }
+/* 왼쪽 목록(프로토콜·재고 탭과 같은 줄 모양) | 고른 계산기 하나. 폰에선 목록이 위에 2×2 */
+.calc-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 16px; align-items: start; }
+.calc-main { max-width: 720px; }
+@media (max-width: 600px) {
+  .calc-layout { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .calc-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
+  .calc-nav .note-row { justify-content: center; padding: 9px 6px; font-size: calc(14px * var(--fs)); }
+  .calc-nav .note-title { flex: none; }
+}
 .calc-card .panel-head { flex-wrap: wrap; row-gap: 2px; }
 .calc-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 10px; }
 .calc-fields > .wide { grid-column: 1 / -1; }
