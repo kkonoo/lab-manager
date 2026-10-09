@@ -128,7 +128,8 @@ function stockNeed() {
       h('div', 'row-tools', isMember() ? null : specButton(o, it), edit, got));
   });
   return [
-    h('div', 'panel stock-sec', h('div', 'panel-head', h('h2', null, '주문 전'), h('span', 'hint', `${todo.length} · 왼쪽 묶음에서 누르거나 여기 적으면 살 것이 돼요 · 받으면 다시 묶음으로`)), ...adder,
+    h('div', 'panel stock-sec', h('div', 'panel-head', h('h2', null, '주문 전'), h('span', 'hint', String(todo.length))),
+      h('p', 'hint stock-desc', '왼쪽 묶음에서 누르거나 여기 적으면 살 것이 돼요 · 받으면 다시 묶음으로'), ...adder,
       todoRows.length ? todoRows : h('p', 'hint stock-empty', '살 것이 없어요. 위에 적거나, 왼쪽 묶음에서 눌러 표시해요.')),
     h('div', 'panel stock-sec', h('div', 'panel-head', h('h2', null, '주문함 · 도착 기다림'), h('span', 'hint', String(waiting.length))),
       waitRows.length ? waitRows : h('p', 'hint stock-empty', '기다리는 주문이 없어요.')),

@@ -462,6 +462,7 @@ tfoot td.name { background: var(--surface-2); }
 .proto-doc > .doc, .proto-doc > .ov-edit { margin-top: 4px; }
 .proto-doc .ov-edit { min-height: 220px; }
 .stock-sec .panel-head { flex-wrap: wrap; margin-bottom: 6px; }
+.stock-desc { margin: -2px 2px 8px; } /* 제목(옆에 개수) 아래 줄 설명 */
 .stock-row { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 6px 4px; border-top: 1px solid var(--line); }
 .stock-sec .panel-head + .stock-row, .stock-sec .stock-add + .stock-row, .stock-sec .adder-wrap + .stock-row { border-top: none; }
 .stock-row.tap { cursor: pointer; border-radius: 8px; }
