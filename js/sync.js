@@ -7,6 +7,7 @@
 //   labs/{PI uid}/meta/stock      재고의 묶음·보관 위치·업체, 프로토콜·기기 묶음, 팁 링크, 기기 사진 저장 주소
 //   labs/{PI uid}/protocols/{id}  프로토콜 하나 = 문서 하나 (본문 노트를 여럿이 동시에 고쳐도 안 겹치게)
 //   labs/{PI uid}/equips/{id}     기기(공동기기 handbook) 하나 = 문서 하나
+//   labs/{PI uid}/photos/{id}     기기 사진(앱 안 저장) 하나 = 문서 하나 — 동기화 목록엔 없고 기기 페이지에서 직접 읽고 씀 (window.cloud.photo)
 //   labs/{PI uid}/items/{id}      재고 품목 하나 = 문서 하나 (학생 여럿이 동시에 고쳐도 안 겹치게)
 //   labs/{PI uid}/orders/{id}     주문 하나 = 문서 하나
 // 랩 멤버(학생)로 로그인하면 랩 쪽만 주고받고 db.member 를 켬 → app.js가 연구 모드(프로토콜·재고·기기·팁)만 보여 줌
@@ -36,6 +37,13 @@ async function start() {
   });
   const logout = () => { flush(); A.signOut(auth); };
   window.cloud = { user: null, login, logout, lab: null, token: () => user?.getIdToken() }; // lab·token: 기기 사진 웹 앱이 이 랩 사람인지 확인할 때 (equip.js)
+  // 기기 사진(앱 안에 저장): labs/{PI}/photos/{id} = { d: 줄인 JPEG base64 }. 기기 페이지를 볼 때만 한 장씩 읽음 (db·localStorage엔 안 넣음)
+  const photoRef = id => { if (!lab) throw new Error('로그인해야 해요'); return F.doc(fs, 'labs', lab, 'photos', id); };
+  window.cloud.photo = {
+    put: async (id, d) => F.setDoc(photoRef(id), { d }),
+    get: async id => (await F.getDoc(photoRef(id))).data()?.d,
+    del: async id => F.deleteDoc(photoRef(id)),
+  };
   // 위 🧮 실험 계산기 링크에 이 랩(PI uid)을 붙임 → 계산기에서 이 랩의 버퍼 프리셋을 보고, PI면 고침 (calc-sync.js)
   const calcLink = document.querySelector('a[href^="calc.html"]');
   const setCalcLink = l => { if (calcLink) calcLink.href = l ? `calc.html?lab=${l}` : 'calc.html'; };

@@ -52,7 +52,6 @@ const SUGGEST_COLORS = ['#C47F7A', '#D9A35E', '#8FAE7E', '#6FA3A0', '#6F8FB8', '
 const newColor = (used = []) => { const p = palette().length ? palette() : PALETTE; return p.find(c => !used.includes(c)) || p[0]; }; // 새로 만들 때 안 쓴 색부터
 const OLD_PALETTE = ['#5B9BEA', '#F0727A', '#2BB39A', '#9D7BE0', '#E8B10C', '#8B93A1', '#F08A4B', '#D46FB0', '#4FB3D9', '#B39B7A'];
 const KEY = 'lab-manager', OLD_KEYS = ['lab-admin', 'lab-admin-mockup'], VERSION = 3;
-const PHOTO_SCRIPT = 'https://script.google.com/macros/s/AKfycbxsXe7Ik5rsGyLW2Z927uCvwtBo6ZQFyB8sKPUa_CGjU04LD6ECYMbiMYZse9xkp7l5/exec'; // tools/photo-upload.gs 를 배포한 웹 앱
 function fresh() {
   const s = structuredClone(window.SEED);
   const pays = [];
@@ -92,7 +91,6 @@ function withDocs(v) {
   v.stock.equipGroups ||= []; // 공동기기 handbook: 묶음 → 기기 (프로토콜과 같은 틀)
   v.stock.equips ||= [];
   v.stock.tips ||= []; // 팁: Google 문서 링크 목록
-  v.stock.photoScript ??= PHOTO_SCRIPT; // 기기 사진 저장 웹 앱 — 처음엔 이 랩의 주소 (설정에서 바꾸거나 비우면 그대로 둠)
   v.labMembers ||= []; // 재고를 같이 쓰는 학생 구글 이메일 (sync.js가 랩 문서에 올림)
   // 가상 학생(시뮬레이션) 기능을 뺐음 → 남아 있던 가상 학생과 그 인건비는 지움
   const ghosts = new Set(v.people.filter(p => p.virtual).map(p => p.id));
@@ -583,9 +581,9 @@ $('settingsBtn').onclick = () => {
       month('cFrom', '↑ 바꾸면 이 달 주문부터 적용 (비우면 처음부터)'),
       h('p', 'hint', '기준을 넘는 주문은 재고 주문함에서 규격서를 바로 만들어요'), standardHistory('centralHist')] },
     member ? null : lineCatsBox(),
-    member ? null : { fold: '기기 사진 저장 (Google Drive)', hint: db.stock.photoScript ? '연결됨' : '연결 안 됨', fields: [
-      { key: 'photoScript', label: 'Apps Script 웹 앱 주소', value: db.stock.photoScript || '', placeholder: 'https://script.google.com/macros/s/…/exec' },
-      h('p', 'hint', '기기 탭 사진의 원본을 PI의 Google Drive에 저장해요. 만드는 법은 README의 ‘기기 사진 저장’ (코드: tools/photo-upload.gs).')] },
+    member ? null : { fold: '기기 사진 저장', hint: db.stock.photoScript ? 'Google Drive (원본)' : '앱 안 (줄여서)', fields: [
+      { key: 'photoScript', label: 'Google Drive에 원본으로 저장하려면: Apps Script 웹 앱 주소 (선택)', value: db.stock.photoScript || '', placeholder: '비워 두면 앱 안에 저장' },
+      h('p', 'hint', '비워 두면 사진을 앱 안에 줄여서(긴 변 1600px) 저장해요 — 따로 설정할 것 없어요. 원본을 내 Google Drive에 두고 싶을 때만 Apps Script를 만들어 주소를 넣어요 (README ‘기기 사진을 Google Drive에’).')] },
   ].filter(Boolean), v => {
     layout.fs = +v.fs || 1;
     saveLayout();
