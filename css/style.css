@@ -82,6 +82,7 @@ h2 { margin: 0; font-size: calc(15px * var(--fs)); font-weight: 700; letter-spac
   background: transparent; font-size: calc(20px * var(--fs)); line-height: 1; cursor: pointer;
 }
 .icon-btn:hover { background: var(--surface); }
+a.icon-btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; } /* 상단 🧮 실험 계산기 (새 창) */
 
 main { padding: 0 24px 40px; }
 .tab { display: none; }
