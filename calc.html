@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>실험 계산기</title>
+<meta name="description" content="실험 계산기 — 몰농도·희석·버퍼 조제·세포 seeding">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#F5F4F0">
+<link rel="icon" href="icons/app-192.png">
+<link rel="apple-touch-icon" href="icons/app-maskable-192.png">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<!-- 수업 학생에게 링크로 나눠 주는 따로 페이지: 로그인·데이터(app.js·sync.js)는 읽지 않음 -->
+<header class="topbar">
+  <h1 class="app-title">실험 계산기</h1>
+  <div class="tools">
+    <button class="icon-btn" id="themeBtn" title="라이트/다크 전환">◐</button>
+  </div>
+</header>
+
+<main>
+  <p class="hint calc-lead">칸을 채우면 바로 계산돼요.</p>
+  <div class="calc-grid" id="calcGrid"></div>
+</main>
+
+<script src="js/calc.js"></script>
+</body>
+</html>
