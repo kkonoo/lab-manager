@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<!-- 수업 학생에게 링크로 나눠 주는 따로 페이지: 랩 매니저 데이터(app.js·sync.js)는 읽지 않음. ?lab= 링크면 버퍼 프리셋만 Firestore에서 (calc-sync.js) -->
+<!-- 랩 매니저 위 🧮로 여는 따로 페이지: 랩 매니저 데이터(app.js·sync.js)는 읽지 않음. 🧮가 붙여 주는 ?lab= 이 있으면 버퍼 프리셋만 Firestore에서 (calc-sync.js) -->
 <header class="topbar">
   <h1 class="app-title">실험 계산기</h1>
   <div class="tools">
@@ -23,7 +23,7 @@
 
 <main>
   <p class="hint calc-lead">칸을 채우면 바로 계산돼요.</p>
-  <p class="hint calc-lead calc-share" id="calcShare" hidden></p> <!-- 버퍼 프리셋을 고칠 수 있는 PI에게만 -->
+  <p class="hint calc-lead calc-notice" id="calcNotice" hidden></p> <!-- PI인데 버퍼 프리셋을 못 불러왔을 때만 -->
   <!-- 왼쪽 목록에서 고른 계산기 하나만 (폰에선 목록이 위에 2×2) -->
   <div class="calc-layout">
     <nav class="note-list calc-nav" id="calcNav"></nav>

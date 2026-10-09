@@ -927,8 +927,7 @@ body[data-role="member"] #tabSeg > :not([data-tab="protocol"]):not([data-tab="st
 .calc-presets { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 12px; }
 .calc-presets .btn { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; } /* 길게 누르기 = 고치기 (폰 기본 메뉴 대신) */
 .calc-preset-add { min-width: 34px; border-style: dashed; color: var(--muted); }
-.calc-share { margin-top: -8px; }
-.calc-copy { color: var(--accent); }
+.calc-notice { margin-top: -8px; }
 /* 프리셋 추가·고치기 창: 폰에서 칸을 누를 때 화면이 커지지 않게 */
 .calc-dlg .field input { font-size: max(16px, calc(15px * var(--fs))); }
 .calc-dlg .btn:disabled { opacity: .45; cursor: default; }

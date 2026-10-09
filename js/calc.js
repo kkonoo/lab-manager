@@ -1,6 +1,6 @@
 'use strict';
 // 실험 계산기 (calc.html) — 몰농도 · 희석 · 버퍼 조제 · 세포 seeding
-// 수업 학생에게 링크로 나눠 주는 따로 페이지: 로그인 없이 열리게 app.js·sync.js(데이터·Firebase)는 읽지 않고, 계산 값은 저장하지 않음
+// 랩 매니저 위 🧮로 여는 따로 페이지: app.js·sync.js(랩 매니저 데이터)는 읽지 않고, 계산 값은 저장하지 않음 (버퍼 프리셋만 calc-sync.js)
 // 카드 안의 칸을 고칠 때마다(input·change) 그 카드만 다시 계산
 
 const $ = id => document.getElementById(id);
@@ -171,22 +171,12 @@ const BASE_PRESETS = [
     { name: 'EDTA (pH 8.0)', kind: 'stock', val: 0.5, unit: 'M', fin: 10 }] },
 ];
 // 지금 프리셋 목록. calc.html?lab={PI uid} 로 열면 calc-sync.js가 그 PI의 프리셋으로 바꾸고(setPresets),
-// 그 PI가 이 브라우저에서 로그인해 있으면 고칠 수 있게 저장 함수를 줌(setPresetOwner) — 학생은 보기만
+// 그 PI가 이 브라우저에서 로그인해 있으면 고칠 수 있게 저장 함수를 줌(setPresetOwner) — 랩 학생은 보기만
 let presets = structuredClone(BASE_PRESETS), savePresets = null, drawPresets = () => {};
 function setPresets(list) { if (Array.isArray(list)) { presets = list; drawPresets(); } }
-function setPresetOwner(save, lab) {
-  savePresets = save;
-  drawPresets();
-  const box = $('calcShare'), link = `${location.origin}${location.pathname}?lab=${lab}`;
-  box.hidden = !save;
-  if (!save) return;
-  const copy = h('button', 'link-btn calc-copy', '링크 복사');
-  copy.type = 'button';
-  copy.onclick = () => navigator.clipboard.writeText(link).then(() => { copy.textContent = '복사했어요'; }, () => prompt('이 링크를 복사해 주세요', link));
-  box.replaceChildren('🔗 학생에게는 이 링크를 나눠 주세요 (버퍼 프리셋이 같이 보여요) ', copy);
-}
+function setPresetOwner(save) { savePresets = save; drawPresets(); }
 // 그 PI인데 프리셋을 못 불러왔을 때만 (덮어쓰지 않게 고치기는 끔)
-function presetError(text) { const box = $('calcShare'); box.hidden = false; box.replaceChildren(`⚠️ ${text}`); }
+function presetError(text) { const box = $('calcNotice'); box.hidden = false; box.replaceChildren(`⚠️ ${text}`); }
 // 성분 한 행: 이름 · 종류(고체 MW / stock 용액) · MW 또는 stock 농도 · 최종 농도. 종류를 바꾸면 단위 칸을 새로 그림 (최종 농도는 그대로)
 function bufRow(d, onDel) {
   const r = {};
@@ -273,7 +263,7 @@ function bufferCard() {
       { key: 'ph', label: 'pH·메모 (불러오면 아래에 보여요)', placeholder: '예: 목표 pH 8.0' }] : [], v => {
       presets.push({ id: Math.random().toString(36).slice(2, 9), name: v.name.trim(), ph: v.ph.trim(), rows: data });
       commit();
-    }, [h('p', 'hint', data.length ? `지금 표의 성분 ${data.length}개를 저장해요. 학생이 링크를 열면 같이 보여요.` : '성분 행을 먼저 채우면 지금 표를 프리셋으로 저장할 수 있어요.'),
+    }, [h('p', 'hint', data.length ? `지금 표의 성분 ${data.length}개를 저장해요. 랩 학생도 🧮로 열면 같이 보여요.` : '성분 행을 먼저 채우면 지금 표를 프리셋으로 저장할 수 있어요.'),
       h('p', 'hint', '프리셋을 길게 누르면(PC는 오른쪽 클릭) 이름을 바꾸거나 지울 수 있어요.'), h('p', null, restore)], data.length > 0);
   };
   const editPreset = p => {
