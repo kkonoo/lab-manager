@@ -766,7 +766,7 @@ th:hover .icon-mini, .icon-mini.on { opacity: .75; }
 .paper .right-cell { padding-right: 14px; text-align: right; }
 /* 영문 레터 — 원본 docx: 여백 위 30·아래 25·양옆 25mm, Arial 10pt, 줄 간격 1.5, 레터헤드는 A4 전체 배경 */
 .paper.letter {
-  padding: 30mm 25mm 25mm; background: #fff url(letterhead-knu.jpg) 0 0 / 210mm 297mm no-repeat;
+  padding: 30mm 25mm 25mm; background: #fff url(../letterhead-knu.jpg) 0 0 / 210mm 297mm no-repeat;
   font-family: Arial, "Malgun Gothic", sans-serif; font-size: 10pt; line-height: 1.72;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }

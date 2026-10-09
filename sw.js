@@ -1,10 +1,10 @@
 // 오프라인에서도 열리게 하는 서비스 워커 (살림노트와 같은 방식).
 // 온라인이면 항상 새 파일을 받고(업데이트 바로 반영), 오프라인이면 저장해 둔 파일을 씀.
 // 같은 주소(kkonoo.github.io)의 다른 앱과 캐시 저장소를 같이 쓰므로 이름을 다르게, 남의 캐시는 지우지 않기
-const CACHE = 'lab-manager-v1';
+const CACHE = 'lab-manager-v2';
 const SHELL = [
-  './', 'index.html', 'manifest.webmanifest', 'style.css', 'letterhead-knu.jpg',
-  'data.js', 'forms.js', 'forms-trip.js', 'forms-buy.js', 'forms-misc.js', 'app.js', 'sync.js', 'firebase-config.js',
+  './', 'index.html', 'manifest.webmanifest', 'css/style.css', 'letterhead-knu.jpg',
+  'js/data.js', 'js/forms.js', 'js/forms-trip.js', 'js/forms-buy.js', 'js/forms-misc.js', 'js/app.js', 'js/sync.js', 'js/firebase-config.js',
   'icons/app-192.png', 'icons/app-512.png', 'icons/app-maskable-192.png', 'icons/app-maskable-512.png',
 ];
 
@@ -12,7 +12,12 @@ self.addEventListener('install', e => {
   self.skipWaiting(); // 새 서비스 워커를 앱을 껐다 켜지 않아도 바로 사용
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)));
 });
-self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+// 예전 버전 캐시(lab-manager-v1: 파일이 루트에 있던 때)만 지움. 다른 앱(플래너·살림노트) 캐시는 그대로
+self.addEventListener('activate', e => e.waitUntil(
+  caches.keys()
+    .then(keys => Promise.all(keys.filter(k => k.startsWith('lab-manager') && k !== CACHE).map(k => caches.delete(k))))
+    .then(() => self.clients.claim())
+));
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return; // Firebase 등 외부 요청은 건드리지 않음

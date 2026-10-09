@@ -11,7 +11,7 @@
 <link rel="icon" href="icons/app-192.png">
 <link rel="apple-touch-icon" href="icons/app-maskable-192.png">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="css/style.css">
 </head>
 <body data-tab="home">
 
@@ -141,13 +141,13 @@
   </form>
 </dialog>
 
-<script src="data.js"></script>
-<script src="forms.js"></script>
-<script src="forms-trip.js"></script>
-<script src="forms-buy.js"></script>
-<script src="forms-misc.js"></script>
-<script src="app.js"></script>
-<script type="module" src="sync.js"></script>
+<script src="js/data.js"></script>
+<script src="js/forms.js"></script>
+<script src="js/forms-trip.js"></script>
+<script src="js/forms-buy.js"></script>
+<script src="js/forms-misc.js"></script>
+<script src="js/app.js"></script>
+<script type="module" src="js/sync.js"></script>
 <script>
   // 오프라인에서도 열리게 (localhost에선 개발 중 캐시가 헷갈리니 끔)
   if ('serviceWorker' in navigator && location.hostname !== 'localhost') navigator.serviceWorker.register('sw.js');

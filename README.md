@@ -45,8 +45,8 @@ http://localhost:8768 에서 열려요. 아이콘은 `tools/make-icons.ps1`, HWP
 
 | 파일 | 내용 |
 |---|---|
-| `app.js` | 화면 전부 (탭별 render 함수), 저장(localStorage) |
-| `sync.js` | 구글 로그인 + Firestore 동기화 (PI 데이터는 부분별 문서, 프로토콜·품목·주문은 한 건씩) |
-| `data.js` | 처음 예시 데이터 |
-| `forms*.js` | 서류 양식 (HTML 표로 옮긴 학교 양식) |
+| `js/app.js` | 화면 전부 (탭별 render 함수), 저장(localStorage) |
+| `js/sync.js` | 구글 로그인 + Firestore 동기화 (PI 데이터는 부분별 문서, 프로토콜·품목·주문은 한 건씩) |
+| `js/data.js` | 처음 예시 데이터 |
+| `js/forms*.js` | 서류 양식 (HTML 표로 옮긴 학교 양식) |
 | `firestore.rules` | 보안 규칙 (콘솔에 붙여 넣는 원본) |
