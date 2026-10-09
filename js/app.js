@@ -1,5 +1,5 @@
 'use strict';
-// 랩 매니저 — 연구실(프로토콜·재고, 학생과 같이) + 행정(재원·연차·학생인건비·서류·정보 노트). 저장은 이 브라우저(localStorage), 로그인하면 sync.js가 Firestore와 맞춤
+// 랩 매니저 — 연구 모드(프로토콜·재고·기기·팁, 학생과 같이) + 행정 모드(재원·연차·학생인건비·서류·정보 노트). 저장은 이 브라우저(localStorage), 로그인하면 sync.js가 Firestore와 맞춤
 // 금액은 모두 천원으로 저장. 인건비 화면만 만원으로 보여 줌 (fmtM)
 // db.grants 재원 / db.people 학생 (과정은 학기마다) / db.pays 학생×재원×월 한 칸씩 / db.lines 연차별 세목 예산 / db.info 정보 노트
 // db.stock·db.orders 재고·주문 (랩 멤버와 같이 씀) / db.docs 서류 / db.trips 출장 / db.profile 내 정보
@@ -689,12 +689,12 @@ function accountPanel() {
   const c = window.cloud;
   if (!c) return null;
   const btn = (label, fn, k = 'btn small') => { const b = h('button', k, label); b.type = 'button'; b.onclick = () => { dlg.close(); fn(); }; return b; };
-  if (!c.user) return h('div', 'set-box', h('b', null, '계정'), h('p', 'hint', '구글로 로그인하면 PC·폰에서 같은 데이터를 보고, 랩 멤버(학생)와 프로토콜·재고를 같이 써요.'), h('div', 'set-btns', btn('구글로 로그인', c.login, 'btn small primary')));
+  if (!c.user) return h('div', 'set-box', h('b', null, '계정'), h('p', 'hint', '구글로 로그인하면 PC·폰에서 같은 데이터를 보고, 랩 멤버(학생)와 연구 모드(프로토콜·재고·기기·팁)를 같이 써요.'), h('div', 'set-btns', btn('구글로 로그인', c.login, 'btn small primary')));
   return h('div', 'set-box', h('b', null, '계정'),
-    h('p', 'hint', `${c.user.email} · 자동 동기화${isMember() ? ` · ${db.member.labName} 랩 멤버 (프로토콜·재고만 보여요)` : ''}`),
+    h('p', 'hint', `${c.user.email} · 자동 동기화${isMember() ? ` · ${db.member.labName} 랩 멤버 (연구 모드만 보여요)` : ''}`),
     h('div', 'set-btns', btn('로그아웃', c.logout)), isMember() ? null : labMembersBox());
 }
-// 랩 멤버: 학생 구글 이메일. 그 계정으로 로그인하면 프로토콜·재고 탭만 보임 (보안 규칙이 이 목록으로 막음)
+// 랩 멤버: 학생 구글 이메일. 그 계정으로 로그인하면 연구 모드(프로토콜·재고·기기·팁)만 보임 (보안 규칙이 이 목록으로 막음)
 function labMembersBox() {
   const box = fold('랩 멤버', ''), count = box.querySelector('summary .hint'), body = box.querySelector('.fold-body');
   box.classList.add('members');
@@ -723,7 +723,7 @@ function labMembersBox() {
         return h('div', 'member', h('span', null, e), x);
       }),
       h('div', 'member-add', inp, plus),
-      h('p', 'hint', '학생이 이 주소에서 그 구글 계정으로 로그인하면 프로토콜·재고 탭만 보여요 (프로토콜·품목·살 것·주문·받음). 과제·인건비·정보·서류와 주문의 재원은 안 보여요.'));
+      h('p', 'hint', '학생이 이 주소에서 그 구글 계정으로 로그인하면 연구 모드(프로토콜·재고·기기·팁)만 보여요. 과제·인건비·정보·서류와 주문의 재원은 안 보여요.'));
   };
   draw();
   return box;

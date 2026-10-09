@@ -9,7 +9,7 @@
 //   labs/{PI uid}/equips/{id}     기기(공동기기 handbook) 하나 = 문서 하나
 //   labs/{PI uid}/items/{id}      재고 품목 하나 = 문서 하나 (학생 여럿이 동시에 고쳐도 안 겹치게)
 //   labs/{PI uid}/orders/{id}     주문 하나 = 문서 하나
-// 랩 멤버(학생)로 로그인하면 랩 쪽만 주고받고 db.member 를 켬 → app.js가 연구실 탭(프로토콜·재고)만 보여 줌
+// 랩 멤버(학생)로 로그인하면 랩 쪽만 주고받고 db.member 를 켬 → app.js가 연구 모드(프로토콜·재고·기기·팁)만 보여 줌
 // app.js 의 db, persist, render, withDocs, fresh, VERSION 을 그대로 씀
 import { firebaseConfig } from './firebase-config.js';
 
