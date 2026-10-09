@@ -1,5 +1,5 @@
-// 랩 매니저 — 기기 사진을 PI의 Google Drive에 저장하는 Apps Script 웹 앱
-// 한 번만 설정 (README '기기 사진 저장'): script.google.com → 새 프로젝트 → 이 코드를 통째로 붙여 넣기
+// (선택) 랩 매니저 — 기기 사진 원본을 PI의 Google Drive에 저장하는 Apps Script 웹 앱. 안 만들면 사진은 앱 안(Firestore)에 줄여서 저장돼요
+// 한 번만 설정 (README '기기 사진'): script.google.com → 새 프로젝트 → 이 코드를 통째로 붙여 넣고 아래 FOLDER_ID를 내 폴더로
 //   → 배포 > 새 배포 > 유형: 웹 앱, 실행: 나, 액세스: 모든 사용자 → 권한 허용 → 웹 앱 주소(…/exec)를 랩 매니저 설정에 붙여 넣기
 // 누가 쓰는지: 앱이 보내는 Firebase 로그인 토큰으로 Firestore의 labs/{lab} 문서를 읽어 봄 → 읽히면 그 랩의 PI나 멤버 (firestore.rules가 판단)
 // 사진은 아래 FOLDER_ID 폴더에 원본 그대로, '링크가 있는 모든 사용자: 보기'로 (앱에서 사진을 띄우려고)

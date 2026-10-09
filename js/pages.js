@@ -7,6 +7,20 @@
 //   rowMeta(p) → [목록 오른쪽 글, 마우스 올리면 보일 설명] · head(p, touched) → 제목 줄에 더할 칸 · below(p) → 본문 아래 패널
 //   printMeta(p) → 인쇄 머리 줄에 더할 글 · printBody(p) → 인쇄 본문 아래 · removeNote · onRemove(p)
 const eul = w => ((w.charCodeAt(w.length - 1) - 0xAC00) % 28 ? '을' : '를'); // 받침 있으면 '을' (프로토콜을 · 기기를)
+// 종이용으로 따로 그린 sheet만 인쇄 (화면은 그대로) — 프로토콜·기기·팁. title = PDF 파일 이름
+function printSheet(sheet, title) {
+  let area = $('protoPrint');
+  if (!area) { area = h('div'); area.id = 'protoPrint'; document.body.append(area); }
+  area.replaceChildren(sheet);
+  const old = document.title;
+  document.title = title.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_');
+  document.body.classList.add('printing-proto');
+  const done = () => { document.body.classList.remove('printing-proto'); area.replaceChildren(); document.title = old; removeEventListener('afterprint', done); };
+  addEventListener('afterprint', done);
+  const imgs = [...sheet.querySelectorAll('img')].filter(i => !i.complete); // 사진이 있으면 다 불러온 뒤 인쇄 (늦어도 5초)
+  if (!imgs.length) window.print();
+  else Promise.race([Promise.all(imgs.map(i => new Promise(r => { i.onload = i.onerror = r; }))), new Promise(r => setTimeout(r, 5000))]).then(() => window.print());
+}
 function pageBook(B) {
   let sel = null;
   const groups = () => db.stock[B.groups], items = () => db.stock[B.items];
@@ -134,19 +148,8 @@ function pageBook(B) {
   function printPage(p) {
     const g = groups().find(x => x.id === p.group), d = s => s.slice(2).replaceAll('-', '.');
     const meta = [g?.name, p.memo, ...(B.printMeta?.(p) || []), p.updatedAt ? `고친 날 ${d(p.updatedAt)}` : null, `인쇄 ${d(isoToday())}`].filter(Boolean).join(' · ');
-    const sheet = h('div', 'pp-sheet', h('h1', null, p.name), h('div', 'pp-meta', meta),
-      p.note?.trim() ? docView(p.note, () => {}) : null, B.printBody?.(p));
-    let area = $('protoPrint');
-    if (!area) { area = h('div'); area.id = 'protoPrint'; document.body.append(area); }
-    area.replaceChildren(sheet);
-    const old = document.title;
-    document.title = `${B.noun}_${p.name}`.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_'); // PDF 파일 이름
-    document.body.classList.add('printing-proto');
-    const done = () => { document.body.classList.remove('printing-proto'); area.replaceChildren(); document.title = old; removeEventListener('afterprint', done); };
-    addEventListener('afterprint', done);
-    const imgs = [...sheet.querySelectorAll('img')].filter(i => !i.complete); // 사진이 있으면 다 불러온 뒤 인쇄 (늦어도 5초)
-    if (!imgs.length) window.print();
-    else Promise.race([Promise.all(imgs.map(i => new Promise(r => { i.onload = i.onerror = r; }))), new Promise(r => setTimeout(r, 5000))]).then(() => window.print());
+    printSheet(h('div', 'pp-sheet', h('h1', null, p.name), h('div', 'pp-meta', meta),
+      p.note?.trim() ? docView(p.note, () => {}) : null, B.printBody?.(p)), `${B.noun}_${p.name}`);
   }
   function editGroup(g) {
     const n = g ? items().filter(p => p.group === g.id).length : 0;

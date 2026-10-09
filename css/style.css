@@ -833,6 +833,13 @@ th:hover .icon-mini, .icon-mini.on { opacity: .75; }
   .pp-photos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
   .pp-photos img { width: 100%; height: 45mm; object-fit: cover; border: 1px solid #ccc; break-inside: avoid; }
   .pp-sheet h2, .pp-sheet .d-h { break-after: avoid; }
+  .pp-sheet .tip-md { max-width: none; font-size: 10.5pt; }
+  .pp-sheet .tip-md h3.d-h { margin-top: 14px; padding-top: 0; border-top: none; font-size: 12.5pt; }
+  .pp-sheet .tip-table { font-size: 9pt; }
+  .pp-sheet .tip-table th, .pp-sheet .tip-table td { padding: 4px 5px; border: 1px solid #999; }
+  .pp-sheet .tip-table th { background: #f1f1f1; color: #111; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .pp-sheet .tip-table tr { break-inside: avoid; }
+  .pp-sheet .tip-table-wrap { overflow: visible; }
 }
 
 /* ---------- 창 ---------- */
@@ -900,6 +907,28 @@ button.photo-tile { width: 100%; padding: 0; border: none; color: inherit; font:
 .tip-doc .panel-head { flex-wrap: wrap; align-items: center; }
 .tip-frame { display: block; width: 100%; height: max(480px, calc(100dvh - 230px)); border: 1px solid var(--line); border-radius: 10px; background: #fff; }
 .tip-note { margin: 8px 2px 0; }
+/* 앱에 들어 있는 팁 (tips/*.md → tips.js tipDoc): 글 노트 모양 + 소제목 구분선 + 표. 칸이 셋 이상인 표는 폰에서 카드로 */
+.tip-md { max-width: 880px; font-size: calc(15px * var(--fs)); }
+.tip-md h3.d-h { margin: 18px 0 6px; padding-top: 14px; border-top: 1px solid var(--line); font-size: calc(17px * var(--fs)); }
+.tip-md h3.d-h:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+.tip-md .tip-sub { margin: 14px 0 4px; font-size: calc(15px * var(--fs)); }
+.tip-md .d-check { cursor: default; }
+.tip-box { flex: none; width: 15px; height: 15px; margin-top: 5px; border: 1.5px solid var(--faint); border-radius: 4px; }
+.tip-md code { padding: 1px 5px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface-2); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .86em; }
+.tip-table-wrap { margin: 8px 0; overflow-x: auto; }
+.tip-table { width: 100%; border-collapse: collapse; font-size: calc(13.5px * var(--fs)); line-height: 1.55; }
+.tip-table th, .tip-table td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.tip-table th { background: var(--surface-2); color: var(--muted); font-weight: 600; white-space: nowrap; }
+.tip-table td:first-child { font-weight: 600; }
+@media screen and (max-width: 600px) {
+  .tip-table.tip-cards thead { display: none; }
+  .tip-table.tip-cards, .tip-table.tip-cards tbody, .tip-table.tip-cards tr, .tip-table.tip-cards td { display: block; }
+  .tip-table.tip-cards tr { margin-bottom: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
+  .tip-table.tip-cards td { padding: 3px 0; border: none; }
+  .tip-table.tip-cards td::before { content: attr(data-label); display: block; color: var(--muted); font-size: calc(11.5px * var(--fs)); font-weight: 600; }
+  .tip-table.tip-cards td:first-child { padding-bottom: 4px; font-size: calc(15px * var(--fs)); }
+  .tip-table.tip-cards td:first-child::before { content: none; }
+}
 .equip-field { display: inline-flex; align-items: center; gap: 2px; font-size: calc(12px * var(--fs)); color: var(--muted); } /* 기기 제목 줄: '담당' + 담당자 칸 */
 .proto-del { margin-left: auto; } /* 폰에서 줄이 넘어가도 오른쪽에 (PC에선 앞 spacer가 자리를 다 가져가서 그대로) */
 

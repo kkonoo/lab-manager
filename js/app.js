@@ -583,7 +583,7 @@ $('settingsBtn').onclick = () => {
     member ? null : lineCatsBox(),
     member ? null : { fold: '기기 사진 저장', hint: db.stock.photoScript ? 'Google Drive (원본)' : '앱 안 (줄여서)', fields: [
       { key: 'photoScript', label: 'Google Drive에 원본으로 저장하려면: Apps Script 웹 앱 주소 (선택)', value: db.stock.photoScript || '', placeholder: '비워 두면 앱 안에 저장' },
-      h('p', 'hint', '비워 두면 사진을 앱 안에 줄여서(긴 변 1600px) 저장해요 — 따로 설정할 것 없어요. 원본을 내 Google Drive에 두고 싶을 때만 Apps Script를 만들어 주소를 넣어요 (README ‘기기 사진을 Google Drive에’).')] },
+      h('p', 'hint', '비워 두면 사진을 앱 안에 줄여서(긴 변 1600px) 저장해요 — 따로 설정할 것 없어요. 원본을 내 Google Drive에 두고 싶을 때만 Apps Script를 만들어 주소를 넣어요 (README ‘기기 사진’).')] },
   ].filter(Boolean), v => {
     layout.fs = +v.fs || 1;
     saveLayout();
