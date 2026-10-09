@@ -14,7 +14,7 @@
 import { firebaseConfig } from './firebase-config.js';
 
 const SDK = 'https://www.gstatic.com/firebasejs/12.19.0';
-const LAB_META = ['cats', 'places', 'vendors', 'protoGroups', 'equipGroups']; // db.stock 안에서 랩이 같이 쓰는 목록 (프로토콜·기기·품목은 한 건씩 따로)
+const LAB_META = ['cats', 'places', 'vendors', 'protoGroups', 'equipGroups', 'photoScript']; // db.stock 안에서 랩이 같이 쓰는 목록·설정 (프로토콜·기기·품목은 한 건씩 따로)
 const NOT_ADMIN = new Set(['docs', 'stock', 'orders', 'owner', 'member']); // users/{uid}/admin 으로 안 가는 칸
 
 if (firebaseConfig) start();
@@ -35,7 +35,7 @@ async function start() {
     if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') alert(`로그인하지 못했어요: ${e.code}`);
   });
   const logout = () => { flush(); A.signOut(auth); };
-  window.cloud = { user: null, login, logout };
+  window.cloud = { user: null, login, logout, lab: null, token: () => user?.getIdToken() }; // lab·token: 기기 사진 웹 앱이 이 랩 사람인지 확인할 때 (equip.js)
   // 위 🧮 실험 계산기 링크에 이 랩(PI uid)을 붙임 → 계산기에서 이 랩의 버퍼 프리셋을 보고, PI면 고침 (calc-sync.js)
   const calcLink = document.querySelector('a[href^="calc.html"]');
   const setCalcLink = l => { if (calcLink) calcLink.href = l ? `calc.html?lab=${l}` : 'calc.html'; };
@@ -178,6 +178,7 @@ async function start() {
       // 로그아웃: 이 기기에 남은 계정 데이터는 지우고 예시로 (계정에는 그대로 있음)
       if (db.owner) { db = fresh(); persistLocal(); render(); }
       setCalcLink(null);
+      window.cloud.lab = null;
       showAccount();
       return;
     }
@@ -196,6 +197,7 @@ async function start() {
       mode = 'pi'; lab = u.uid;
     }
     setCalcLink(lab);
+    window.cloud.lab = lab;
     showAccount();
     remote = skeleton();
     if (mode === 'pi') {

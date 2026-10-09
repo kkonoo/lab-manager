@@ -579,6 +579,9 @@ $('settingsBtn').onclick = () => {
       month('cFrom', '↑ 바꾸면 이 달 주문부터 적용 (비우면 처음부터)'),
       h('p', 'hint', '기준을 넘는 주문은 재고 주문함에서 규격서를 바로 만들어요'), standardHistory('centralHist')] },
     member ? null : lineCatsBox(),
+    member ? null : { fold: '기기 사진 저장 (Google Drive)', hint: db.stock.photoScript ? '연결됨' : '연결 안 됨', fields: [
+      { key: 'photoScript', label: 'Apps Script 웹 앱 주소', value: db.stock.photoScript || '', placeholder: 'https://script.google.com/macros/s/…/exec' },
+      h('p', 'hint', '기기 탭 사진의 원본을 PI의 Google Drive에 저장해요. 만드는 법은 README의 ‘기기 사진 저장’ (코드: tools/photo-upload.gs).')] },
   ].filter(Boolean), v => {
     layout.fs = +v.fs || 1;
     saveLayout();
@@ -588,6 +591,11 @@ $('settingsBtn').onclick = () => {
       const nc = { equip: Math.round(+v.cEquip * 10) || c.equip, other: Math.round(+v.cOther * 10) || c.other };
       setStandard('rates', 'rateHist', v.rFrom, r, nr); // 칸을 고친 경우에만 기록
       setStandard('central', 'centralHist', v.cFrom, c, nc);
+      const ps = v.photoScript.trim(); // 비우면 '' (랩 메타에 빈 값으로 올라가야 다른 기기에서도 꺼짐)
+      if (ps !== (db.stock.photoScript || '')) {
+        if (ps && !/^https:\/\/script\.google\.com\/.+\/exec$/.test(ps)) alert('Apps Script 웹 앱 주소(https://script.google.com/…/exec)가 아니에요. 사진 저장 주소는 그대로 둘게요.');
+        else { db.stock.photoScript = ps; if (ps) checkPhotoScript(ps); }
+      }
     }
     save();
   }, [

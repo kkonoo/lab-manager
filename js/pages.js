@@ -144,7 +144,9 @@ function pageBook(B) {
     document.body.classList.add('printing-proto');
     const done = () => { document.body.classList.remove('printing-proto'); area.replaceChildren(); document.title = old; removeEventListener('afterprint', done); };
     addEventListener('afterprint', done);
-    window.print();
+    const imgs = [...sheet.querySelectorAll('img')].filter(i => !i.complete); // 사진이 있으면 다 불러온 뒤 인쇄 (늦어도 5초)
+    if (!imgs.length) window.print();
+    else Promise.race([Promise.all(imgs.map(i => new Promise(r => { i.onload = i.onerror = r; }))), new Promise(r => setTimeout(r, 5000))]).then(() => window.print());
   }
   function editGroup(g) {
     const n = g ? items().filter(p => p.group === g.id).length : 0;
