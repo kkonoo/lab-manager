@@ -586,7 +586,7 @@ button.swatch-add { border: 2px solid var(--line); }
 .cat-new { margin-top: 12px; padding: 12px; border: 1.5px dashed var(--line); border-radius: 12px; background: transparent; color: var(--muted); cursor: pointer; }
 .cat-new:hover { border-color: var(--accent); color: var(--accent); }
 
-.note-view { display: grid; gap: 12px; min-width: 0; }
+.note-view { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; min-width: 0; } /* 폰에서 노트 내용이 화면 밖으로 안 나감 */
 .note-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
 .note-emoji-input, .note-title-input { border: 1px solid transparent; border-radius: 8px; background: transparent; outline: none; }
 .note-emoji-input { width: 48px; padding: 2px; font-size: calc(24px * var(--fs)); text-align: center; }
