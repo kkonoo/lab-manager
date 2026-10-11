@@ -622,6 +622,8 @@ button.swatch-add { border: 2px solid var(--line); }
 .itable th, .itable td { overflow: hidden; padding: 2px 3px; }
 .itable th { position: relative; }
 .otable th, .otable td { padding: 7px 6px; text-overflow: ellipsis; } /* 주문 기록: 글 칸이라 여백은 보통 표처럼 */
+.order-head { flex-wrap: wrap; } /* 주문 기록 제목 줄: 좁으면 안내 글만 아래 줄로 */
+.order-head .seg button { white-space: nowrap; } /* '2026년'이 두 줄로 꺾이지 않게 */
 .pager { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 10px; } /* 주문 기록 쪽 넘기기 */
 .pager .btn { min-width: 30px; }
 .pager .btn:disabled { opacity: .4; cursor: default; }

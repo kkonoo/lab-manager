@@ -314,7 +314,7 @@ function stockOrders() {
   if (!years.includes(orderYear)) orderYear = thisYear;
   const seg = h('div', 'seg', years.map(y => { const b = h('button', cls(y === orderYear && 'on'), `${y}년`); b.type = 'button'; b.onclick = () => { orderYear = y; orderPage = 0; render(); }; return b; }));
   const os = db.orders.filter(o => +o.date.slice(0, 4) === orderYear).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-  const head = h('div', 'panel-head', h('h2', null, '주문 기록'), seg, h('span', 'hint', '금액 단위 천원 · 줄을 누르면 고쳐요'));
+  const head = h('div', 'panel-head order-head', h('h2', null, '주문 기록'), seg, h('span', 'hint', '금액 단위 천원 · 줄을 누르면 고쳐요'));
   if (!os.length) return h('div', 'panel', head, h('p', 'hint', db.orders.length ? `${orderYear}년 주문은 없어요.` : '아직 주문이 없어요. ‘살 것’에서 주문하기를 누르면 여기 쌓여요.'));
   const md = iso => iso ? `${iso.slice(2, 4)}.${iso.slice(5, 7)}.${iso.slice(8, 10)}` : '';
   // 열: [키, 머리글, 기본 너비(px), 칸 class, 값]. 머리칸 오른쪽 끝을 끌면 너비가 바뀌고 이 브라우저에 저장 (layout.orderW)
