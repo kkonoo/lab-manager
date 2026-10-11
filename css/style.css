@@ -622,6 +622,11 @@ button.swatch-add { border: 2px solid var(--line); }
 .itable th, .itable td { overflow: hidden; padding: 2px 3px; }
 .itable th { position: relative; }
 .otable th, .otable td { padding: 7px 6px; text-overflow: ellipsis; } /* 주문 기록: 글 칸이라 여백은 보통 표처럼 */
+.pager { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 10px; } /* 주문 기록 쪽 넘기기 */
+.pager .btn { min-width: 30px; }
+.pager .btn:disabled { opacity: .4; cursor: default; }
+.pager-info { margin-left: 6px; }
+.pager-size { padding: 4px 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; font-size: calc(12px * var(--fs)); cursor: pointer; }
 .th-tools { position: absolute; top: 50%; right: 10px; transform: translateY(-50%); display: flex; align-items: center; gap: 1px; border-radius: 6px; }
 th:hover > .th-tools { background: var(--surface); box-shadow: -8px 0 8px var(--surface); }
 .th-input, .cell-input { width: 100%; min-width: 0; padding: 6px 7px; border: 1px solid transparent; border-radius: 6px; background: transparent; outline: none; }

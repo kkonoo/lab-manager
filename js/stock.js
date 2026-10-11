@@ -307,11 +307,12 @@ function editPlace(p) {
   }, del ? [h('p', null, del)] : []);
 }
 
-let orderYear = null; // 주문 기록에서 볼 해 (처음엔 올해)
+let orderYear = null, orderPage = 0; // 주문 기록에서 볼 해 (처음엔 올해) · 쪽 (0부터)
+const ORDER_PER = [10, 20, 30, 50]; // 한 쪽에 몇 건씩 (이 브라우저에 기억: layout.orderPer)
 function stockOrders() {
   const thisYear = TODAY.getFullYear(), years = [...new Set([thisYear, ...db.orders.map(o => +o.date.slice(0, 4))])].sort((a, b) => b - a);
   if (!years.includes(orderYear)) orderYear = thisYear;
-  const seg = h('div', 'seg', years.map(y => { const b = h('button', cls(y === orderYear && 'on'), `${y}년`); b.type = 'button'; b.onclick = () => { orderYear = y; render(); }; return b; }));
+  const seg = h('div', 'seg', years.map(y => { const b = h('button', cls(y === orderYear && 'on'), `${y}년`); b.type = 'button'; b.onclick = () => { orderYear = y; orderPage = 0; render(); }; return b; }));
   const os = db.orders.filter(o => +o.date.slice(0, 4) === orderYear).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   const head = h('div', 'panel-head', h('h2', null, '주문 기록'), seg, h('span', 'hint', '금액 단위 천원 · 줄을 누르면 고쳐요'));
   if (!os.length) return h('div', 'panel', head, h('p', 'hint', db.orders.length ? `${orderYear}년 주문은 없어요.` : '아직 주문이 없어요. ‘살 것’에서 주문하기를 누르면 여기 쌓여요.'));
@@ -328,7 +329,9 @@ function stockOrders() {
   const table = h('table', 'tbl itable otable');
   const fit = () => { table.style.width = `${OCOLS.reduce((a, c) => a + widthOf(c), 0) + DEL}px`; };
   const thead = h('tr', null, OCOLS.map((c, i) => h('th', c[3], c[1], colGrip(w => { layout.orderW[c[0]] = w; cols[i].style.width = `${w}px`; fit(); }, saveLayout, 50))), h('th'));
-  const body = os.map(o => {
+  const per = ORDER_PER.includes(layout.orderPer) ? layout.orderPer : 20, pages = Math.ceil(os.length / per);
+  orderPage = Math.min(orderPage, pages - 1); // 지워서 쪽이 줄었으면 마지막 쪽
+  const body = os.slice(orderPage * per, (orderPage + 1) * per).map(o => {
     const del = h('button', 'link-btn', '×');
     del.title = '이 주문 지우기';
     del.onclick = e => { e.stopPropagation(); if (confirm(`'${o.name}' 주문을 지울까요? 집행에서도 빠져요.`)) { db.orders = db.orders.filter(x => x !== o); save(); } };
@@ -337,12 +340,32 @@ function stockOrders() {
     return tr;
   });
   const none = os.filter(o => !fundSet(o)).length;
-  const foot = OCOLS.map(([k, , , c]) => h('td', c, k === 'date' ? '합계' : k === 'amount' ? fmt(sum(os)) : k === 'fund' && none ? `재원 미정 ${none}건` : ''));
+  const foot = OCOLS.map(([k, , , c]) => h('td', c, k === 'date' ? (pages > 1 ? '전체 합계' : '합계') : k === 'amount' ? fmt(sum(os)) : k === 'fund' && none ? `재원 미정 ${none}건` : ''));
   const col0 = h('col');
   col0.style.width = `${DEL}px`;
   table.append(h('colgroup', null, cols, col0), h('thead', null, thead), h('tbody', null, body), h('tfoot', null, h('tr', null, foot, h('td'))));
   fit();
-  return h('div', 'panel', head, h('div', 'tbl-wrap', table), h('p', 'hint', '머리칸 오른쪽 끝을 끌면 열 너비가 바뀌어요'));
+  return h('div', 'panel', head, h('div', 'tbl-wrap', table), os.length > ORDER_PER[0] ? orderPager(os.length, per, pages) : null, h('p', 'hint', '머리칸 오른쪽 끝을 끌면 열 너비가 바뀌어요'));
+}
+// 주문 기록 쪽 넘기기: ‹ 1 2 3 … 9 › · '57건 중 1–20' · 몇 건씩 (합계는 그 해 전체)
+function orderPager(n, per, pages) {
+  const btn = (label, i, on) => {
+    const b = h('button', cls('btn small', on && 'primary'), label);
+    b.type = 'button';
+    b.disabled = i < 0 || i >= pages;
+    if (!on) b.onclick = () => { orderPage = i; render(); };
+    return b;
+  };
+  const nums = []; // 처음·끝 쪽 + 지금 쪽 앞뒤 2쪽, 사이는 …
+  for (let i = 0; i < pages; i++) {
+    if (i === 0 || i === pages - 1 || Math.abs(i - orderPage) <= 2) nums.push(btn(String(i + 1), i, i === orderPage));
+    else if (nums.at(-1)?.textContent !== '…') nums.push(h('span', 'hint', '…'));
+  }
+  const size = h('select', 'pager-size', ORDER_PER.map(k => Object.assign(h('option', null, `${k}개씩`), { value: k, selected: k === per })));
+  size.title = '한 쪽에 몇 건씩 볼지';
+  size.onchange = () => { layout.orderPer = +size.value; saveLayout(); orderPage = 0; render(); };
+  const from = orderPage * per + 1, to = Math.min(n, from + per - 1);
+  return h('div', 'pager', pages > 1 ? [btn('‹', orderPage - 1), nums, btn('›', orderPage + 1)] : null, h('span', 'hint pager-info', `${n}건 중 ${from}–${to}`), h('span', 'spacer'), size);
 }
 // 재원 표시: PI는 과제·연차·항목, 랩 멤버(학생)는 세목 항목을 볼 수 없으니 '정해짐/미정'만
 const fundSet = o => (isMember() ? !!o.line : !!lineOf(o.line));
