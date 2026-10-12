@@ -22,7 +22,7 @@ window.SEED = {
       start: '2026-09', end: '2029-08', annual: 30000,
       periods: { 1: { budget: 30000, pay: 10800 } } },
     { id: 'bk', name: 'BK21', emoji: '🧑‍🎓', color: '#9D7BE0', kind: 'BK21',
-      full: 'BK21 four', start: '2026-03', end: '2027-08', firstNo: 6,
+      full: 'BK21 four', start: '2025-09', end: '2027-08', firstNo: 6, // 6차 2025.09–2026.08 · 7차 2026.09–2027.08
       periods: { 6: { pay: 15600 }, 7: { pay: 15600 } } },
   ],
 
@@ -56,8 +56,8 @@ window.SEED = {
     { grant: 'g1', n: 2, name: '해외학회', cat: '연구활동비', subs: ['학회등록비', '국외여비'], plan: 6000 },
     { grant: 'g2', n: 1, name: '시약', cat: '연구재료비', subs: ['시약·소모품'], plan: 3000 },
     { grant: 'g2', n: 1, name: '국내학회', cat: '연구활동비', subs: ['학회등록비', '국내여비'], plan: 1000 },
-    { grant: 'bk', n: 6, name: '해외학회', cat: '연구활동비', subs: ['학회등록비', '국외여비'], plan: 2000 },
-    { grant: 'bk', n: 6, name: '국내학회', cat: '연구활동비', subs: ['학회등록비', '국내여비'], plan: 500 },
+    { grant: 'bk', n: 7, name: '해외학회', cat: '연구활동비', subs: ['학회등록비', '국외여비'], plan: 2000 },
+    { grant: 'bk', n: 7, name: '국내학회', cat: '연구활동비', subs: ['학회등록비', '국내여비'], plan: 500 },
   ],
 
   // 정보 탭: 묶음 → 노트. 경북대 산학협력단 행정 절차를 절차별로 정리한 것 (담당자 이름은 뺐어요)
