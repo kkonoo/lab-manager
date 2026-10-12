@@ -57,7 +57,7 @@ function renderEquip() { EQUIP.render(); }
 
 // ---------- 공동기기 목록 넣기 (PI): 학교·병원 홈페이지의 공동기기 정보를 기기 탭에 묶음째 ----------
 // 목록 하나 = 묶음 하나 { group: 묶음 이름, src: 출처, kind·place·owner: 기기마다 없을 때 쓸 구분·위치·담당자,
-//   items: [{ name, desc: 뭐 하는 기기인지 한 줄, model, maker, place, owner, kind, how: 이용 방법, uses: [활용분야] }] }
+//   items: [{ name, desc: 뭐 하는 기기인지 한 줄, model, maker, place: 방 (목록에 보임), spot: 세부 위치 (본문 정보에), owner, kind, how: 이용 방법, uses: [활용분야] }] }
 // 홈페이지에 적힌 그대로 (빈 값은 뺌). 정보만 넣음 (사용 신청·예약은 홈페이지에서)
 // 같은 묶음에 같은 이름이 있으면 건너뜀 → 목록을 늘린 뒤 다시 넣어도 새것만 들어감
 //   의대 연구기기현황 https://med.knu.ac.kr/pages/sub.htm?nav_code=knu1670414710 (2026.10, 69개 — 목록에 두 번 올라간 3개는 하나로 = 66개)
@@ -69,11 +69,11 @@ const SHARED_EQUIPS = [
   { group: '동인동 공동기기', src: '의대 연구기기현황', kind: '공동기기실 장비', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr', items: [
     { name: 'Nano Drop', desc: '1–2 µL만으로 핵산·단백질 농도와 순도(흡광도)를 재는 분광광도계', model: 'Nano Drop Ultra', maker: 'thermo', place: 'N402' },
     { name: '조직파쇄기', desc: '비드로 조직·세포 여러 시료를 한 번에 갈아 균질화 (RNA·DNA·단백질 추출 전 처리)', model: 'Tissue Lyser III', maker: 'Qiagen', place: 'N469' },
-    { name: '핵자기공명분석기', desc: '살아 있는 마우스의 체지방·제지방·체액량을 재는 NMR 체성분 분석기', model: 'minispec LF50', maker: 'Bruker', place: '실험동물자원관리센터2층' },
+    { name: '핵자기공명분석기', desc: '살아 있는 마우스의 체지방·제지방·체액량을 재는 NMR 체성분 분석기', model: 'minispec LF50', maker: 'Bruker', place: '실험동물자원관리센터', spot: '2층' },
     { name: '감마카운터기', desc: '튜브 시료의 감마선 방사능(¹²⁵I 등)을 세는 감마 카운터', model: 'Wizard2', maker: 'PerkinElmer', place: 'N138' },
-    { name: '화상분석시스템', desc: '방사성 동위원소로 감광한 이미징 플레이트(IP)를 읽는 phosphor imager', model: 'Typhoon IP', maker: 'cytiva', place: 'N139 동위원소 실험실' },
-    { name: '분석용전자저울', desc: '0.1 mg 단위까지 재는 분석용 저울', model: 'ML104T', place: 'N142 (N138 동위원소실 안)' },
-    { name: '탁상형냉장원심분리기', desc: '1.5·2 mL 튜브용 냉장 마이크로원심분리기', model: 'CN/FC5515R', maker: 'Ohaus', place: 'N138 동위원소실' },
+    { name: '화상분석시스템', desc: '방사성 동위원소로 감광한 이미징 플레이트(IP)를 읽는 phosphor imager', model: 'Typhoon IP', maker: 'cytiva', place: 'N139', spot: '동위원소 실험실' },
+    { name: '분석용전자저울', desc: '0.1 mg 단위까지 재는 분석용 저울', model: 'ML104T', place: 'N138', spot: '동위원소실 안 N142호' },
+    { name: '탁상형냉장원심분리기', desc: '1.5·2 mL 튜브용 냉장 마이크로원심분리기', model: 'CN/FC5515R', maker: 'Ohaus', place: 'N138', spot: '동위원소실' },
     { name: '필름현상기', desc: '웨스턴·방사선 X-ray 필름을 자동으로 현상', model: 'SRX 101A', maker: 'kodak', place: 'N139' },
     { name: '초고속원심분리기 (2023)', desc: '최대 100,000 rpm으로 돌려 엑소좀·바이러스·세포소기관 등을 분리하는 초고속 원심분리기', model: 'Optima XE-100', maker: 'beckman', place: 'N139' },
     { name: '동결건조기', desc: '시료를 얼린 뒤 진공에서 수분을 날려 말리는 동결건조기', model: 'FD8518', maker: '일신', place: 'N408' },
@@ -103,14 +103,14 @@ const SHARED_EQUIPS = [
     { name: '공초점현미경 (LSM5 Exciter)', desc: '형광 시료를 층층이 선명하게 찍는 공초점 현미경 (2008년 도입)', model: 'LSM5 Exciter', maker: 'Zeiss', place: 'N469', how: 'operator 분석 장비 — 담당자에게 예약 후 사용, 예약대장에 예약, 사용 후 기기 사용대장 기입' },
     { name: '형광현미경', desc: '슬라이드 표본을 위에서 보는 정립 형광현미경', model: 'Axio Imager A1', maker: 'Zeiss', place: 'N469', how: '교육 후 사용, 문 앞 예약대장에 예약, 사용대장 꼭 기입' },
     { name: '선량 측정계', desc: '방사성 시료의 방사능 양을 재는 측정기 (dose calibrator)', model: 'CRC-712m', maker: 'Capintec', place: '신관 동위원소실', kind: '연구기기' },
-    { name: '고압멸균기', desc: '고온·고압 증기로 기구·배지·폐기물을 멸균 (65 L)', model: 'ST-65G, 65L', maker: '제이오텍', place: 'N371 기능학실습실B', how: '학생 실습이 없는 기간에 예약 후 사용', kind: '연구기기' },
-    { name: '마이크로플레이트리더', desc: '플레이트의 흡광·형광·발광을 재는 멀티모드 리더', model: 'Spectramax i3x (US)', maker: 'Molecular Devices', place: 'N371 기능학실습실B', how: '학생 실습이 없는 기간에 예약 후 사용', kind: '연구기기' },
-    { name: '위상차현미경', desc: '염색하지 않은 표본도 명암 차로 보는 위상차 현미경', model: 'ECLIPSE Ci-S (JP)', maker: 'Nikon', place: 'N327 형태학실습실', how: '학생 실습이 없는 기간에 예약 후 사용', kind: '연구기기' },
-    { name: '실체현미경', desc: '표본을 낮은 배율에서 입체로 보는 현미경', model: 'E-400 (5각, JP)', maker: 'Nikon', place: 'N327 형태학실습실', how: '학생 실습이 없는 기간에 예약 후 사용', kind: '연구기기' },
-    { name: '겔다큐멘테이션시스템', desc: 'UV로 DNA·단백질 겔을 비춰 찍는 겔 이미징 장치', model: 'Gel Doc XR system (170-8170, US)', maker: 'Bio-Rad', place: 'N371 기능학실습실B', how: '학생 실습이 없는 기간에 예약 후 사용', kind: '연구기기' },
-    { name: '미량냉장원심분리기', desc: '1.5·2 mL 튜브용 냉장 마이크로원심분리기', model: 'Smart R17, 1.5mL×18/24', maker: '한일과학산업', place: 'N371·N471 기능학실습실 B·C', how: '학생 실습이 없는 기간에 예약 후 사용', kind: '연구기기' },
-    { name: '미량원심분리기', desc: '1.5·2 mL 튜브용 마이크로원심분리기 (상온)', model: '5424 (DE)', maker: 'Eppendorf', place: 'N371·N471 기능학실습실 B·C', how: '학생 실습이 없는 기간에 예약 후 사용', kind: '연구기기' },
-    { name: '균질기', desc: '초음파로 세포를 깨거나 DNA를 자르는 초음파 균질기 (probe sonicator)', model: 'VC505, 500W (US)', maker: 'Sonics and Materials', place: 'N471 기능학실습실C', how: '학생 실습이 없는 기간에 예약 후 사용', kind: '연구기기' },
+    { name: '고압멸균기', desc: '고온·고압 증기로 기구·배지·폐기물을 멸균 (65 L)', model: 'ST-65G, 65L', maker: '제이오텍', place: 'N371', spot: '기능학실습실B', how: '학생 실습이 없는 기간에 예약 후 사용', kind: '연구기기' },
+    { name: '마이크로플레이트리더', desc: '플레이트의 흡광·형광·발광을 재는 멀티모드 리더', model: 'Spectramax i3x (US)', maker: 'Molecular Devices', place: 'N371', spot: '기능학실습실B', how: '학생 실습이 없는 기간에 예약 후 사용', kind: '연구기기' },
+    { name: '위상차현미경', desc: '염색하지 않은 표본도 명암 차로 보는 위상차 현미경', model: 'ECLIPSE Ci-S (JP)', maker: 'Nikon', place: 'N327', spot: '형태학실습실', how: '학생 실습이 없는 기간에 예약 후 사용', kind: '연구기기' },
+    { name: '실체현미경', desc: '표본을 낮은 배율에서 입체로 보는 현미경', model: 'E-400 (5각, JP)', maker: 'Nikon', place: 'N327', spot: '형태학실습실', how: '학생 실습이 없는 기간에 예약 후 사용', kind: '연구기기' },
+    { name: '겔다큐멘테이션시스템', desc: 'UV로 DNA·단백질 겔을 비춰 찍는 겔 이미징 장치', model: 'Gel Doc XR system (170-8170, US)', maker: 'Bio-Rad', place: 'N371', spot: '기능학실습실B', how: '학생 실습이 없는 기간에 예약 후 사용', kind: '연구기기' },
+    { name: '미량냉장원심분리기', desc: '1.5·2 mL 튜브용 냉장 마이크로원심분리기', model: 'Smart R17, 1.5mL×18/24', maker: '한일과학산업', place: 'N371·N471', spot: '기능학실습실 B·C', how: '학생 실습이 없는 기간에 예약 후 사용', kind: '연구기기' },
+    { name: '미량원심분리기', desc: '1.5·2 mL 튜브용 마이크로원심분리기 (상온)', model: '5424 (DE)', maker: 'Eppendorf', place: 'N371·N471', spot: '기능학실습실 B·C', how: '학생 실습이 없는 기간에 예약 후 사용', kind: '연구기기' },
+    { name: '균질기', desc: '초음파로 세포를 깨거나 DNA를 자르는 초음파 균질기 (probe sonicator)', model: 'VC505, 500W (US)', maker: 'Sonics and Materials', place: 'N471', spot: '기능학실습실C', how: '학생 실습이 없는 기간에 예약 후 사용', kind: '연구기기' },
     { name: '형광도립현미경', desc: '형광 표지한 표본을 보는 형광현미경', model: 'AX70 (JP)', maker: 'Olympus', place: '350호', kind: '연구기기' },
     { name: '혈류 측정기', desc: '레이저 도플러로 조직의 혈류를 재는 장치 (광섬유 바늘 프로브)', model: 'ML192 & fiber optic needle probe', maker: 'AD Instruments', place: '343호', kind: '연구기기' },
     { name: '냉동조직박편절단기', desc: '냉동 조직을 얇게 잘라 절편을 만드는 크라이오스탯', model: 'MEV 3832', maker: 'Sakura', place: '343호', kind: '연구기기' },
@@ -224,13 +224,14 @@ function sharedEquipImport() {
       let g = groups.find(x => x.name === L.group);
       if (!g) groups.push(g = { id: uid(), name: L.group, color: newColor(groups.map(x => x.color)) });
       let order = db.stock.equips.filter(e => e.group === g.id).length;
-      for (const { name, desc = '', model = '', maker = '', place: own = '', owner = L.owner, kind = L.kind, how = '', uses = [] } of L.items) {
+      for (const { name, desc = '', model = '', maker = '', place: own = '', spot = '', owner = L.owner, kind = L.kind, how = '', uses = [] } of L.items) {
         if (db.stock.equips.some(e => e.group === g.id && e.name === name)) continue;
         const fam = SHARED_FAMILIES.find(f => f.some(([g, n]) => g === L.group && n === name)) || [];
         const refs = fam.filter(([g, n]) => g !== L.group || n !== name).map(([, n, line]) => `- ${n} — ${line}`);
         db.stock.equips.push({ id: uid(), group: g.id, name, where: own || L.place || undefined, owner, order: order++, updatedAt: isoToday(),
           memo: [model, maker].filter(Boolean).join(' · ') || undefined,
-          note: [desc, kind && '## 정보', kind && `- 구분: ${kind}`, // 위치·담당은 제목 줄 칸, 모델·제작사는 한 줄 메모에 있어서 본문엔 안 씀
+          // 위치(방)·담당은 제목 줄 칸, 모델·제작사는 한 줄 메모에 있어서 본문 정보엔 세부 위치·구분만
+          note: [desc, (spot || kind) && '## 정보', spot && `- 위치: ${own} ${spot}`, kind && `- 구분: ${kind}`,
             how ? '## 이용' : '', ...how.split(', ').filter(Boolean).map(x => `- ${x}`),
             uses.length ? '## 활용' : '', ...uses.map(u => `- ${u}`),
             refs.length ? '## 참고 — 같은 종류' : '', ...refs].filter(Boolean).join('\n') });
