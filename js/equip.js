@@ -58,12 +58,16 @@ function renderEquip() { EQUIP.render(); }
 // 목록 하나 = 묶음 하나 { group: 묶음 이름, src: 출처, place·owner: 기기마다 없을 때 쓸 위치·담당자, items: [[이름, 모델, 제작사, 위치, 활용분야[]]] }
 // 홈페이지에 적힌 그대로 ('-'·빈 칸은 없음). 정보만 넣음 (사용 신청·예약은 홈페이지에서)
 // 같은 묶음에 같은 이름이 있으면 건너뜀 → 목록을 늘린 뒤 다시 넣어도 새것만 들어감
-//   의대 연구기기현황 https://med.knu.ac.kr/pages/sub.htm?nav_code=knu1670414710 (69개 중 첫 쪽 10개 — 의생명관 = 학정동, 신관 = 동인동)
+//   의대 연구기기현황 https://med.knu.ac.kr/pages/sub.htm?nav_code=knu1670414710 (69개 중 1–2쪽 20개 — 이름 끝이 '-학정동'이면 학정동(이름에선 뺌), 나머지는 동인동)
 //   경북대병원 생명의학연구원 Core lab https://bmri.knuh.kr/content/06application/10_01.php (2026.10)
 const SHARED_EQUIPS = [
   { group: '동인동 공동기기', src: '의대 연구기기현황', items: [
     ['Nano Drop', 'Nano Drop Ultra', 'thermo', '신관 402호'],
     ['조직파쇄기', 'Tissue Lyser III', 'Qiagen', '신관 N469'],
+    ['핵자기공명분석기', 'minispec LF50', 'Bruker', '실험동물자원관리센터 2층'],
+    ['감마카운터기', 'Wizard2', 'PerkinElmer', '신관 138호'],
+    ['화상분석시스템', 'Typhoon IP', 'cytiva', '신관 139호 동위원소 실험실 안'],
+    ['분석용전자저울', 'ML104T', '', '신관 138호 동위원소실 안 N142호'],
   ] },
   { group: '학정동 공동기기', src: '의대 연구기기현황', items: [
     ['PCR', '', '', '의생명1호관 606호'],
@@ -74,6 +78,12 @@ const SHARED_EQUIPS = [
     ['화상분석시스템', 'Image Quant800', 'cytiva', '의생명1호관 606호'],
     ['역상현미경', 'DMi 1', 'Leica', '의생명1호관 606호'],
     ['형광현미경(Invert)', 'DMi 8', 'Leica', '의생명1호관 606호'],
+    ['탁상형냉장원심분리기', '5810R', 'Eppendorf', '의생명1호관 606호'],
+    ['덩어리얼음제조기', 'IT/GB1540', 'brema', '의생명1호관 606호'],
+    ['Real time PCR', 'StepOnePlus', 'thermo', '의생명1호관 606호'],
+    ['냉동조직박절기(Cryo cut microtome)', 'CM3050S', 'Leica', '의생명1호관 606호'],
+    ['DNA 서열분석기', 'PyroMark Q48', 'QIAGEN', '의생명1호관 606호'],
+    ['형광리더기', 'FlexStation 3', 'Molecular Devices/US', '의생명1호관 606호'],
   ] },
   { group: '생명의학연구원', src: '경북대병원 생명의학연구원 Core lab', place: '경북대병원 생명의학연구원', owner: '김효정 053-200-4603 knuhcorelab@knuh-ext.kr', items: [
     ['고감도 고해상력 공초점 현미경', 'LSM 800 with AiryScan', 'Carl Zeiss/독일', '', ['다중 형광 염색한 세포·조직의 2D 고해상도 고배율 이미징·정량분석', '3D 형광 이미징', '장시간 생세포 이미징', '칼슘 인디케이터로 세포 내 칼슘 이온 이미징', '레이저로 특정 단백질 자극 후 시간에 따른 변화 분석']],
