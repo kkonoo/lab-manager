@@ -122,17 +122,41 @@ function tableBody(n) {
     };
     return th;
   }), h('th'));
-  const rows = n.rows.map(r => {
+  const rows = n.rows.map((r, ri) => {
     const del = h('button', 'link-btn', '×');
     del.title = '이 줄 지우기';
     del.onclick = () => { n.rows = n.rows.filter(y => y !== r); save(); };
-    return h('tr', null, n.columns.map(c => {
+    // 첫 칸 오른쪽 끝의 ≡ 를 끌어 다른 줄 위쪽·아래쪽 절반에 놓으면 그 앞·뒤로 (세목 예산 표와 같은 방식, 같은 표 안에서만)
+    const move = touchHandle(h('span', 'line-move', '≡'));
+    move.draggable = true;
+    move.title = '끌어서 줄 순서 바꾸기';
+    const tr = h('tr', null, n.columns.map((c, ci) => {
       const i = h('input', cls('cell-input', c.secret && !showSecret && 'masked'));
       i.value = r.cells[c.id] ?? '';
       i.autocomplete = 'off';
       i.onchange = () => { r.cells[c.id] = i.value; persist(); };
-      return h('td', null, i);
+      return ci ? h('td', null, i) : h('td', 'row-first', i, move);
     }), h('td', null, del));
+    move.ondragstart = e => { e.dataTransfer.setData('text/x-row', `${n.id}|${ri}`); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setDragImage(tr, 16, 16); };
+    const side = e => (e.clientY - tr.getBoundingClientRect().top > tr.offsetHeight / 2 ? 'after' : 'before');
+    const clear = () => tr.classList.remove('drop-before', 'drop-after');
+    tr.ondragover = e => {
+      if (!e.dataTransfer.types.includes('text/x-row')) return;
+      e.preventDefault();
+      tr.classList.toggle('drop-before', side(e) === 'before');
+      tr.classList.toggle('drop-after', side(e) === 'after');
+    };
+    tr.ondragleave = clear;
+    tr.ondrop = e => {
+      e.preventDefault();
+      clear();
+      const [nid, i] = e.dataTransfer.getData('text/x-row').split('|'), from = nid === n.id ? n.rows[+i] : null;
+      if (!from || from === r) return;
+      n.rows = n.rows.filter(x => x !== from);
+      n.rows.splice(n.rows.indexOf(r) + (side(e) === 'after' ? 1 : 0), 0, from);
+      save();
+    };
+    return tr;
   });
   table.append(h('colgroup', null, cols, delCol), h('thead', null, head), h('tbody', null, rows));
   fit();
@@ -145,7 +169,7 @@ function tableBody(n) {
   ], v => { n.columns.push({ id: uid(), name: v.name.trim(), secret: !!v.secret }); save(); });
   return h('div', 'panel',
     h('div', 'tbl-wrap', table),
-    h('div', 'itable-tools', addRow, addCol, h('span', 'hint', '머리칸 오른쪽 끝을 끌면 열 너비 · ↔ 를 끌면 열 순서가 바뀌어요'),
+    h('div', 'itable-tools', addRow, addCol, h('span', 'hint', '머리칸 오른쪽 끝을 끌면 열 너비 · ↔ 를 끌면 열 순서 · 줄 첫 칸의 ≡ 를 끌면 줄 순서가 바뀌어요'),
       n.columns.some(c => c.secret) ? h('span', 'hint', '🔒 칸은 가려져 보여요 (위 ‘🔓 가린 칸 보기’로 잠깐 보여요). 로그인하면 내 계정에만 저장돼요.') : null));
 }
 
