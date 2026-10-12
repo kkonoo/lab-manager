@@ -224,7 +224,10 @@ function sharedEquipImport() {
       let g = groups.find(x => x.name === L.group);
       if (!g) groups.push(g = { id: uid(), name: L.group, color: newColor(groups.map(x => x.color)) });
       let order = db.stock.equips.filter(e => e.group === g.id).length;
-      for (const { name, desc = '', model = '', maker = '', place: own = '', spot = '', owner = L.owner, kind = L.kind, how = '', uses = [] } of L.items) {
+      // 기본 순서: 위치 → 이름 (끌어서 바꿀 수 있음). 위치는 방 번호 순(N107 < N138 < N402)에 이름 있는 곳은 뒤로, 이름은 가나다순
+      const by = loc => (a, b) => (a || '').localeCompare(b || '', loc, { numeric: true });
+      const items = [...L.items].sort((a, b) => by('en')(a.place, b.place) || by('ko')(a.name, b.name));
+      for (const { name, desc = '', model = '', maker = '', place: own = '', spot = '', owner = L.owner, kind = L.kind, how = '', uses = [] } of items) {
         if (db.stock.equips.some(e => e.group === g.id && e.name === name)) continue;
         const fam = SHARED_FAMILIES.find(f => f.some(([g, n]) => g === L.group && n === name)) || [];
         const refs = fam.filter(([g, n]) => g !== L.group || n !== name).map(([, n, line]) => `- ${n} — ${line}`);
