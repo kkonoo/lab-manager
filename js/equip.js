@@ -28,7 +28,7 @@ const EQUIP = pageBook({
   emptyStart: '‘+ 묶음’으로 시작해요 (예: 공동기기, 이미징). 묶음 안에 기기를 만들고, 사용법·주의사항·담당자·사진을 넣어요.',
   bodyPh: '## 사용법\n1. …\n## 주의사항\n> 주의: …', bodyEmpty: '아직 비어 있어요. ‘본문 편집’을 눌러 사용법·주의사항을 적어요.',
   printHint: '기기 옆에 붙여 둘 수 있게 A4로 인쇄해요',
-  listExtra: () => (isMember() ? null : [knuEquipButton()]), // PI만: 의대 연구기기현황을 묶음째 넣기
+  listExtra: () => (isMember() ? null : [sharedEquipButton()]), // PI만: 학교·병원 공동기기 목록을 묶음째 넣기
   rowMeta: e => [(e.owner || '').split(/\s/)[0], e.owner ? `담당 ${e.owner}` : ''], // 목록엔 담당자 이름만
   // 제목 줄: 담당자(이름·연락처 글) · 위치(재고의 보관 위치에서 고름)
   head: (e, touched, enterBlur) => {
@@ -54,54 +54,81 @@ const EQUIP = pageBook({
 });
 function renderEquip() { EQUIP.render(); }
 
-// ---------- 의대 공동기기: 학교 홈페이지 '연구기기현황' 목록을 기기 탭에 넣기 (PI) ----------
-// [기기명, 모델명, 회사명, 위치] — 홈페이지에 적힌 그대로 ('-'는 없음). 캠퍼스는 위치·이름으로 나눔 (의생명관·'학정동' = 학정동, 나머지 = 동인동)
-// 넣을 때 캠퍼스별 묶음('동인동 공동기기')에, 같은 묶음에 같은 이름이 있으면 건너뜀 → 목록을 고쳐 다시 눌러도 새것만 들어감
-const KNU_EQUIP_URL = 'https://med.knu.ac.kr/pages/sub.htm?nav_code=knu1670414710';
-const KNU_EQUIPS = [
-  ['Nano Drop', 'Nano Drop Ultra', 'thermo', '신관 402호'],
-  ['조직파쇄기', 'Tissue Lyser III', 'Qiagen', '신관 N469'],
-  ['PCR-학정동', '-', '-', '의생명1호관 606호'],
-  ['고압멸균기-학정동', '-', '-', '의생명1호관 606호'],
-  ['혈액냉동고 2 -학정동', '-', 'carrier', '의생명1호관 416호'],
-  ['혈액냉동고 1 -학정동', '-', 'carrier', '의생명1호관 416호'],
-  ['분광광도계(Nano Drop)_학정동', 'ND-1', 'thermo', '의생명1호관 606호'],
-  ['화상분석시스템-학정동', 'Image Quant800', 'cytiva', '의생명1호관 606호'],
-  ['역상현미경-학정동', 'DMi 1', 'Leica', '의생명1호관 606호'],
-  ['형광현미경(Invert) - 학정동', 'DMi 8', 'Leica', '의생명1호관 606호'],
+// ---------- 공동기기 목록 넣기 (PI): 학교·병원 홈페이지의 공동기기 정보를 기기 탭에 묶음째 ----------
+// 목록 하나 = 묶음 하나 { group: 묶음 이름, src: 출처, place·owner: 기기마다 없을 때 쓸 위치·담당자, items: [[이름, 모델, 제작사, 위치, 활용분야[]]] }
+// 홈페이지에 적힌 그대로 ('-'·빈 칸은 없음). 정보만 넣음 (사용 신청·예약은 홈페이지에서)
+// 같은 묶음에 같은 이름이 있으면 건너뜀 → 목록을 늘린 뒤 다시 넣어도 새것만 들어감
+//   의대 연구기기현황 https://med.knu.ac.kr/pages/sub.htm?nav_code=knu1670414710 (69개 중 첫 쪽 10개 — 의생명관 = 학정동, 신관 = 동인동)
+//   경북대병원 생명의학연구원 Core lab https://bmri.knuh.kr/content/06application/10_01.php (2026.10)
+const SHARED_EQUIPS = [
+  { group: '동인동 공동기기', src: '의대 연구기기현황', items: [
+    ['Nano Drop', 'Nano Drop Ultra', 'thermo', '신관 402호'],
+    ['조직파쇄기', 'Tissue Lyser III', 'Qiagen', '신관 N469'],
+  ] },
+  { group: '학정동 공동기기', src: '의대 연구기기현황', items: [
+    ['PCR', '', '', '의생명1호관 606호'],
+    ['고압멸균기', '', '', '의생명1호관 606호'],
+    ['혈액냉동고 2', '', 'carrier', '의생명1호관 416호'],
+    ['혈액냉동고 1', '', 'carrier', '의생명1호관 416호'],
+    ['분광광도계(Nano Drop)', 'ND-1', 'thermo', '의생명1호관 606호'],
+    ['화상분석시스템', 'Image Quant800', 'cytiva', '의생명1호관 606호'],
+    ['역상현미경', 'DMi 1', 'Leica', '의생명1호관 606호'],
+    ['형광현미경(Invert)', 'DMi 8', 'Leica', '의생명1호관 606호'],
+  ] },
+  { group: '생명의학연구원', src: '경북대병원 생명의학연구원 Core lab', place: '경북대병원 생명의학연구원', owner: '김효정 053-200-4603 knuhcorelab@knuh-ext.kr', items: [
+    ['고감도 고해상력 공초점 현미경', 'LSM 800 with AiryScan', 'Carl Zeiss/독일', '', ['다중 형광 염색한 세포·조직의 2D 고해상도 고배율 이미징·정량분석', '3D 형광 이미징', '장시간 생세포 이미징', '칼슘 인디케이터로 세포 내 칼슘 이온 이미징', '레이저로 특정 단백질 자극 후 시간에 따른 변화 분석']],
+    ['나노분광분석기', 'DS-11', 'DeNovix/USA', '', ['UV·가시광선 전 파장으로 핵산·단백질 정량']],
+    ['등온 핵산 증폭기', 'MXM-100', '엠모니터/대한민국', '', ['소량의 핵산 검출·분석', '부대장비 없이 빠르게 표적 유전물질 검출']],
+    ['레이저 미세절단 현미경', 'LMD7', 'Leica/독일', '', ['조직표본·배양세포에서 원하는 부위만 레이저로 미세 절단해 채취 (single cell 수준까지)', '정상 조직과 인접한 병리 세포 분리']],
+    ['멀티 플레이트 리더', 'SPARK 10M', 'TECAN/Austria', '', ['흡광도 200–1000 nm (스캔 포함)', '형광 (filter·monochromator, 3D 스캔, PicoGreen 정량)', '발광 (장비 안에서 시약 분주)']],
+    ['바이오 분자 이미징 시스템', 'LAS 4000', 'GE Healthcare/Japan', '', ['gel 염색(가시광·형광) 이미지 촬영', 'Western blot 검출 이미지']],
+    ['발광형광영상장비', 'IVIS Lumina III', 'Perkin Elmer/USA', '', ['고감도 발광·형광 촬영과 정량', '소형동물 모델 in vivo 모니터링']],
+    ['세포 형질주입 시스템', '4D Nucleofector', 'Lonza/스위스', '', ['세포 종류별 전기 자극으로 유전자 도입', 'Suspension·adherent, cell line·primary cell 모두']],
+    ['소동물용 혈관 및 혈류 이미징 AOCT', '', '카이스트 Biomedical Photonic Imaging Lab/한국', '', ['mouse·rat 혈관 구조와 상대 혈류 속도 이미징', 'AOCT 단독 또는 수술현미경 통합']],
+    ['수술용 현미경', 'M320 F12', 'Leica Microsystems/Germany', '', ['고해상도 입체현미경, 이미지·동영상 촬영(SD 카드)', '제브라피쉬·동물 실험']],
+    ['실시간 유전자 증폭기 (QuantStudio 5)', 'QuantStudio 5', 'Applied Biosystems', '', ['384-well 전용 real-time PCR', '유전자 발현·병원체 검출·SNP·genotyping']],
+    ['실시간 유전자 증폭기 (Bio-Rad)', 'CFX96 Touch', 'Bio-Rad/USA', '', ['96-well real-time PCR', '유전자 정량·발현 비교, SNP·mutation 검출']],
+    ['전산화단층촬영장치 (micro-CT)', 'Skyscan 1275XL', 'Bruker/벨기에', '', ['X-ray로 시료 내부 구조를 비파괴 촬영', '3D 영상화·정량 분석 (뼈·치아 등)']],
+    ['형광현미경', 'AXIO', 'Carl Zeiss/독일', '', ['미세구조 관찰', '형광 항체로 조직·세포 내 특정 부위 관찰']],
+    ['화상분석시스템', 'Fusion FX', 'Vilber Lourmat/France', '', ['Western blot 이미지 촬영·분석', 'DNA·RNA gel 이미지 촬영·분석']],
+  ] },
 ];
-const knuCampus = ([name, , , place]) => (/의생명|학정동/.test(name + place) ? '학정동' : '동인동');
-function knuEquipButton() {
-  const b = h('button', 'cat-new', '🏫 의대 공동기기 넣기');
-  b.title = '학교 홈페이지 연구기기현황 목록을 이 탭에 묶음으로 넣어요';
-  b.onclick = knuEquipImport;
+function sharedEquipButton() {
+  const b = h('button', 'cat-new', '🏫 공동기기 목록 넣기');
+  b.title = '학교·병원 홈페이지의 공동기기 정보를 이 탭에 묶음으로 넣어요';
+  b.onclick = sharedEquipImport;
   return b;
 }
-function knuEquipImport() {
-  const n = c => KNU_EQUIPS.filter(r => knuCampus(r) === c).length;
-  ask('의대 공동기기 넣기', [{ key: 'campus', label: '캠퍼스', type: 'select', value: '',
-    options: [['', `둘 다 (${KNU_EQUIPS.length}개)`], ['동인동', `동인동 (${n('동인동')}개)`], ['학정동', `학정동 (${n('학정동')}개)`]] }], v => {
-    const val = x => (x && x !== '-' ? x : '');
+function sharedEquipImport() {
+  const boxes = SHARED_EQUIPS.map(L => {
+    const cb = h('input');
+    cb.type = 'checkbox';
+    cb.checked = true;
+    return [L, cb, h('label', 'step-check', cb, h('span', null, `${L.group} (${L.items.length}개)`, h('small', null, L.src)))];
+  });
+  ask('공동기기 목록 넣기', [], () => {
     let added = 0;
-    for (const c of ['동인동', '학정동']) {
-      if (v.campus && v.campus !== c) continue;
-      const name = `${c} 공동기기`, groups = db.stock.equipGroups;
-      let g = groups.find(x => x.name === name);
-      if (!g) groups.push(g = { id: uid(), name, color: newColor(groups.map(x => x.color)) });
+    for (const [L, cb] of boxes) {
+      if (!cb.checked) continue;
+      const groups = db.stock.equipGroups;
+      let g = groups.find(x => x.name === L.group);
+      if (!g) groups.push(g = { id: uid(), name: L.group, color: newColor(groups.map(x => x.color)) });
       let order = db.stock.equips.filter(e => e.group === g.id).length;
-      for (const r of KNU_EQUIPS.filter(x => knuCampus(x) === c)) {
-        const [, model, maker, place] = r.map(val), title = r[0].replace(/\s*[-_]\s*학정동\s*$/, '').trim(); // 묶음이 캠퍼스라 이름 끝 '-학정동'은 뺌
-        if (db.stock.equips.some(e => e.group === g.id && e.name === title)) continue;
-        const spec = [model, maker].filter(Boolean).join(' · ');
-        db.stock.equips.push({ id: uid(), group: g.id, name: title, memo: [place, spec].filter(Boolean).join(' · ') || undefined, order: order++, updatedAt: isoToday(),
-          note: ['## 정보', place && `- 위치: ${place}`, model && `- 모델: ${model}`, maker && `- 회사: ${maker}`, `- 출처: 의대 연구기기현황 ${KNU_EQUIP_URL}`].filter(Boolean).join('\n') });
+      for (const [name, model, maker, own, uses = []] of L.items) {
+        if (db.stock.equips.some(e => e.group === g.id && e.name === name)) continue;
+        const place = own || L.place || '';
+        db.stock.equips.push({ id: uid(), group: g.id, name, owner: L.owner, order: order++, updatedAt: isoToday(),
+          memo: [own, model, maker].filter(Boolean).join(' · ') || undefined, // 묶음 공통 위치는 메모에서 뺌
+          note: ['## 정보', place && `- 위치: ${place}`, model && `- 모델: ${model}`, maker && `- 제작사: ${maker}`, L.owner && `- 담당: ${L.owner}`, `- 출처: ${L.src}`,
+            uses.length ? '## 활용' : '', ...uses.map(u => `- ${u}`)].filter(Boolean).join('\n') });
         added++;
       }
     }
     save();
-    if (!added) alert('이미 다 들어 있어요.');
-  }, [h('p', 'hint', '학교 홈페이지 ‘연구기기현황’ 목록을 캠퍼스별 묶음(동인동 공동기기 · 학정동 공동기기)으로 넣어요. 같은 묶음에 같은 이름이 있으면 건너뛰어요.'),
-    h('p', 'hint', '위치·모델·회사가 들어가요. 담당자·사용법은 넣은 뒤 채워요. 랩 멤버도 같이 봐요.')]);
+    if (!added) alert('고른 목록은 이미 다 들어 있어요.');
+  }, [h('p', 'hint', '고른 목록을 묶음째 넣어요 (위치·모델·제작사·담당·활용분야). 같은 묶음에 같은 이름이 있으면 건너뛰어요.'),
+    ...boxes.map(([, , el]) => el),
+    h('p', 'hint', '사용 신청·예약은 각 홈페이지에서 해요. 랩 멤버도 같이 봐요.')]);
 }
 
 // ---------- 기기 사진: PI가 교재처럼 넣어 두고 랩 학생은 봐요 ----------
