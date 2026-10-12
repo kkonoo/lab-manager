@@ -603,7 +603,7 @@ $('settingsBtn').onclick = () => {
       h('p', 'hint', '기준을 넘는 주문은 재고 주문함에서 규격서를 바로 만들어요'), standardHistory('centralHist')] },
     member ? null : lineCatsBox(),
     member ? null : { fold: '기기 사진 저장', hint: db.stock.photoDrive ? 'Google Drive (원본)' : '앱 안 (줄여서)', fields: [photoDriveBox()] }, // 연결·끊기는 누르면 바로 (equip.js)
-    member ? null : { fold: 'AI 자동 채우기', hint: aiKey() ? 'API 키 있음' : 'API 키 없음', fields: [aiKeyBox()] }, // 서류의 ✨ 자동 채우기 — 키는 이 브라우저에만 (ai.js)
+    member ? null : { fold: 'AI 자동 채우기', hint: aiKey() ? 'API 키 있음' : 'API 키 없음', fields: [aiKeyBox()] }, // 서류의 ✨ 자동 채우기 — 키는 내 계정 데이터에 (ai.js)
   ].filter(Boolean), v => {
     layout.fs = +v.fs || 1;
     saveLayout();
@@ -747,7 +747,7 @@ function labMembersBox() {
 // ---------- 내보내기 / 가져오기 (JSON 파일) ----------
 function exportData() {
   const data = { ...db };
-  delete data.owner; delete data.member;
+  delete data.owner; delete data.member; delete data.aiKey; // AI API 키는 파일로 안 내보냄
   const a = h('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: 'application/json' }));
   a.download = `lab-manager-${isoToday()}.json`;
@@ -765,10 +765,11 @@ function importData() {
       const v = JSON.parse(await file.text());
       if (v?.version !== VERSION || !Array.isArray(v.grants)) throw new Error('랩 매니저(랩 행정)에서 내보낸 파일이 아니에요');
       if (!confirm(`지금 데이터를 '${file.name}' 내용으로 통째로 바꿀까요?${window.cloud?.user ? '\n로그인한 계정의 데이터도 같이 바뀌어요.' : ''}`)) return;
-      const owner = db.owner;
+      const owner = db.owner, key = db.aiKey; // AI API 키는 내보낸 파일에 없으니 지금 키를 그대로
       db = withDocs(v);
       delete db.member;
       if (owner) db.owner = owner;
+      if (key != null) db.aiKey = key;
       dlg.close();
       save();
     } catch (e) { alert(`가져오지 못했어요: ${e.message}`); }

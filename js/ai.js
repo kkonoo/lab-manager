@@ -1,13 +1,17 @@
 'use strict';
 // ---------- 서류 자동 채우기 (Claude API) ----------
 // 서류 화면의 '✨ 자동 채우기' → 메모·붙여 넣은 글·첨부(PDF·사진)를 Claude에게 보내 지금 비어 있는 칸만 채움 (쓴 칸은 그대로)
-// API 키는 각자 자기 Anthropic 키를 설정에서 넣음. 이 브라우저(localStorage)에만 두고 db에 안 넣음 → 로그인 동기화·내보내기 JSON에 안 들어감
-// 요청은 브라우저에서 api.anthropic.com 으로 바로 감 (SDK의 dangerouslyAllowBrowser — 키는 본인 브라우저에만 있으니 괜찮음)
-const AI_KEY = 'lab-manager-ai-key';
+// API 키는 각자 자기 Anthropic 키를 설정에서 넣음. db.aiKey (내 계정 데이터 users/{uid}/admin/aiKey — 본인만 읽음) → 로그인한 PC·폰에서 같이 씀
+// 내보내기 JSON엔 안 넣음 (app.js exportData). 지울 땐 ''로 둠 — 칸을 없애면 다른 기기에 지운 게 안 넘어감 (sync.js apply)
+// 요청은 브라우저에서 api.anthropic.com 으로 바로 감 (SDK의 dangerouslyAllowBrowser — 키는 본인 계정·기기에만 있으니 괜찮음)
 const AI_MODEL = 'claude-opus-5-5';
 const AI_SDK = 'https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@0.127.0/+esm'; // 처음 누를 때만 불러옴
-const aiKey = () => { try { return localStorage.getItem(AI_KEY) || ''; } catch { return ''; } };
-const setAiKey = k => { try { if (k) localStorage.setItem(AI_KEY, k); else localStorage.removeItem(AI_KEY); } catch { /* 없음 */ } };
+const OLD_AI_KEY = 'lab-manager-ai-key'; // 예전엔 이 브라우저에만 저장 → 계정 데이터에 키가 없으면 옮김. 옛 칸은 키를 고치면 지움
+function aiKey() {
+  if (db.aiKey == null) { try { const k = localStorage.getItem(OLD_AI_KEY); if (k) { db.aiKey = k; persist(); } } catch { /* 없음 */ } }
+  return db.aiKey || '';
+}
+const setAiKey = k => { db.aiKey = k; try { localStorage.removeItem(OLD_AI_KEY); } catch { /* 없음 */ } persist(); };
 let aiBusy = null; // 채우는 중인 문서 id (버튼을 '채우는 중…'으로)
 
 // 설정의 'AI 자동 채우기' 칸: 키를 넣으면 바로 저장 (설정 창의 확인과 상관없이)
@@ -27,7 +31,7 @@ function aiKeyBox() {
   clear.onclick = () => { inp.value = ''; setAiKey(''); sync(); };
   box.append(h('div', 'member', inp, clear),
     h('p', 'hint', `서류 화면의 ✨ 자동 채우기에 써요 (Claude · ${AI_MODEL}). 키는 console.anthropic.com → API Keys에서 만들고, 쓴 만큼 그 계정에 요금이 나가요.`),
-    h('p', 'hint', '키는 이 브라우저에만 저장돼요 — 로그인 동기화·내보내기에 안 들어가요. PC·폰에서 각각 넣어요.'));
+    h('p', 'hint', '키는 내 계정 데이터에 저장돼서 로그인한 PC·폰에서 같이 써요 (나만 읽을 수 있고, 랩 멤버는 못 봐요). 내보내기 JSON엔 안 들어가요. 로그인 전엔 이 브라우저에만 있어요.'));
   return box;
 }
 
