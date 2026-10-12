@@ -105,6 +105,13 @@ function withDocs(v) {
   v.stock.protoGroups.forEach((g, i) => { g.color ||= OLD_PALETTE[(i + 3) % 10]; });
   v.docGroups ||= {};
   window.FORMS.groups.forEach(([gid], gi) => { const o = v.docGroups[gid] ||= {}; o.color ||= OLD_PALETTE[gi % 10]; });
+  // 예시 BK21을 4·5차 → 6·7차로 바꿈: 로그인 안 한 브라우저에 그대로 남아 있는 예시만 (계정 데이터나 고친 것은 그대로)
+  const bk = !v.owner && v.grants.find(g => g.id === 'bk' && g.full === 'BK21 four' && g.firstNo === 4 && g.start === '2026-03' && g.end === '2027-08');
+  if (bk) {
+    bk.firstNo = 6;
+    bk.periods = { 6: bk.periods?.[4], 7: bk.periods?.[5] };
+    for (const l of v.lines) if (l.grant === 'bk' && (l.n === 4 || l.n === 5)) l.n += 2;
+  }
   v.lineCats ||= ['연구활동비', '연구재료비', '연구시설·장비비', '연구수당', '위탁연구개발비', '국제공동연구개발비', '기타', '간접비']; // 세목 (설정에서 고침)
   return v;
 }
