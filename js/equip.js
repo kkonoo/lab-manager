@@ -55,63 +55,103 @@ const EQUIP = pageBook({
 function renderEquip() { EQUIP.render(); }
 
 // ---------- 공동기기 목록 넣기 (PI): 학교·병원 홈페이지의 공동기기 정보를 기기 탭에 묶음째 ----------
-// 목록 하나 = 묶음 하나 { group: 묶음 이름, src: 출처, place·owner·kind: 기기마다 없을 때 쓸 위치·담당자·구분, items: [[이름, 모델, 제작사, 위치, 활용분야[], 구분]] }
-// 홈페이지에 적힌 그대로 ('-'·빈 칸은 없음). 정보만 넣음 (사용 신청·예약은 홈페이지에서)
+// 목록 하나 = 묶음 하나 { group: 묶음 이름, src: 출처, kind·place·owner: 기기마다 없을 때 쓸 구분·위치·담당자,
+//   items: [{ name, model, maker, place, owner, how: 이용 방법, uses: [활용분야] }] }
+// 홈페이지에 적힌 그대로 (빈 값은 뺌). 정보만 넣음 (사용 신청·예약은 홈페이지에서)
 // 같은 묶음에 같은 이름이 있으면 건너뜀 → 목록을 늘린 뒤 다시 넣어도 새것만 들어감
-//   의대 연구기기현황 https://med.knu.ac.kr/pages/sub.htm?nav_code=knu1670414710 (69개 중 1·2·6쪽 30개 — 이름 끝이 '-학정동'이면 학정동(이름에선 뺌), 나머지는 동인동.
-//     구분: 홈페이지의 '공동기기실 장비' / '연구기기')
+//   의대 연구기기현황 https://med.knu.ac.kr/pages/sub.htm?nav_code=knu1670414710 (2026.10, 69개 — 목록에 두 번 올라간 3개는 하나로 = 66개)
+//     기기 상세 페이지(mode=view, idx)의 담당자·예약방법까지. 이름 끝이 '-학정동'이면 학정동 묶음(이름에선 뺌), 나머지 동인동은
+//     '공동기기실 장비' / '연구기기'(교실·실습실 기기, 담당자가 저마다 다름)로 나눔. 같은 묶음에 같은 이름은 모델(또는 구입 연도)을 붙임
 //   경북대병원 생명의학연구원 Core lab https://bmri.knuh.kr/content/06application/10_01.php (2026.10)
 const SHARED_EQUIPS = [
   { group: '동인동 공동기기', src: '의대 연구기기현황', kind: '공동기기실 장비', items: [
-    ['Nano Drop', 'Nano Drop Ultra', 'thermo', '신관 402호'],
-    ['조직파쇄기', 'Tissue Lyser III', 'Qiagen', '신관 N469'],
-    ['핵자기공명분석기', 'minispec LF50', 'Bruker', '실험동물자원관리센터 2층'],
-    ['감마카운터기', 'Wizard2', 'PerkinElmer', '신관 138호'],
-    ['화상분석시스템', 'Typhoon IP', 'cytiva', '신관 139호 동위원소 실험실 안'],
-    ['분석용전자저울', 'ML104T', '', '신관 138호 동위원소실 안 N142호'],
-    ['멀티스펙트럼 형광영상분석시스템', 'Nuance FX', 'Perkin Elmer', '신관 N469'],
-    ['미량원심분리기', '(DE)5424', 'Eppendorf', '신관 기능학실습실 B·C (N371, N471)', [], '연구기기'],
-    ['균질기', '(US)VC505, 500W', 'Sonics and Materials', '신관 4층 기능학실습실 C (N471)', [], '연구기기'],
-    ['형광도립현미경', 'AX70 (JP)', 'Olympus', '350호', [], '연구기기'],
-    ['혈류 측정기', 'ML192 & fiber optic needle probe', 'AD Instruments', '343호', [], '연구기기'],
-    ['냉동조직박편절단기', 'MEV 3832', 'Sakura', '343호', [], '연구기기'],
-    ['자외선 분광분석기', 'UV-1650PC', 'Shimadzu', '신관 107-2', [], '연구기기'],
-    ['분액수집기', 'Frac-950', 'GE', '신관 공동기기실', [], '연구기기'],
-    ['질량분석기', 'nanoUPLC Q-Tof Premier', 'Waters', '신관 107', [], '연구기기'],
-    ['고속액체크로마토그라프', 'Delta 600', 'Waters', '사이클로트론실', [], '연구기기'],
+    { name: 'Nano Drop', model: 'Nano Drop Ultra', maker: 'thermo', place: '신관 402호', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr' },
+    { name: '조직파쇄기', model: 'Tissue Lyser III', maker: 'Qiagen', place: '신관 N469', owner: '정지연 010-8540-0668 jiyean98@knu.ac.kr' },
+    { name: '핵자기공명분석기', model: 'minispec LF50', maker: 'Bruker', place: '실험동물자원관리센터2층', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr' },
+    { name: '감마카운터기', model: 'Wizard2', maker: 'PerkinElmer', place: '신관138호' },
+    { name: '화상분석시스템', model: 'Typhoon IP', maker: 'cytiva', place: '신관139호 동위원소 실험실 내', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr' },
+    { name: '분석용전자저울', model: 'ML104T', place: '신관138호 - 동위원소실 내 N142호', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr' },
+    { name: '탁상형냉장원심분리기', model: 'CN/FC5515R', maker: 'Ohaus', place: '신관138호 동위원소실내', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr' },
+    { name: '필름현상기', model: 'SRX 101A', maker: 'kodak', place: '신관139호' },
+    { name: '초고속원심분리기 (2023)', model: 'Optima XE-100', maker: 'beckman', place: '신관139호', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr' },
+    { name: '동결건조기', model: 'FD8518', maker: '일신', place: '신관 N408' },
+    { name: '홀로그램현미경', model: 'HT-2H', maker: 'TOMOCUBE', place: '신관N408', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr' },
+    { name: 'DNA 서열 분석기 (DNA amplification system)', model: 'Rhapsody-HT', maker: 'BD', place: '신관 N402', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr' },
+    { name: '임상화학자동분석장치', model: 'Vitros XT3400', maker: 'Johnson & Johnson', place: '신관 N402', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr' },
+    { name: '유세포분석기 (CytoFLEX)', model: 'CytoFLEX', maker: 'Beckman', place: '신관 N469', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr' },
+    { name: '세포단층촬영 (투사) 현미경', model: '3D cell explorer', maker: 'Nanolive', place: '신관 N469', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr' },
+    { name: '실시간세포분석기', model: 'Incucyte zoom', maker: 'essen bioscience', place: '신관 N469', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr' },
+    { name: '냉동조직박절기 (Cryo cut microtome)', model: 'CM3050S', maker: 'Leica', place: '신관 N469', owner: '정지연 053-420-4989' },
+    { name: '형광리더기 (FlexStation 3)', model: 'FlexStation 3', maker: 'Molecular Device/US', place: '신관 N469', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr' },
+    { name: 'Real time PCR (QuantStudio3)', model: 'QuantStudio3', maker: 'Thermo', place: '신관 N469', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr', how: '장비 앞 예약대장에 예약 후 사용, 처음이면 사용자 교육 후 사용' },
+    { name: '형광현미경(Invert 현미경)', model: 'DMi 8 - THUNDER', maker: 'Leica', place: '신관 N469', owner: '정지연 010-8540-0668 jiyean98@knu.ac.kr', how: '담당자 교육 후 사용, 장비 앞 예약대장에 예약 후 사용, 사용 후 사용대장 기입' },
+    { name: '유세포분석기 (FACS Aria Fusion)', model: 'FACS Aria Fusion', maker: 'Becton Dickinson', place: '신관 N401', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr', how: '오퍼레이터 예약 후 사용' },
+    { name: '유세포분석기 (FACS Calibur)', model: 'FACS Calibur', maker: 'Becton Dickinson', place: '신관 N401', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr', how: '오퍼레이터 예약 후 이용, 사용 시간 09:00–17:00' },
+    { name: '형광리더기 (Spectramax M2e)', model: 'Spectramax M2e', maker: 'Molecular Device/US', place: '신관 N469', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr', how: '사용자가 직접 사용, 처음이면 장비 교육 후 사용' },
+    { name: '초순수제조장치', model: 'Direct-Q5UV', maker: 'Millipore', place: '신관139호', how: '사용자가 직접 사용' },
+    { name: '공초점현미경 (STELLARIS5)', model: 'STELLARIS5', maker: 'Leica', place: '신관N408', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr', how: '오퍼레이터 예약 후 이용 (직접 사용 불가 · 쓰기 전 장비 사양 확인), 09:00–17:00, 주말·공휴일 불가' },
+    { name: '입자측정장치', model: 'NTA Pro', maker: 'Malvern', place: '신관 N402', owner: '정지연 010-8540-0668 jiyean98@knu.ac.kr', how: '담당 오퍼레이터에게 전화 예약, 교육 받은 사람만 직접 사용, 의과대학 안에서만, 평일 09:00–18:00' },
+    { name: '멀티스펙트럼 형광영상분석시스템', model: 'Nuance FX', maker: 'Perkin Elmer', place: '신관 N469', owner: '정지연 053-420-4989', how: '예약대장에 예약 후 사용, 사용 후 기기 사용대장 기입' },
+    { name: '초고속원심분리기 (2015)', model: 'Optima XE-100', maker: 'Beckman Coulter', place: '신관 139호', owner: '정지연 053-420-4989', how: '담당자에게 전화로 예약 후 이용, 처음이면 담당자에게 교육 후 사용' },
+    { name: '고속원심분리기', model: 'Avanti JXN-26', maker: 'Beckman Coulter', place: '신관 139호', owner: '정지연 053-420-4989', how: '담당자에게 전화로 예약 후 이용, 사용 후 기기 사용대장 기입, 처음이면 담당자에게 교육 후 사용' },
+    { name: 'Real time PCR (QuantStudio5)', model: 'QuantStudio5', maker: 'thermo science', place: '신관 N469', owner: '정지연 053-420-4989', how: '예약대장에 예약 후 사용, 사용 후 기기 사용대장 기입' },
+    { name: '동물 혈구 분석기', model: 'SCI-VET', maker: 'Scil', place: '신관 N402', owner: '정지연 053-420-4989', how: '사용 전 예약, 사용 후 기기 사용대장 기입, 처음이면 담당자에게 교육 후 사용' },
+    { name: '케미닥', model: 'FUSION', maker: 'Vilber', place: '신관 N408', owner: '정지연 053-420-4989', how: '사용 후 기기 사용대장 기입, 처음이면 담당자에게 교육 후 사용' },
+    { name: '흰쥐혈압 모니터링 장치(소동물혈압계)', model: 'TRM54PB', maker: 'Kaha Sciences (New Zealand)', place: '실험동물자원관리센터' },
+    { name: '공초점현미경 (LSM5 Exciter)', model: 'LSM5 Exciter', maker: 'Zeiss', place: '신관 N469', owner: '정지연 053-420-4989', how: 'operator 분석 장비 — 담당자에게 예약 후 사용, 예약대장에 예약, 사용 후 기기 사용대장 기입' },
+    { name: '형광현미경', model: 'Axio Imager A1', maker: 'Zeiss', place: '신관 N469', owner: '정지연 053-420-4989', how: '교육 후 사용, 문 앞 예약대장에 예약, 사용대장 꼭 기입' },
+  ] },
+  { group: '동인동 연구기기', src: '의대 연구기기현황', kind: '연구기기', items: [
+    { name: '선량 측정계', model: 'CRC-712m', maker: 'Capintec', place: '신관 동위원소실', owner: 'yooj@knu.ac.kr' },
+    { name: '고압멸균기', model: 'ST-65G, 65L', maker: '제이오텍', place: '신관 3층 기능학실습실B (N371)', owner: '의학교육센터 전혜진 053-420-4873', how: '학생 실습이 없는 기간에 예약 후 사용' },
+    { name: '마이크로플레이트리더', model: 'Spectramax i3x (US)', maker: 'Molecular Devices', place: '신관 3층 기능학실습실B (N371)', owner: '의학교육센터 전혜진 053-420-4873', how: '학생 실습이 없는 기간에 예약 후 사용' },
+    { name: '위상차현미경', model: 'ECLIPSE Ci-S (JP)', maker: 'Nikon', place: '신관 3층 형태학실습실 (N327)', owner: '의학교육센터 전혜진 053-420-4873', how: '학생 실습이 없는 기간에 예약 후 사용' },
+    { name: '실체현미경', model: 'E-400 (5각, JP)', maker: 'Nikon', place: '신관 3층 형태학실습실 (N327)', owner: '의학교육센터 전혜진 053-420-4873', how: '학생 실습이 없는 기간에 예약 후 사용' },
+    { name: '겔다큐멘테이션시스템', model: 'Gel Doc XR system (170-8170, US)', maker: 'Bio-Rad', place: '신관 3층 기능학실습실B (N371)', owner: '의학교육센터 전혜진 053-420-4873', how: '학생 실습이 없는 기간에 예약 후 사용' },
+    { name: '미량냉장원심분리기', model: 'Smart R17, 1.5mL×18/24', maker: '한일과학산업', place: '신관 기능학실습실 B·C (N371, N471)', owner: '의학교육센터 전혜진 053-420-4873', how: '학생 실습이 없는 기간에 예약 후 사용' },
+    { name: '미량원심분리기', model: '5424 (DE)', maker: 'Eppendorf', place: '신관 기능학실습실 B·C (N371, N471)', owner: '의학교육센터 전혜진 053-420-4873', how: '학생 실습이 없는 기간에 예약 후 사용' },
+    { name: '균질기', model: 'VC505, 500W (US)', maker: 'Sonics and Materials', place: '신관 4층 기능학실습실C (N471)', owner: '의학교육센터 전혜진 053-420-4873', how: '학생 실습이 없는 기간에 예약 후 사용' },
+    { name: '형광도립현미경', model: 'AX70 (JP)', maker: 'Olympus', place: '350호', owner: 'ekyang@knu.ac.kr' },
+    { name: '혈류 측정기', model: 'ML192 & fiber optic needle probe', maker: 'AD Instruments', place: '343호', owner: 'hshan@knu.ac.kr' },
+    { name: '냉동조직박편절단기', model: 'MEV 3832', maker: 'Sakura', place: '343호', owner: 'hshan@knu.ac.kr' },
+    { name: '자외선 분광분석기', model: 'UV-1650PC', maker: 'Shimadzu', place: '신관 107-2', owner: 'ycboo@knu.ac.kr' },
+    { name: '분액수집기', model: 'Frac-950', maker: 'GE', place: '신관 공동기기실', owner: 'mcbaek@knu.ac.kr' },
+    { name: '질량분석기', model: 'nanoUPLC Q-Tof Premier', maker: 'Waters', place: '신관 107', owner: 'mcbaek@knu.ac.kr' },
+    { name: '고속액체크로마토그라프', model: 'Delta 600', maker: 'Waters', place: '사이클로트론실', owner: 'yooj@knu.ac.kr' },
+    { name: '냉동조직박절기', model: 'CM1850', maker: 'Leica', place: '신관 147호', owner: 'nothank@knu.ac.kr' },
   ] },
   { group: '학정동 공동기기', src: '의대 연구기기현황', kind: '공동기기실 장비', items: [
-    ['PCR', '', '', '의생명1호관 606호'],
-    ['고압멸균기', '', '', '의생명1호관 606호'],
-    ['혈액냉동고 2', '', 'carrier', '의생명1호관 416호'],
-    ['혈액냉동고 1', '', 'carrier', '의생명1호관 416호'],
-    ['분광광도계(Nano Drop)', 'ND-1', 'thermo', '의생명1호관 606호'],
-    ['화상분석시스템', 'Image Quant800', 'cytiva', '의생명1호관 606호'],
-    ['역상현미경', 'DMi 1', 'Leica', '의생명1호관 606호'],
-    ['형광현미경(Invert)', 'DMi 8', 'Leica', '의생명1호관 606호'],
-    ['탁상형냉장원심분리기', '5810R', 'Eppendorf', '의생명1호관 606호'],
-    ['덩어리얼음제조기', 'IT/GB1540', 'brema', '의생명1호관 606호'],
-    ['Real time PCR', 'StepOnePlus', 'thermo', '의생명1호관 606호'],
-    ['냉동조직박절기(Cryo cut microtome)', 'CM3050S', 'Leica', '의생명1호관 606호'],
-    ['DNA 서열분석기', 'PyroMark Q48', 'QIAGEN', '의생명1호관 606호'],
-    ['형광리더기', 'FlexStation 3', 'Molecular Devices/US', '의생명1호관 606호'],
+    { name: 'PCR', place: '의생명1호관 606호', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr' },
+    { name: '고압멸균기', place: '의생명1호관 606호', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr' },
+    { name: '혈액냉동고 2', maker: 'carrier', place: '의생명1호관 416호', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr' },
+    { name: '혈액냉동고 1', maker: 'carrier', place: '의생명1호관 416호', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr' },
+    { name: '분광광도계(Nano Drop)', model: 'ND-1', maker: 'thermo', place: '의생명1호관 606호', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr' },
+    { name: '화상분석시스템', model: 'Image Quant800', maker: 'cytiva', place: '의생명1호관 606호', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr' },
+    { name: '역상현미경', model: 'DMi 1', maker: 'Leica', place: '의생명1호관 606호', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr' },
+    { name: '형광현미경(Invert)', model: 'DMi 8', maker: 'Leica', place: '의생명1호관 606호', owner: '정지연 053-420-4989 sjkim0080@knu.ac.kr' },
+    { name: '탁상형냉장원심분리기', model: '5810R', maker: 'Eppendorf', place: '의생명1호관 606호', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr' },
+    { name: '덩어리얼음제조기', model: 'IT/GB1540', maker: 'brema', place: '의생명1호관 606호', owner: '정지연 053-420-4989 jiyean98@gmail.com' },
+    { name: 'Real time PCR', model: 'StepOnePlus', maker: 'thermo', place: '의생명1호관 606호', owner: '정지연 053-420-4989 jiyean98@gmail.com' },
+    { name: '냉동조직박절기 (Cryo cut microtome)', model: 'CM3050S', maker: 'Leica', place: '의생명1호관 606호', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr' },
+    { name: 'DNA 서열분석기', model: 'PyroMark Q48', maker: 'QIAGEN', place: '의생명1호관 606호', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr' },
+    { name: '형광리더기', model: 'FlexStation 3', maker: 'Molecular Device/US', place: '의생명1호관 606호', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr' },
   ] },
   { group: '생명의학연구원', src: '경북대병원 생명의학연구원 Core lab', place: '경북대병원 생명의학연구원', owner: '김효정 053-200-4603 knuhcorelab@knuh-ext.kr', items: [
-    ['고감도 고해상력 공초점 현미경', 'LSM 800 with AiryScan', 'Carl Zeiss/독일', '', ['다중 형광 염색한 세포·조직의 2D 고해상도 고배율 이미징·정량분석', '3D 형광 이미징', '장시간 생세포 이미징', '칼슘 인디케이터로 세포 내 칼슘 이온 이미징', '레이저로 특정 단백질 자극 후 시간에 따른 변화 분석']],
-    ['나노분광분석기', 'DS-11', 'DeNovix/USA', '', ['UV·가시광선 전 파장으로 핵산·단백질 정량']],
-    ['등온 핵산 증폭기', 'MXM-100', '엠모니터/대한민국', '', ['소량의 핵산 검출·분석', '부대장비 없이 빠르게 표적 유전물질 검출']],
-    ['레이저 미세절단 현미경', 'LMD7', 'Leica/독일', '', ['조직표본·배양세포에서 원하는 부위만 레이저로 미세 절단해 채취 (single cell 수준까지)', '정상 조직과 인접한 병리 세포 분리']],
-    ['멀티 플레이트 리더', 'SPARK 10M', 'TECAN/Austria', '', ['흡광도 200–1000 nm (스캔 포함)', '형광 (filter·monochromator, 3D 스캔, PicoGreen 정량)', '발광 (장비 안에서 시약 분주)']],
-    ['바이오 분자 이미징 시스템', 'LAS 4000', 'GE Healthcare/Japan', '', ['gel 염색(가시광·형광) 이미지 촬영', 'Western blot 검출 이미지']],
-    ['발광형광영상장비', 'IVIS Lumina III', 'Perkin Elmer/USA', '', ['고감도 발광·형광 촬영과 정량', '소형동물 모델 in vivo 모니터링']],
-    ['세포 형질주입 시스템', '4D Nucleofector', 'Lonza/스위스', '', ['세포 종류별 전기 자극으로 유전자 도입', 'Suspension·adherent, cell line·primary cell 모두']],
-    ['소동물용 혈관 및 혈류 이미징 AOCT', '', '카이스트 Biomedical Photonic Imaging Lab/한국', '', ['mouse·rat 혈관 구조와 상대 혈류 속도 이미징', 'AOCT 단독 또는 수술현미경 통합']],
-    ['수술용 현미경', 'M320 F12', 'Leica Microsystems/Germany', '', ['고해상도 입체현미경, 이미지·동영상 촬영(SD 카드)', '제브라피쉬·동물 실험']],
-    ['실시간 유전자 증폭기 (QuantStudio 5)', 'QuantStudio 5', 'Applied Biosystems', '', ['384-well 전용 real-time PCR', '유전자 발현·병원체 검출·SNP·genotyping']],
-    ['실시간 유전자 증폭기 (Bio-Rad)', 'CFX96 Touch', 'Bio-Rad/USA', '', ['96-well real-time PCR', '유전자 정량·발현 비교, SNP·mutation 검출']],
-    ['전산화단층촬영장치 (micro-CT)', 'Skyscan 1275XL', 'Bruker/벨기에', '', ['X-ray로 시료 내부 구조를 비파괴 촬영', '3D 영상화·정량 분석 (뼈·치아 등)']],
-    ['형광현미경', 'AXIO', 'Carl Zeiss/독일', '', ['미세구조 관찰', '형광 항체로 조직·세포 내 특정 부위 관찰']],
-    ['화상분석시스템', 'Fusion FX', 'Vilber Lourmat/France', '', ['Western blot 이미지 촬영·분석', 'DNA·RNA gel 이미지 촬영·분석']],
+    { name: '고감도 고해상력 공초점 현미경', model: 'LSM 800 with AiryScan', maker: 'Carl Zeiss/독일', uses: ['다중 형광 염색한 세포·조직의 2D 고해상도 고배율 이미징·정량분석', '3D 형광 이미징', '장시간 생세포 이미징', '칼슘 인디케이터로 세포 내 칼슘 이온 이미징', '레이저로 특정 단백질 자극 후 시간에 따른 변화 분석'] },
+    { name: '나노분광분석기', model: 'DS-11', maker: 'DeNovix/USA', uses: ['UV·가시광선 전 파장으로 핵산·단백질 정량'] },
+    { name: '등온 핵산 증폭기', model: 'MXM-100', maker: '엠모니터/대한민국', uses: ['소량의 핵산 검출·분석', '부대장비 없이 빠르게 표적 유전물질 검출'] },
+    { name: '레이저 미세절단 현미경', model: 'LMD7', maker: 'Leica/독일', uses: ['조직표본·배양세포에서 원하는 부위만 레이저로 미세 절단해 채취 (single cell 수준까지)', '정상 조직과 인접한 병리 세포 분리'] },
+    { name: '멀티 플레이트 리더', model: 'SPARK 10M', maker: 'TECAN/Austria', uses: ['흡광도 200–1000 nm (스캔 포함)', '형광 (filter·monochromator, 3D 스캔, PicoGreen 정량)', '발광 (장비 안에서 시약 분주)'] },
+    { name: '바이오 분자 이미징 시스템', model: 'LAS 4000', maker: 'GE Healthcare/Japan', uses: ['gel 염색(가시광·형광) 이미지 촬영', 'Western blot 검출 이미지'] },
+    { name: '발광형광영상장비', model: 'IVIS Lumina III', maker: 'Perkin Elmer/USA', uses: ['고감도 발광·형광 촬영과 정량', '소형동물 모델 in vivo 모니터링'] },
+    { name: '세포 형질주입 시스템', model: '4D Nucleofector', maker: 'Lonza/스위스', uses: ['세포 종류별 전기 자극으로 유전자 도입', 'Suspension·adherent, cell line·primary cell 모두'] },
+    { name: '소동물용 혈관 및 혈류 이미징 AOCT', maker: '카이스트 Biomedical Photonic Imaging Lab/한국', uses: ['mouse·rat 혈관 구조와 상대 혈류 속도 이미징', 'AOCT 단독 또는 수술현미경 통합'] },
+    { name: '수술용 현미경', model: 'M320 F12', maker: 'Leica Microsystems/Germany', uses: ['고해상도 입체현미경, 이미지·동영상 촬영(SD 카드)', '제브라피쉬·동물 실험'] },
+    { name: '실시간 유전자 증폭기 (QuantStudio 5)', model: 'QuantStudio 5', maker: 'Applied Biosystems', uses: ['384-well 전용 real-time PCR', '유전자 발현·병원체 검출·SNP·genotyping'] },
+    { name: '실시간 유전자 증폭기 (Bio-Rad)', model: 'CFX96 Touch', maker: 'Bio-Rad/USA', uses: ['96-well real-time PCR', '유전자 정량·발현 비교, SNP·mutation 검출'] },
+    { name: '전산화단층촬영장치 (micro-CT)', model: 'Skyscan 1275XL', maker: 'Bruker/벨기에', uses: ['X-ray로 시료 내부 구조를 비파괴 촬영', '3D 영상화·정량 분석 (뼈·치아 등)'] },
+    { name: '형광현미경', model: 'AXIO', maker: 'Carl Zeiss/독일', uses: ['미세구조 관찰', '형광 항체로 조직·세포 내 특정 부위 관찰'] },
+    { name: '화상분석시스템', model: 'Fusion FX', maker: 'Vilber Lourmat/France', uses: ['Western blot 이미지 촬영·분석', 'DNA·RNA gel 이미지 촬영·분석'] },
   ] },
 ];
 function sharedEquipButton() {
@@ -135,19 +175,20 @@ function sharedEquipImport() {
       let g = groups.find(x => x.name === L.group);
       if (!g) groups.push(g = { id: uid(), name: L.group, color: newColor(groups.map(x => x.color)) });
       let order = db.stock.equips.filter(e => e.group === g.id).length;
-      for (const [name, model, maker, own, uses = [], kind = L.kind] of L.items) {
+      for (const { name, model = '', maker = '', place: own = '', owner = L.owner, how = '', uses = [] } of L.items) {
         if (db.stock.equips.some(e => e.group === g.id && e.name === name)) continue;
         const place = own || L.place || '';
-        db.stock.equips.push({ id: uid(), group: g.id, name, owner: L.owner, order: order++, updatedAt: isoToday(),
+        db.stock.equips.push({ id: uid(), group: g.id, name, owner, order: order++, updatedAt: isoToday(),
           memo: [own, model, maker].filter(Boolean).join(' · ') || undefined, // 묶음 공통 위치는 메모에서 뺌
-          note: ['## 정보', place && `- 위치: ${place}`, model && `- 모델: ${model}`, maker && `- 제작사: ${maker}`, L.owner && `- 담당: ${L.owner}`, kind && `- 구분: ${kind}`, `- 출처: ${L.src}`,
+          note: ['## 정보', place && `- 위치: ${place}`, model && `- 모델: ${model}`, maker && `- 제작사: ${maker}`, owner && `- 담당: ${owner}`, L.kind && `- 구분: ${L.kind}`, `- 출처: ${L.src}`,
+            how ? '## 이용' : '', ...how.split(', ').filter(Boolean).map(x => `- ${x}`),
             uses.length ? '## 활용' : '', ...uses.map(u => `- ${u}`)].filter(Boolean).join('\n') });
         added++;
       }
     }
     save();
     if (!added) alert('고른 목록은 이미 다 들어 있어요.');
-  }, [h('p', 'hint', '고른 목록을 묶음째 넣어요 (위치·모델·제작사·담당·활용분야). 같은 묶음에 같은 이름이 있으면 건너뛰어요.'),
+  }, [h('p', 'hint', '고른 목록을 묶음째 넣어요 (위치·모델·제작사·담당·이용 방법·활용분야). 같은 묶음에 같은 이름이 있으면 건너뛰어요.'),
     ...boxes.map(([, , el]) => el),
     h('p', 'hint', '사용 신청·예약은 각 홈페이지에서 해요. 랩 멤버도 같이 봐요.')]);
 }
