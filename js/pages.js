@@ -7,6 +7,7 @@
 //   rowMeta(p) → [목록 오른쪽 글, 마우스 올리면 보일 설명] · head(p, touched) → 제목 줄에 더할 칸 · below(p) → 본문 아래 패널
 //   printMeta(p) → 인쇄 머리 줄에 더할 글 · printBody(p) → 인쇄 본문 아래 · removeNote · onRemove(p)
 //   listExtra() → 목록 맨 아래 '+ 묶음' 뒤에 더할 버튼들 (없으면 null)
+//   sort(a, b) → 묶음 안 순서를 늘 이 순서로 (있으면 끌어서 순서 바꾸기 없음 — 기기)
 const eul = w => ((w.charCodeAt(w.length - 1) - 0xAC00) % 28 ? '을' : '를'); // 받침 있으면 '을' (프로토콜을 · 기기를)
 // 종이용으로 따로 그린 sheet만 인쇄 (화면은 그대로) — 프로토콜·기기·팁. title = PDF 파일 이름
 function printSheet(sheet, title) {
@@ -29,7 +30,7 @@ function pageBook(B) {
   const of = id => items().find(p => p.id === id);
   // 묶음 안 순서 = p.order (끌어서 바꾸면 매김), 없으면 들어온 순서. 한 건씩 따로 저장돼서 배열 순서는 기기마다 다를 수 있음
   const order = p => p.order ?? items().indexOf(p);
-  const inGroup = gid => items().filter(p => p.group === gid).sort((a, b) => order(a) - order(b));
+  const inGroup = gid => items().filter(p => p.group === gid).sort(B.sort || ((a, b) => order(a) - order(b)));
   const drag = `text/x-${B.key}`;
   // 페이지를 gid 묶음의 target 앞·뒤로 (target 없으면 맨 끝) 옮기고 그 묶음 순서를 다시 매김
   function move(m, gid, target = null, where = 'after') {
@@ -47,8 +48,9 @@ function pageBook(B) {
     const row = p => {
       const [meta, tip] = B.rowMeta(p);
       const b = h('button', cls('note-row', p.id === sel && 'on'), h('span', 'note-emoji', B.emoji), h('span', 'note-title', p.name), h('span', 'note-meta', meta));
-      b.title = `${tip ? `${tip} · ` : ''}끌어서 순서 바꾸기·다른 묶음으로 옮기기`;
+      b.title = B.sort ? tip : `${tip ? `${tip} · ` : ''}끌어서 순서 바꾸기·다른 묶음으로 옮기기`;
       b.onclick = () => { sel = p.id; editKey = null; render(); };
+      if (B.sort) return b;
       // 다른 페이지 위쪽·아래쪽 절반에 놓으면 그 앞·뒤로 (묶음이 다르면 그 묶음으로)
       b.draggable = true;
       b.append(touchHandle());

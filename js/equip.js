@@ -46,6 +46,8 @@ const EQUIP = pageBook({
     return [text('where', '위치', '눌러서 위치 고치기 (예: N469 — 신관은 N+방 번호)'), text('owner', '담당', '눌러서 담당자 고치기 (예: 홍길동 010-0000-0000)')];
   },
   printMeta: e => [e.where ? `위치 ${e.where}` : null, e.owner ? `담당 ${e.owner}` : null],
+  // 묶음 안은 늘 위치 → 이름 가나다순 (끌어서 바꾸기 없음). 위치는 방 번호 순(N107 < N138 < N402)에 이름 있는 곳은 뒤로, 위치 없는 기기는 맨 뒤
+  sort: (a, b) => !a.where - !b.where || (a.where || '').localeCompare(b.where || '', 'en', { numeric: true }) || a.name.localeCompare(b.name, 'ko', { numeric: true }),
   below: e => [equipPhotos(e)],
   onRemove: e => { for (const ph of e.photos || []) if (ph.store === 'fs') window.cloud?.photo?.del(ph.id).catch(() => {}); }, // 앱 안 사진도 같이 지움 (Drive 사진은 폴더에 남음)
   printBody: e => { // 앱 안 사진은 화면에서 이미 읽은 것만
@@ -223,15 +225,11 @@ function sharedEquipImport() {
       const groups = db.stock.equipGroups;
       let g = groups.find(x => x.name === L.group);
       if (!g) groups.push(g = { id: uid(), name: L.group, color: newColor(groups.map(x => x.color)) });
-      let order = db.stock.equips.filter(e => e.group === g.id).length;
-      // 기본 순서: 위치 → 이름 (끌어서 바꿀 수 있음). 위치는 방 번호 순(N107 < N138 < N402)에 이름 있는 곳은 뒤로, 이름은 가나다순
-      const by = loc => (a, b) => (a || '').localeCompare(b || '', loc, { numeric: true });
-      const items = [...L.items].sort((a, b) => by('en')(a.place, b.place) || by('ko')(a.name, b.name));
-      for (const { name, desc = '', model = '', maker = '', place: own = '', spot = '', owner = L.owner, kind = L.kind, how = '', uses = [] } of items) {
+      for (const { name, desc = '', model = '', maker = '', place: own = '', spot = '', owner = L.owner, kind = L.kind, how = '', uses = [] } of L.items) {
         if (db.stock.equips.some(e => e.group === g.id && e.name === name)) continue;
         const fam = SHARED_FAMILIES.find(f => f.some(([g, n]) => g === L.group && n === name)) || [];
         const refs = fam.filter(([g, n]) => g !== L.group || n !== name).map(([, n, line]) => `- ${n} — ${line}`);
-        db.stock.equips.push({ id: uid(), group: g.id, name, where: own || L.place || undefined, owner, order: order++, updatedAt: isoToday(),
+        db.stock.equips.push({ id: uid(), group: g.id, name, where: own || L.place || undefined, owner, updatedAt: isoToday(),
           memo: [model, maker].filter(Boolean).join(' · ') || undefined,
           // 위치(방)·담당은 제목 줄 칸, 모델·제작사는 한 줄 메모에 있어서 본문 정보엔 세부 위치·구분만
           note: [desc, (spot || kind) && '## 정보', spot && `- 위치: ${own} ${spot}`, kind && `- 구분: ${kind}`,
