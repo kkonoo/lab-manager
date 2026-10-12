@@ -125,6 +125,10 @@ function docPage(f) {
   if (back) back.onclick = () => { selForm = TRIPS; selTrip = trip.id; render(); };
   const print = h('button', 'btn primary', '🖨 인쇄 / PDF 저장');
   print.onclick = () => printDoc(f, d);
+  const auto = h('button', 'btn small', aiBusy === d.id ? '✨ 채우는 중…' : '✨ 자동 채우기'); // 빈 칸을 Claude로 (ai.js)
+  auto.disabled = !!aiBusy;
+  auto.title = '메모·안내문·PDF·사진을 주면 빈 칸을 채워요 (설정에 각자의 API 키)';
+  auto.onclick = () => aiFill(f, d);
   const rename = h('button', 'btn small', '이름 바꾸기');
   rename.onclick = () => ask('문서 이름', [{ key: 'title', label: '이름', value: d.title, required: true }], v => { d.title = v.title.trim(); save(); });
   const del = h('button', 'btn danger small', '문서 지우기');
@@ -157,7 +161,7 @@ function docPage(f) {
       return [h('div', 'paper-tag', h('b', null, `${f.repeat} ${i + 1}`), h('span', 'hint', `/ ${n}`), dup, drop), ...ps];
     });
   }
-  return [bar, h('div', 'doc-bar doc-tools', back, print, addItem, rename, del, fit, status, h('span', 'hint', f.hint || (trip ? '노란 칸을 눌러 써요 · 출장 정보는 다른 서류에도 같이 들어가요' : '노란 칸을 눌러 바로 써요'))),
+  return [bar, h('div', 'doc-bar doc-tools', back, print, auto, addItem, rename, del, fit, status, h('span', 'hint', f.hint || (trip ? '노란 칸을 눌러 써요 · 출장 정보는 다른 서류에도 같이 들어가요' : '노란 칸을 눌러 바로 써요'))),
     h('div', 'paper-wrap', wrap)];
 }
 

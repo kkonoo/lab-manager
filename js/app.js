@@ -603,6 +603,7 @@ $('settingsBtn').onclick = () => {
       h('p', 'hint', '기준을 넘는 주문은 재고 주문함에서 규격서를 바로 만들어요'), standardHistory('centralHist')] },
     member ? null : lineCatsBox(),
     member ? null : { fold: '기기 사진 저장', hint: db.stock.photoDrive ? 'Google Drive (원본)' : '앱 안 (줄여서)', fields: [photoDriveBox()] }, // 연결·끊기는 누르면 바로 (equip.js)
+    member ? null : { fold: 'AI 자동 채우기', hint: aiKey() ? 'API 키 있음' : 'API 키 없음', fields: [aiKeyBox()] }, // 서류의 ✨ 자동 채우기 — 키는 이 브라우저에만 (ai.js)
   ].filter(Boolean), v => {
     layout.fs = +v.fs || 1;
     saveLayout();
