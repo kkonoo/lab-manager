@@ -55,21 +55,32 @@ const EQUIP = pageBook({
 function renderEquip() { EQUIP.render(); }
 
 // ---------- 공동기기 목록 넣기 (PI): 학교·병원 홈페이지의 공동기기 정보를 기기 탭에 묶음째 ----------
-// 목록 하나 = 묶음 하나 { group: 묶음 이름, src: 출처, place·owner: 기기마다 없을 때 쓸 위치·담당자, items: [[이름, 모델, 제작사, 위치, 활용분야[]]] }
+// 목록 하나 = 묶음 하나 { group: 묶음 이름, src: 출처, place·owner·kind: 기기마다 없을 때 쓸 위치·담당자·구분, items: [[이름, 모델, 제작사, 위치, 활용분야[], 구분]] }
 // 홈페이지에 적힌 그대로 ('-'·빈 칸은 없음). 정보만 넣음 (사용 신청·예약은 홈페이지에서)
 // 같은 묶음에 같은 이름이 있으면 건너뜀 → 목록을 늘린 뒤 다시 넣어도 새것만 들어감
-//   의대 연구기기현황 https://med.knu.ac.kr/pages/sub.htm?nav_code=knu1670414710 (69개 중 1–2쪽 20개 — 이름 끝이 '-학정동'이면 학정동(이름에선 뺌), 나머지는 동인동)
+//   의대 연구기기현황 https://med.knu.ac.kr/pages/sub.htm?nav_code=knu1670414710 (69개 중 1·2·6쪽 30개 — 이름 끝이 '-학정동'이면 학정동(이름에선 뺌), 나머지는 동인동.
+//     구분: 홈페이지의 '공동기기실 장비' / '연구기기')
 //   경북대병원 생명의학연구원 Core lab https://bmri.knuh.kr/content/06application/10_01.php (2026.10)
 const SHARED_EQUIPS = [
-  { group: '동인동 공동기기', src: '의대 연구기기현황', items: [
+  { group: '동인동 공동기기', src: '의대 연구기기현황', kind: '공동기기실 장비', items: [
     ['Nano Drop', 'Nano Drop Ultra', 'thermo', '신관 402호'],
     ['조직파쇄기', 'Tissue Lyser III', 'Qiagen', '신관 N469'],
     ['핵자기공명분석기', 'minispec LF50', 'Bruker', '실험동물자원관리센터 2층'],
     ['감마카운터기', 'Wizard2', 'PerkinElmer', '신관 138호'],
     ['화상분석시스템', 'Typhoon IP', 'cytiva', '신관 139호 동위원소 실험실 안'],
     ['분석용전자저울', 'ML104T', '', '신관 138호 동위원소실 안 N142호'],
+    ['멀티스펙트럼 형광영상분석시스템', 'Nuance FX', 'Perkin Elmer', '신관 N469'],
+    ['미량원심분리기', '(DE)5424', 'Eppendorf', '신관 기능학실습실 B·C (N371, N471)', [], '연구기기'],
+    ['균질기', '(US)VC505, 500W', 'Sonics and Materials', '신관 4층 기능학실습실 C (N471)', [], '연구기기'],
+    ['형광도립현미경', 'AX70 (JP)', 'Olympus', '350호', [], '연구기기'],
+    ['혈류 측정기', 'ML192 & fiber optic needle probe', 'AD Instruments', '343호', [], '연구기기'],
+    ['냉동조직박편절단기', 'MEV 3832', 'Sakura', '343호', [], '연구기기'],
+    ['자외선 분광분석기', 'UV-1650PC', 'Shimadzu', '신관 107-2', [], '연구기기'],
+    ['분액수집기', 'Frac-950', 'GE', '신관 공동기기실', [], '연구기기'],
+    ['질량분석기', 'nanoUPLC Q-Tof Premier', 'Waters', '신관 107', [], '연구기기'],
+    ['고속액체크로마토그라프', 'Delta 600', 'Waters', '사이클로트론실', [], '연구기기'],
   ] },
-  { group: '학정동 공동기기', src: '의대 연구기기현황', items: [
+  { group: '학정동 공동기기', src: '의대 연구기기현황', kind: '공동기기실 장비', items: [
     ['PCR', '', '', '의생명1호관 606호'],
     ['고압멸균기', '', '', '의생명1호관 606호'],
     ['혈액냉동고 2', '', 'carrier', '의생명1호관 416호'],
@@ -124,12 +135,12 @@ function sharedEquipImport() {
       let g = groups.find(x => x.name === L.group);
       if (!g) groups.push(g = { id: uid(), name: L.group, color: newColor(groups.map(x => x.color)) });
       let order = db.stock.equips.filter(e => e.group === g.id).length;
-      for (const [name, model, maker, own, uses = []] of L.items) {
+      for (const [name, model, maker, own, uses = [], kind = L.kind] of L.items) {
         if (db.stock.equips.some(e => e.group === g.id && e.name === name)) continue;
         const place = own || L.place || '';
         db.stock.equips.push({ id: uid(), group: g.id, name, owner: L.owner, order: order++, updatedAt: isoToday(),
           memo: [own, model, maker].filter(Boolean).join(' · ') || undefined, // 묶음 공통 위치는 메모에서 뺌
-          note: ['## 정보', place && `- 위치: ${place}`, model && `- 모델: ${model}`, maker && `- 제작사: ${maker}`, L.owner && `- 담당: ${L.owner}`, `- 출처: ${L.src}`,
+          note: ['## 정보', place && `- 위치: ${place}`, model && `- 모델: ${model}`, maker && `- 제작사: ${maker}`, L.owner && `- 담당: ${L.owner}`, kind && `- 구분: ${kind}`, `- 출처: ${L.src}`,
             uses.length ? '## 활용' : '', ...uses.map(u => `- ${u}`)].filter(Boolean).join('\n') });
         added++;
       }
