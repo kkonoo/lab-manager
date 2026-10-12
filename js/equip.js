@@ -57,7 +57,7 @@ const EQUIP = pageBook({
 function renderEquip() { EQUIP.render(); }
 
 // ---------- 공동기기 목록 넣기 (PI): 학교·병원 홈페이지의 공동기기 정보를 기기 탭에 묶음째 ----------
-// 목록 하나 = 묶음 하나 { group: 묶음 이름, src: 출처, kind·place·owner: 기기마다 없을 때 쓸 구분·위치·담당자,
+// 목록 하나 = 묶음 하나 { group: 묶음 이름, src: 출처, kind·owner: 기기마다 없을 때 쓸 구분·담당자,
 //   items: [{ name, desc: 뭐 하는 기기인지 한 줄, model, maker, place, owner, kind, how: 이용 방법, uses: [활용분야] }] }
 // 홈페이지에 적힌 그대로 (빈 값은 뺌). 정보만 넣음 (사용 신청·예약은 홈페이지에서)
 // 같은 묶음에 같은 이름이 있으면 건너뜀 → 목록을 늘린 뒤 다시 넣어도 새것만 들어감
@@ -137,7 +137,7 @@ const SHARED_EQUIPS = [
     { name: 'DNA 서열분석기', desc: '짧은 DNA 서열을 읽어 메틸화·SNP·돌연변이를 정량하는 파이로시퀀서', model: 'PyroMark Q48', maker: 'QIAGEN', place: '의생명1호관 606호' },
     { name: '형광리더기', desc: '96·384-well 플레이트의 흡광·형광·발광을 재는 리더 (피펫 내장 — 시약을 넣으며 바로 측정)', model: 'FlexStation 3', maker: 'Molecular Device/US', place: '의생명1호관 606호' },
   ] },
-  { group: '생명의학연구원', src: '경북대병원 생명의학연구원 Core lab', place: '경북대병원 생명의학연구원', owner: '김효정 053-200-4603 knuhcorelab@knuh-ext.kr', items: [
+  { group: '생명의학연구원', src: '경북대병원 생명의학연구원 Core lab', owner: '김효정 053-200-4603 knuhcorelab@knuh-ext.kr', items: [
     { name: '고감도 고해상력 공초점 현미경', desc: '형광 시료를 층층이 고해상도로 찍는 공초점 현미경 (Airyscan 초해상)', model: 'LSM 800 with AiryScan', maker: 'Carl Zeiss/독일', uses: ['다중 형광 염색한 세포·조직의 2D 고해상도 고배율 이미징·정량분석', '3D 형광 이미징', '장시간 생세포 이미징', '칼슘 인디케이터로 세포 내 칼슘 이온 이미징', '레이저로 특정 단백질 자극 후 시간에 따른 변화 분석'] },
     { name: '나노분광분석기', desc: '소량으로 핵산·단백질을 정량하는 분광광도계 (NanoDrop과 같은 용도)', model: 'DS-11', maker: 'DeNovix/USA', uses: ['UV·가시광선 전 파장으로 핵산·단백질 정량'] },
     { name: '등온 핵산 증폭기', desc: '온도를 오르내리지 않고 한 온도에서 핵산을 증폭·검출하는 장치', model: 'MXM-100', maker: '엠모니터/대한민국', uses: ['소량의 핵산 검출·분석', '부대장비 없이 빠르게 표적 유전물질 검출'] },
@@ -227,12 +227,11 @@ function sharedEquipImport() {
       let order = db.stock.equips.filter(e => e.group === g.id).length;
       for (const { name, desc = '', model = '', maker = '', place: own = '', owner = L.owner, kind = L.kind, how = '', uses = [] } of L.items) {
         if (db.stock.equips.some(e => e.group === g.id && e.name === name)) continue;
-        const place = own || L.place || '';
         const fam = SHARED_FAMILIES.find(f => f.some(([g, n]) => g === L.group && n === name)) || [];
         const refs = fam.filter(([g, n]) => g !== L.group || n !== name).map(([, n, line]) => `- ${n} — ${line}`);
         db.stock.equips.push({ id: uid(), group: g.id, name, owner, order: order++, updatedAt: isoToday(),
           memo: [own, model, maker].filter(Boolean).join(' · ') || undefined, // 묶음 공통 위치는 메모에서 뺌
-          note: [desc, '## 정보', place && `- 위치: ${place}`, model && `- 모델: ${model}`, maker && `- 제작사: ${maker}`, owner && `- 담당: ${owner}`, kind && `- 구분: ${kind}`, `- 출처: ${L.src}`,
+          note: [desc, kind && '## 정보', kind && `- 구분: ${kind}`, // 위치·모델·제작사는 한 줄 메모, 담당은 담당 칸에 있어서 본문엔 안 씀
             how ? '## 이용' : '', ...how.split(', ').filter(Boolean).map(x => `- ${x}`),
             uses.length ? '## 활용' : '', ...uses.map(u => `- ${u}`),
             refs.length ? '## 참고 — 같은 종류' : '', ...refs].filter(Boolean).join('\n') });
