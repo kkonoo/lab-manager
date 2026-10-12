@@ -28,6 +28,7 @@ const EQUIP = pageBook({
   emptyStart: '‘+ 묶음’으로 시작해요 (예: 공동기기, 이미징). 묶음 안에 기기를 만들고, 사용법·주의사항·담당자·사진을 넣어요.',
   bodyPh: '## 사용법\n1. …\n## 주의사항\n> 주의: …', bodyEmpty: '아직 비어 있어요. ‘본문 편집’을 눌러 사용법·주의사항을 적어요.',
   printHint: '기기 옆에 붙여 둘 수 있게 A4로 인쇄해요',
+  listExtra: () => (isMember() ? null : [knuEquipButton()]), // PI만: 의대 연구기기현황을 묶음째 넣기
   rowMeta: e => [(e.owner || '').split(/\s/)[0], e.owner ? `담당 ${e.owner}` : ''], // 목록엔 담당자 이름만
   // 제목 줄: 담당자(이름·연락처 글) · 위치(재고의 보관 위치에서 고름)
   head: (e, touched, enterBlur) => {
@@ -52,6 +53,56 @@ const EQUIP = pageBook({
   },
 });
 function renderEquip() { EQUIP.render(); }
+
+// ---------- 의대 공동기기: 학교 홈페이지 '연구기기현황' 목록을 기기 탭에 넣기 (PI) ----------
+// [기기명, 모델명, 회사명, 위치] — 홈페이지에 적힌 그대로 ('-'는 없음). 캠퍼스는 위치·이름으로 나눔 (의생명관·'학정동' = 학정동, 나머지 = 동인동)
+// 넣을 때 캠퍼스별 묶음('동인동 공동기기')에, 같은 묶음에 같은 이름이 있으면 건너뜀 → 목록을 고쳐 다시 눌러도 새것만 들어감
+const KNU_EQUIP_URL = 'https://med.knu.ac.kr/pages/sub.htm?nav_code=knu1670414710';
+const KNU_EQUIPS = [
+  ['Nano Drop', 'Nano Drop Ultra', 'thermo', '신관 402호'],
+  ['조직파쇄기', 'Tissue Lyser III', 'Qiagen', '신관 N469'],
+  ['PCR-학정동', '-', '-', '의생명1호관 606호'],
+  ['고압멸균기-학정동', '-', '-', '의생명1호관 606호'],
+  ['혈액냉동고 2 -학정동', '-', 'carrier', '의생명1호관 416호'],
+  ['혈액냉동고 1 -학정동', '-', 'carrier', '의생명1호관 416호'],
+  ['분광광도계(Nano Drop)_학정동', 'ND-1', 'thermo', '의생명1호관 606호'],
+  ['화상분석시스템-학정동', 'Image Quant800', 'cytiva', '의생명1호관 606호'],
+  ['역상현미경-학정동', 'DMi 1', 'Leica', '의생명1호관 606호'],
+  ['형광현미경(Invert) - 학정동', 'DMi 8', 'Leica', '의생명1호관 606호'],
+];
+const knuCampus = ([name, , , place]) => (/의생명|학정동/.test(name + place) ? '학정동' : '동인동');
+function knuEquipButton() {
+  const b = h('button', 'cat-new', '🏫 의대 공동기기 넣기');
+  b.title = '학교 홈페이지 연구기기현황 목록을 이 탭에 묶음으로 넣어요';
+  b.onclick = knuEquipImport;
+  return b;
+}
+function knuEquipImport() {
+  const n = c => KNU_EQUIPS.filter(r => knuCampus(r) === c).length;
+  ask('의대 공동기기 넣기', [{ key: 'campus', label: '캠퍼스', type: 'select', value: '',
+    options: [['', `둘 다 (${KNU_EQUIPS.length}개)`], ['동인동', `동인동 (${n('동인동')}개)`], ['학정동', `학정동 (${n('학정동')}개)`]] }], v => {
+    const val = x => (x && x !== '-' ? x : '');
+    let added = 0;
+    for (const c of ['동인동', '학정동']) {
+      if (v.campus && v.campus !== c) continue;
+      const name = `${c} 공동기기`, groups = db.stock.equipGroups;
+      let g = groups.find(x => x.name === name);
+      if (!g) groups.push(g = { id: uid(), name, color: newColor(groups.map(x => x.color)) });
+      let order = db.stock.equips.filter(e => e.group === g.id).length;
+      for (const r of KNU_EQUIPS.filter(x => knuCampus(x) === c)) {
+        const [, model, maker, place] = r.map(val), title = r[0].replace(/\s*[-_]\s*학정동\s*$/, '').trim(); // 묶음이 캠퍼스라 이름 끝 '-학정동'은 뺌
+        if (db.stock.equips.some(e => e.group === g.id && e.name === title)) continue;
+        const spec = [model, maker].filter(Boolean).join(' · ');
+        db.stock.equips.push({ id: uid(), group: g.id, name: title, memo: [place, spec].filter(Boolean).join(' · ') || undefined, order: order++, updatedAt: isoToday(),
+          note: ['## 정보', place && `- 위치: ${place}`, model && `- 모델: ${model}`, maker && `- 회사: ${maker}`, `- 출처: 의대 연구기기현황 ${KNU_EQUIP_URL}`].filter(Boolean).join('\n') });
+        added++;
+      }
+    }
+    save();
+    if (!added) alert('이미 다 들어 있어요.');
+  }, [h('p', 'hint', '학교 홈페이지 ‘연구기기현황’ 목록을 캠퍼스별 묶음(동인동 공동기기 · 학정동 공동기기)으로 넣어요. 같은 묶음에 같은 이름이 있으면 건너뛰어요.'),
+    h('p', 'hint', '위치·모델·회사가 들어가요. 담당자·사용법은 넣은 뒤 채워요. 랩 멤버도 같이 봐요.')]);
+}
 
 // ---------- 기기 사진: PI가 교재처럼 넣어 두고 랩 학생은 봐요 ----------
 // 기본은 앱 안에 저장: 긴 변 1600px JPEG로 줄여 labs/{PI}/photos/{id} (설정할 것 없음 — sync.js window.cloud.photo)

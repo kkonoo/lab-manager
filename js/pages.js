@@ -6,6 +6,7 @@
 //   template·bodyPh·bodyEmpty · groupPh·namePh·memoPh · emptyStart · printHint
 //   rowMeta(p) → [목록 오른쪽 글, 마우스 올리면 보일 설명] · head(p, touched) → 제목 줄에 더할 칸 · below(p) → 본문 아래 패널
 //   printMeta(p) → 인쇄 머리 줄에 더할 글 · printBody(p) → 인쇄 본문 아래 · removeNote · onRemove(p)
+//   listExtra() → 목록 맨 아래 '+ 묶음' 뒤에 더할 버튼들 (없으면 null)
 const eul = w => ((w.charCodeAt(w.length - 1) - 0xAC00) % 28 ? '을' : '를'); // 받침 있으면 '을' (프로토콜을 · 기기를)
 // 종이용으로 따로 그린 sheet만 인쇄 (화면은 그대로) — 프로토콜·기기·팁. title = PDF 파일 이름
 function printSheet(sheet, title) {
@@ -96,7 +97,7 @@ function pageBook(B) {
     if (orphans.length) list.push(h('div', 'cat-head static', h('span', 'cat-name', '묶음 없음'), h('span', 'cat-count', String(orphans.length))), ...orphans.map(row));
     const addGroup = h('button', 'cat-new', '+ 묶음');
     addGroup.onclick = () => editGroup(null);
-    $(B.list).replaceChildren(h('h2', 'note-list-title', B.noun), ...list, addGroup);
+    $(B.list).replaceChildren(h('h2', 'note-list-title', B.noun), ...list, addGroup, ...(B.listExtra?.() || []));
     const p = of(sel);
     $(B.main).replaceChildren(...(p ? page(p) : [h('div', 'panel', h('p', 'hint', groups().length
       ? `왼쪽 묶음의 + 로 ${B.noun}${eul(B.noun)} 만들어요.` : B.emptyStart))]));
