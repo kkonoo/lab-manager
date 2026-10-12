@@ -161,7 +161,7 @@ function docPage(f) {
       return [h('div', 'paper-tag', h('b', null, `${f.repeat} ${i + 1}`), h('span', 'hint', `/ ${n}`), dup, drop), ...ps];
     });
   }
-  return [bar, h('div', 'doc-bar doc-tools', back, print, auto, addItem, rename, del, fit, status, h('span', 'hint', f.hint || (trip ? '노란 칸을 눌러 써요 · 출장 정보는 다른 서류에도 같이 들어가요' : '노란 칸을 눌러 바로 써요'))),
+  return [bar, h('div', 'doc-bar doc-tools', back, print, auto, aiUndoBtn(d), addItem, rename, del, fit, status, h('span', 'hint', f.hint || (trip ? '노란 칸을 눌러 써요 · 출장 정보는 다른 서류에도 같이 들어가요' : '노란 칸을 눌러 바로 써요'))),
     h('div', 'paper-wrap', wrap)];
 }
 
