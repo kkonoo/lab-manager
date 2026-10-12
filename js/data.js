@@ -217,6 +217,7 @@ window.SEED = {
     equipGroups: [{ id: 'shared', name: '공동기기' }],
     equips: [
       { id: 'eq1', group: 'shared', name: '원심분리기', memo: '예시 — 지워도 돼요', owner: '홍길동', note: [
+        '시료를 빠르게 돌려 무게에 따라 성분을 나누는 장비',
         '## 사용법',
         '1. 로터·뚜껑 확인 → 튜브 무게 맞춰 마주 보게 넣기',
         '2. 속도·시간·온도 설정 → 시작',
