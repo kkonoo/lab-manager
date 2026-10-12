@@ -1011,4 +1011,5 @@ button.photo-tile { width: 100%; padding: 0; border: none; color: inherit; font:
   border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface);
   box-shadow: 0 12px 40px rgba(0, 0, 0, .18);
 }
-.install-bar span { flex: 1; }
+.install-bar span { flex: 1; word-break: keep-all; } /* 줄은 띄어쓰기에서만 바꾸고 */
+.install-bar b { white-space: nowrap; } /* 아이폰: 「홈 화면에 추가」는 한 줄로 */

@@ -171,9 +171,9 @@
   </form>
 </dialog>
 
-<!-- 폰에서 앱 설치 안내 (Chrome 등 설치 신호(beforeinstallprompt)를 주는 브라우저만) -->
+<!-- 폰에서 앱 설치 안내 (Chrome 등 설치 신호(beforeinstallprompt)를 주는 브라우저 + 아이폰은 글로만) -->
 <div class="install-bar" id="installBar" hidden>
-  <span>홈 화면에 앱으로 설치하면 바로 열려요</span>
+  <span id="installMsg">홈 화면에 앱으로 설치하면 바로 열려요</span>
   <button class="btn primary small" id="installBtn">설치</button>
   <button class="icon-btn" id="installClose" aria-label="닫기">×</button>
 </div>
@@ -201,11 +201,16 @@
   if ('serviceWorker' in navigator && location.hostname !== 'localhost') navigator.serviceWorker.register('sw.js');
   // 폰에서 설치할 수 있으면 아래에 '앱 설치' 띠 (이미 설치했으면 브라우저가 신호를 안 줌). ×로 닫으면 다시 안 띄우고 브라우저 기본 안내에 맡김
   let installEvt;
+  const installHidden = () => { try { return !!localStorage.getItem('lab-manager-install-hide'); } catch { return false; } };
   addEventListener('beforeinstallprompt', e => {
-    try { if (localStorage.getItem('lab-manager-install-hide')) return; } catch { /* 없음 */ }
-    if (!matchMedia('(pointer: coarse)').matches) return; // PC는 주소창의 설치 아이콘으로
+    if (installHidden() || !matchMedia('(pointer: coarse)').matches) return; // PC는 주소창의 설치 아이콘으로
     e.preventDefault(); installEvt = e; $('installBar').hidden = false;
   });
+  // 아이폰은 설치 신호가 없어 공유 메뉴로 넣는 법을 글로 알려 줌 (홈 화면에서 연 앱이면 navigator.standalone)
+  if (/iPhone/.test(navigator.userAgent) && !navigator.standalone && !installHidden()) {
+    $('installMsg').innerHTML = '공유 버튼(안 보이면 ··· 안에) → <b>홈 화면에 추가</b>를 누르면 앱처럼 열려요';
+    $('installBtn').hidden = true; $('installBar').hidden = false;
+  }
   $('installBtn').onclick = () => { $('installBar').hidden = true; installEvt.prompt(); };
   $('installClose').onclick = () => { $('installBar').hidden = true; try { localStorage.setItem('lab-manager-install-hide', '1'); } catch { /* 없음 */ } };
   addEventListener('appinstalled', () => { $('installBar').hidden = true; });
