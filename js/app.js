@@ -1,5 +1,5 @@
 'use strict';
-// 랩 매니저 — 연구 모드(프로토콜·재고·기기·팁, 학생과 같이) + 행정 모드(재원·연차·학생인건비·서류·정보 노트). 저장은 이 브라우저(localStorage), 로그인하면 sync.js가 Firestore와 맞춤
+// 랩 매니저 — 연구 모드(프로토콜·계산기·재고·기기·팁, 학생과 같이) + 행정 모드(재원·연차·학생인건비·정보 노트·서류). 저장은 이 브라우저(localStorage), 로그인하면 sync.js가 Firestore와 맞춤
 // 금액은 모두 천원으로 저장. 인건비 화면만 만원으로 보여 줌 (fmtM)
 // db.grants 재원 / db.people 학생 (과정은 학기마다) / db.pays 학생×재원×월 한 칸씩 / db.lines 연차별 세목 예산 / db.info 정보 노트
 // db.stock·db.orders 재고·주문 (랩 멤버와 같이 씀) / db.docs 서류 / db.trips 출장 / db.profile 내 정보
@@ -284,7 +284,7 @@ function colGrip(onSize, onDone, min = 40) {
 }
 function openBudget(gid, n) { selGrant = gid; selN = n ?? null; setTab('budget'); }
 
-// 모드: 행정(한눈에·예산·인건비·서류·정보 — PI만) │ 연구(프로토콜·재고·기기·팁 — 랩 멤버와 같이). 모드는 지금 탭으로 정해지고,
+// 모드: 행정(한눈에·예산·인건비·정보·서류 — PI만) │ 연구(프로토콜·계산기·재고·기기·팁 — 랩 멤버와 같이). 모드는 지금 탭으로 정해지고,
 // 모드를 바꾸면 그 모드에서 마지막에 본 탭으로. 마지막 모드는 이 브라우저에 기억 → 다음에 열면 그 모드의 첫 탭부터
 // 랩 멤버(학생)로 로그인하면 db.member = { lab, labName } 이고 연구 모드만 보임 (sync.js가 정함)
 const isMember = () => !!db.member;
