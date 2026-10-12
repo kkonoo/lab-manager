@@ -86,15 +86,20 @@ async function aiBlock(file) {
 }
 
 const AI_SYSTEM = `너는 한국 대학교 교수(연구책임자)의 행정 서류 작성을 돕는다. 사용자가 준 자료(메모·붙여 넣은 글·첨부 PDF·사진)를 보고 양식의 빈 칸에 들어갈 값을 정한다.
-- 자료에서 확인되는 내용만 쓴다. 자료에 없는 사실(숫자·날짜·이름·금액·모델명 등)은 지어내지 말고, 그런 칸은 답에서 뺀다.
-- 목적·내용·분석·본문 같은 서술 칸은 자료를 바탕으로 양식에 맞게 다듬어 써도 된다. 칸의 안내 글(예: "1) …", "- 구체적으로 5줄 이상")이 있으면 그 형식을 따른다.
+- 자료가 "○○ 칸 써 줘"처럼 부탁이면 그 부탁을 따른다.
+- 숫자·날짜·이름·금액·모델명 같은 사실은 자료나 양식에 이미 적힌 것만 쓴다. 지어내지 말고, 그런 칸은 답에서 뺀다.
+- 목적·내용·분석·본문 같은 서술 칸은 자료와 양식에 이미 적힌 내용을 바탕으로 초안을 써 넣는다. 칸의 안내 글(예: "1) …", "- 구체적으로 5줄 이상", 300자 이상)이 있으면 그 형식·분량을 따른다.
 - 한국어 칸은 공문서 문체(개조식, "…함", "…임")로, 영문 레터 칸은 영어로 쓴다.
 - 여러 줄은 줄바꿈(\\n)으로 나눈다.
 - 고르기 칸은 보기 가운데 하나를 그대로 쓴다. 여러 개 고르는 칸은 보기를 |로 잇는다.
-- fields 의 name 은 '채울 칸' 목록의 이름을 그대로 쓴다.`;
+- fields 의 name 은 '채울 칸' 목록의 이름을 따옴표 없이 그대로 쓴다.
+- note 에는 못 채운 칸과 그 까닭, 더 있으면 좋을 자료를 한두 문장으로 쓴다 (다 채웠으면 빈 글).`;
 const AI_SCHEMA = { // 칸 이름은 문서마다 달라서 enum 대신 받은 뒤 걸러냄 (스키마가 같아야 컴파일 캐시를 씀)
-  type: 'object', additionalProperties: false, required: ['fields'],
-  properties: { fields: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['name', 'value'], properties: { name: { type: 'string' }, value: { type: 'string' } } } } },
+  type: 'object', additionalProperties: false, required: ['fields', 'note'],
+  properties: {
+    fields: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['name', 'value'], properties: { name: { type: 'string' }, value: { type: 'string' } } } },
+    note: { type: 'string' },
+  },
 };
 
 async function runAiFill(f, d, empty, note, files) {
@@ -130,14 +135,17 @@ async function runAiFill(f, d, empty, note, files) {
     }
     if (res.stop_reason === 'refusal') throw new Error('Claude가 이 요청을 거절했어요. 자료를 바꿔서 다시 해 봐요.');
     if (res.stop_reason === 'max_tokens') throw new Error('답이 너무 길어 중간에 끊겼어요. 자료를 줄여서 다시 해 봐요.');
-    const out = JSON.parse(res.content.find(b => b.type === 'text')?.text || '{}').fields || [];
+    // 다른 모델로 넘어갔으면(fallback) 앞 모델의 글이 남을 수 있어서 마지막 글 블록
+    const { fields: out = [], note: why = '' } = JSON.parse(res.content.filter(b => b.type === 'text').at(-1)?.text || '{}');
     // 기다리는 동안 직접 쓴 칸은 건드리지 않음. 고르기 칸은 보기에 있는 값만
-    const trip = tripOf(d);
+    const trip = tripOf(d), unknown = [];
     let n = 0;
-    for (const { name, value } of out) {
+    for (const { name: raw, value } of out) {
+      const name = String(raw ?? '').trim().replace(/^["'“”‘’]+|["'“”‘’]+$/g, '').trim(); // 목록에 "이름"으로 보여 줘서 따옴표째 답할 때
       const x = empty.get(name), shared = x?.el.hasAttribute('data-trip') && trip;
+      if (!x) { unknown.push(name); continue; }
       let v = String(value ?? '').trim();
-      if (!x || !v || String((shared ? trip.fields[name] : d.fields[name]) ?? '').trim()) continue;
+      if (!v || String((shared ? trip.fields[name] : d.fields[name]) ?? '').trim()) continue;
       if (x.options) {
         const picked = v.split('|').map(s => s.trim()).filter(o => x.options.includes(o));
         if (!picked.length) continue;
@@ -146,12 +154,13 @@ async function runAiFill(f, d, empty, note, files) {
       if (shared) trip.fields[name] = v; else d.fields[name] = v;
       n++;
     }
-    if (!n) throw new Error('자료에서 채울 내용을 찾지 못했어요.');
+    if (unknown.length) console.warn('자동 채우기: 양식에 없는 칸 이름', unknown);
+    if (!n) throw new Error([unknown.length ? `Claude가 답한 칸 이름이 양식과 안 맞았어요 (${unknown.slice(0, 5).join(', ')})` : '자료에서 채울 내용을 찾지 못했어요.', why.trim()].filter(Boolean).join('\n\n'));
     d.updatedAt = new Date().toISOString();
     aiBusy = null;
     save();
     const st = $('docStatus');
-    if (st && selDoc === d.id) st.textContent = `✨ ${n}칸 채웠어요 — 내용을 꼭 확인해요`;
+    if (st && selDoc === d.id) { st.textContent = `✨ ${n}칸 채웠어요 — 내용을 꼭 확인해요`; st.title = why.trim(); } // 못 채운 칸 설명은 마우스를 올리면
   } catch (e) {
     aiBusy = null;
     render();
