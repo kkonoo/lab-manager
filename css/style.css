@@ -1003,3 +1003,12 @@ button.photo-tile { width: 100%; padding: 0; border: none; color: inherit; font:
 .calc-sec { margin: 0 2px 8px; font-size: calc(12px * var(--fs)); font-weight: 700; color: var(--muted); }
 .calc-sec ~ .calc-sec { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
 .calc-seg { display: inline-flex; margin-bottom: 10px; }
+
+/* ---------- 앱 설치 안내 (폰, index.html) ---------- */
+.install-bar {
+  position: fixed; z-index: 50; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom));
+  display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 14px;
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .18);
+}
+.install-bar span { flex: 1; }

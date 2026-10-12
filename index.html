@@ -171,6 +171,13 @@
   </form>
 </dialog>
 
+<!-- 폰에서 앱 설치 안내 (Chrome 등 설치 신호(beforeinstallprompt)를 주는 브라우저만) -->
+<div class="install-bar" id="installBar" hidden>
+  <span>홈 화면에 앱으로 설치하면 바로 열려요</span>
+  <button class="btn primary small" id="installBtn">설치</button>
+  <button class="icon-btn" id="installClose" aria-label="닫기">×</button>
+</div>
+
 <script src="js/data.js"></script>
 <script src="js/forms.js"></script>
 <script src="js/forms-trip.js"></script>
@@ -192,6 +199,16 @@
 <script>
   // 오프라인에서도 열리게 (localhost에선 개발 중 캐시가 헷갈리니 끔)
   if ('serviceWorker' in navigator && location.hostname !== 'localhost') navigator.serviceWorker.register('sw.js');
+  // 폰에서 설치할 수 있으면 아래에 '앱 설치' 띠 (이미 설치했으면 브라우저가 신호를 안 줌). ×로 닫으면 다시 안 띄우고 브라우저 기본 안내에 맡김
+  let installEvt;
+  addEventListener('beforeinstallprompt', e => {
+    try { if (localStorage.getItem('lab-manager-install-hide')) return; } catch { /* 없음 */ }
+    if (!matchMedia('(pointer: coarse)').matches) return; // PC는 주소창의 설치 아이콘으로
+    e.preventDefault(); installEvt = e; $('installBar').hidden = false;
+  });
+  $('installBtn').onclick = () => { $('installBar').hidden = true; installEvt.prompt(); };
+  $('installClose').onclick = () => { $('installBar').hidden = true; try { localStorage.setItem('lab-manager-install-hide', '1'); } catch { /* 없음 */ } };
+  addEventListener('appinstalled', () => { $('installBar').hidden = true; });
 </script>
 </body>
 </html>
