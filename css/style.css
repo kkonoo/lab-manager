@@ -948,7 +948,8 @@ button.photo-tile { width: 100%; padding: 0; border: none; color: inherit; font:
   .tip-table.tip-cards td:first-child { padding-bottom: 4px; font-size: calc(15px * var(--fs)); }
   .tip-table.tip-cards td:first-child::before { content: none; }
 }
-.equip-field { display: inline-flex; align-items: center; gap: 2px; font-size: calc(12px * var(--fs)); color: var(--muted); } /* 기기 제목 줄: '담당' + 담당자 칸 */
+.equip-field { display: inline-flex; align-items: center; gap: 2px; font-size: calc(12px * var(--fs)); color: var(--muted); } /* 기기 제목 줄: '위치'·'담당' + 글 칸 */
+#equipList .note-meta { min-width: 0; max-width: 45%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } /* 기기 목록 오른쪽 위치: 길면 줄여서 이름이 먼저 보이게 (전체는 마우스를 올리면) */
 .proto-del { margin-left: auto; } /* 폰에서 줄이 넘어가도 오른쪽에 (PC에선 앞 spacer가 자리를 다 가져가서 그대로) */
 
 /* ---------- 실험 계산기 (calc.html + js/calc.js — 로그인 없이 쓰는 따로 페이지) ---------- */

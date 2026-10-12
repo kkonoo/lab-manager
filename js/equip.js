@@ -1,7 +1,7 @@
 'use strict';
 // ---------- 기기 탭 (연구 모드 — 랩 멤버와 같이 씀): 공동기기 handbook. 묶음 → 기기 = 본문 노트(사용법·주의사항) + 담당자·위치 + 사진 ----------
 // 틀은 프로토콜과 같음 (pages.js). sync.js가 기기를 한 건씩 따로 저장함 (labs/{PI}/equips/{id})
-// db.stock.equips { id, group, name, memo(위치·모델 등 한 줄), note, owner(담당자 글), photos: [{ id, store: 'fs' } 앱 안 | { id } Drive 파일], order, updatedAt }
+// db.stock.equips { id, group, name, memo(모델·제작사 등 한 줄), note, where(위치 글), owner(담당자 글), photos: [{ id, store: 'fs' } 앱 안 | { id } Drive 파일], order, updatedAt }
 // 새 기기 본문에 미리 채우는 틀 (예: …)를 바꿔 쓰면 됨. 맨 위 한 줄 = 뭐 하는 기기인지
 const EQUIP_TEMPLATE = [
   '뭐 하는 기기인지 한 줄 (예: 시료를 빠르게 돌려 무게에 따라 성분을 나누는 장비)',
@@ -26,23 +26,26 @@ const EQUIP_TEMPLATE = [
 const EQUIP = pageBook({
   key: 'equip', noun: '기기', emoji: '🔧', groups: 'equipGroups', items: 'equips', list: 'equipList', main: 'equipMain', fold: 'equipFold', editKey: 'en',
   template: EQUIP_TEMPLATE,
-  groupPh: '예: 공동기기, 이미징, 분석 장비', namePh: '예: 원심분리기 (Eppendorf 5424R)', memoPh: '예: 신관 N469 · QuantStudio 3 · Thermo (위치 · 모델 · 제작사)',
+  groupPh: '예: 공동기기, 이미징, 분석 장비', namePh: '예: 원심분리기 (Eppendorf 5424R)', memoPh: '예: QuantStudio 3 · Thermo (모델 · 제작사)',
   emptyStart: '‘+ 묶음’으로 시작해요 (예: 공동기기, 이미징). 묶음 안에 기기를 만들고, 사용법·주의사항·담당자·사진을 넣어요.',
   bodyPh: '## 사용법\n1. …\n## 주의사항\n> 주의: …', bodyEmpty: '아직 비어 있어요. ‘본문 편집’을 눌러 사용법·주의사항을 적어요.',
   printHint: '기기 옆에 붙여 둘 수 있게 A4로 인쇄해요',
   listExtra: () => (isMember() ? null : [sharedEquipButton()]), // PI만: 학교·병원 공동기기 목록을 묶음째 넣기
-  rowMeta: e => [(e.owner || '').split(/\s/)[0], e.owner ? `담당 ${e.owner}` : ''], // 목록엔 담당자 이름만
-  // 제목 줄: 담당자(이름·연락처 글). 기기 위치는 한 줄 메모에 (재고의 보관 위치와는 상관없음)
+  rowMeta: e => [e.where || '', [e.where && `위치 ${e.where}`, e.owner && `담당 ${e.owner}`].filter(Boolean).join(' · ')], // 목록엔 위치
+  // 제목 줄: 위치·담당자 (둘 다 그냥 글 — 재고의 보관 위치와는 상관없음)
   head: (e, touched, enterBlur) => {
-    const owner = h('input', 'proto-memo equip-owner');
-    owner.value = e.owner || '';
-    owner.placeholder = '담당자';
-    owner.title = '눌러서 담당자 고치기 (예: 홍길동 010-0000-0000)';
-    owner.onkeydown = enterBlur;
-    owner.onchange = () => { e.owner = owner.value.trim() || undefined; touched(); };
-    return [h('label', 'equip-field', '담당', owner)];
+    const text = (key, label, tip) => {
+      const i = h('input', `proto-memo equip-${key}`);
+      i.value = e[key] || '';
+      i.placeholder = label === '담당' ? '담당자' : label;
+      i.title = tip;
+      i.onkeydown = enterBlur;
+      i.onchange = () => { e[key] = i.value.trim() || undefined; touched(); };
+      return h('label', 'equip-field', label, i);
+    };
+    return [text('where', '위치', '눌러서 위치 고치기 (예: 신관 N469)'), text('owner', '담당', '눌러서 담당자 고치기 (예: 홍길동 010-0000-0000)')];
   },
-  printMeta: e => [e.owner ? `담당 ${e.owner}` : null],
+  printMeta: e => [e.where ? `위치 ${e.where}` : null, e.owner ? `담당 ${e.owner}` : null],
   below: e => [equipPhotos(e)],
   onRemove: e => { for (const ph of e.photos || []) if (ph.store === 'fs') window.cloud?.photo?.del(ph.id).catch(() => {}); }, // 앱 안 사진도 같이 지움 (Drive 사진은 폴더에 남음)
   printBody: e => { // 앱 안 사진은 화면에서 이미 읽은 것만
@@ -53,7 +56,7 @@ const EQUIP = pageBook({
 function renderEquip() { EQUIP.render(); }
 
 // ---------- 공동기기 목록 넣기 (PI): 학교·병원 홈페이지의 공동기기 정보를 기기 탭에 묶음째 ----------
-// 목록 하나 = 묶음 하나 { group: 묶음 이름, src: 출처, kind·owner: 기기마다 없을 때 쓸 구분·담당자,
+// 목록 하나 = 묶음 하나 { group: 묶음 이름, src: 출처, kind·place·owner: 기기마다 없을 때 쓸 구분·위치·담당자,
 //   items: [{ name, desc: 뭐 하는 기기인지 한 줄, model, maker, place, owner, kind, how: 이용 방법, uses: [활용분야] }] }
 // 홈페이지에 적힌 그대로 (빈 값은 뺌). 정보만 넣음 (사용 신청·예약은 홈페이지에서)
 // 같은 묶음에 같은 이름이 있으면 건너뜀 → 목록을 늘린 뒤 다시 넣어도 새것만 들어감
@@ -133,7 +136,7 @@ const SHARED_EQUIPS = [
     { name: 'DNA 서열분석기', desc: '짧은 DNA 서열을 읽어 메틸화·SNP·돌연변이를 정량하는 파이로시퀀서', model: 'PyroMark Q48', maker: 'QIAGEN', place: '의생명1호관 606호' },
     { name: '형광리더기', desc: '96·384-well 플레이트의 흡광·형광·발광을 재는 리더 (피펫 내장 — 시약을 넣으며 바로 측정)', model: 'FlexStation 3', maker: 'Molecular Device/US', place: '의생명1호관 606호' },
   ] },
-  { group: '생명의학연구원', src: '경북대병원 생명의학연구원 Core lab', owner: '김효정 053-200-4603 knuhcorelab@knuh-ext.kr', items: [
+  { group: '생명의학연구원', src: '경북대병원 생명의학연구원 Core lab', place: '생명의학연구원', owner: '김효정 053-200-4603 knuhcorelab@knuh-ext.kr', items: [
     { name: '고감도 고해상력 공초점 현미경', desc: '형광 시료를 층층이 고해상도로 찍는 공초점 현미경 (Airyscan 초해상)', model: 'LSM 800 with AiryScan', maker: 'Carl Zeiss/독일', uses: ['다중 형광 염색한 세포·조직의 2D 고해상도 고배율 이미징·정량분석', '3D 형광 이미징', '장시간 생세포 이미징', '칼슘 인디케이터로 세포 내 칼슘 이온 이미징', '레이저로 특정 단백질 자극 후 시간에 따른 변화 분석'] },
     { name: '나노분광분석기', desc: '소량으로 핵산·단백질을 정량하는 분광광도계 (NanoDrop과 같은 용도)', model: 'DS-11', maker: 'DeNovix/USA', uses: ['UV·가시광선 전 파장으로 핵산·단백질 정량'] },
     { name: '등온 핵산 증폭기', desc: '온도를 오르내리지 않고 한 온도에서 핵산을 증폭·검출하는 장치', model: 'MXM-100', maker: '엠모니터/대한민국', uses: ['소량의 핵산 검출·분석', '부대장비 없이 빠르게 표적 유전물질 검출'] },
@@ -225,9 +228,9 @@ function sharedEquipImport() {
         if (db.stock.equips.some(e => e.group === g.id && e.name === name)) continue;
         const fam = SHARED_FAMILIES.find(f => f.some(([g, n]) => g === L.group && n === name)) || [];
         const refs = fam.filter(([g, n]) => g !== L.group || n !== name).map(([, n, line]) => `- ${n} — ${line}`);
-        db.stock.equips.push({ id: uid(), group: g.id, name, owner, order: order++, updatedAt: isoToday(),
-          memo: [own, model, maker].filter(Boolean).join(' · ') || undefined, // 묶음 공통 위치는 메모에서 뺌
-          note: [desc, kind && '## 정보', kind && `- 구분: ${kind}`, // 위치·모델·제작사는 한 줄 메모, 담당은 담당 칸에 있어서 본문엔 안 씀
+        db.stock.equips.push({ id: uid(), group: g.id, name, where: own || L.place || undefined, owner, order: order++, updatedAt: isoToday(),
+          memo: [model, maker].filter(Boolean).join(' · ') || undefined,
+          note: [desc, kind && '## 정보', kind && `- 구분: ${kind}`, // 위치·담당은 제목 줄 칸, 모델·제작사는 한 줄 메모에 있어서 본문엔 안 씀
             how ? '## 이용' : '', ...how.split(', ').filter(Boolean).map(x => `- ${x}`),
             uses.length ? '## 활용' : '', ...uses.map(u => `- ${u}`),
             refs.length ? '## 참고 — 같은 종류' : '', ...refs].filter(Boolean).join('\n') });
