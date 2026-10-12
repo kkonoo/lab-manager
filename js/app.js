@@ -116,6 +116,13 @@ function withDocs(v) {
   // 예시 정보 탭 묶음: 인력을 맨 위로 (로그인 안 한 브라우저에 예시 순서 그대로 남아 있을 때만)
   const ic = v.info?.cats;
   if (!v.owner && ic?.map(c => c.id).join() === 'spend,staff,contact,etc') [ic[0], ic[1]] = [ic[1], ic[0]];
+  // 예시 '행정 정보' 표: 이름 다음에 NRI 열, 학번은 생년월일 뒤로 (로그인 안 한 브라우저에 예시 열 그대로 남아 있을 때만 — 칸 값·너비는 그대로)
+  const pn = !v.owner && v.info?.notes?.find(n => n.id === 'people');
+  if (pn?.columns?.map(c => `${c.id}:${c.name}`).join() === 'c1:이름,c2:학번,c3:생년월일,c4:이메일,c5:전화,c6:은행,c7:계좌번호,c8:주민번호,c9:주소') {
+    const sp = window.SEED.info.notes.find(n => n.id === 'people');
+    pn.columns = sp.columns.map(sc => pn.columns.find(c => c.id === sc.id) || structuredClone(sc));
+    for (const r of pn.rows) { const sr = sp.rows.find(x => x.cells.c1 === r.cells.c1); if (sr) r.cells.nri ||= sr.cells.nri; } // 예시 사람이면 예시 NRI
+  }
   v.lineCats ||= ['연구활동비', '연구재료비', '연구시설·장비비', '연구수당', '위탁연구개발비', '국제공동연구개발비', '기타', '간접비']; // 세목 (설정에서 고침)
   return v;
 }
