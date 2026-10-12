@@ -23,7 +23,8 @@ function printSheet(sheet, title) {
   else Promise.race([Promise.all(imgs.map(i => new Promise(r => { i.onload = i.onerror = r; }))), new Promise(r => setTimeout(r, 5000))]).then(() => window.print());
 }
 function pageBook(B) {
-  let sel = null;
+  let sel = null, seen = null;
+  const PER = 10, at = new Map(); // 묶음마다 10개씩 쪽으로 나눠 보여 줌. at = 묶음마다 보고 있는 쪽 (고른 페이지가 바뀌면 그 페이지가 있는 쪽으로)
   const groups = () => db.stock[B.groups], items = () => db.stock[B.items];
   const of = id => items().find(p => p.id === id);
   // 묶음 안 순서 = p.order (끌어서 바꾸면 매김), 없으면 들어온 순서. 한 건씩 따로 저장돼서 배열 순서는 기기마다 다를 수 있음
@@ -42,6 +43,7 @@ function pageBook(B) {
   function render() {
     const folded = new Set(layout[B.fold] || []); // 접은 묶음 (이 브라우저에만)
     if (!of(sel)) sel = items()[0]?.id ?? null;
+    if (sel !== seen) { seen = sel; if (of(sel)) at.delete(of(sel).group); }
     const row = p => {
       const [meta, tip] = B.rowMeta(p);
       const b = h('button', cls('note-row', p.id === sel && 'on'), h('span', 'note-emoji', B.emoji), h('span', 'note-title', p.name), h('span', 'note-meta', meta));
@@ -91,7 +93,15 @@ function pageBook(B) {
         const m = of(e.dataTransfer.getData(drag));
         if (m) { e.preventDefault(); move(m, g.id); }
       });
-      return shut ? [head] : [head, ...ps.map(row)];
+      const pages = Math.ceil(ps.length / PER);
+      if (!at.has(g.id)) at.set(g.id, Math.max(0, Math.floor(ps.findIndex(p => p.id === sel) / PER)));
+      const n = Math.min(at.get(g.id), Math.max(0, pages - 1));
+      const pager = pages > 1 && h('div', 'cat-pages', Array.from({ length: pages }, (_, i) => {
+        const b = h('button', cls('cat-page', i === n && 'on'), i + 1);
+        b.onclick = () => { at.set(g.id, i); render(); };
+        return b;
+      }));
+      return shut ? [head] : [head, ...ps.slice(n * PER, (n + 1) * PER).map(row), ...(pager ? [pager] : [])];
     });
     const orphans = items().filter(p => !groups().some(g => g.id === p.group)); // 묶음이 없어진 페이지
     if (orphans.length) list.push(h('div', 'cat-head static', h('span', 'cat-name', '묶음 없음'), h('span', 'cat-count', String(orphans.length))), ...orphans.map(row));

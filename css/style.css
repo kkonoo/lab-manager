@@ -585,6 +585,11 @@ button.swatch-add { border: 2px solid var(--line); }
 .note-emoji { width: 22px; text-align: center; }
 .note-title { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .note-meta { font-size: calc(13px * var(--fs)); font-weight: 400; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* 묶음 안 페이지가 10개 넘으면 아래에 쪽 번호 */
+.cat-pages { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; padding: 4px 0 2px; }
+.cat-page { min-width: 32px; height: 30px; padding: 0 8px; border: none; border-radius: 8px; background: transparent; color: var(--muted); font: inherit; font-size: calc(13px * var(--fs)); font-variant-numeric: tabular-nums; cursor: pointer; }
+.cat-page:hover { background: var(--surface); color: var(--text); }
+.cat-page.on { background: var(--surface); box-shadow: var(--shadow); color: var(--text); font-weight: 700; }
 .cat-new { margin-top: 12px; padding: 12px; border: 1.5px dashed var(--line); border-radius: 12px; background: transparent; color: var(--muted); cursor: pointer; }
 .cat-new:hover { border-color: var(--accent); color: var(--accent); }
 
