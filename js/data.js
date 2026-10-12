@@ -64,8 +64,8 @@ window.SEED = {
   // doc = 글(## 소제목, - [ ] 체크, - 목록, 1. 순서, > 메모), table = 칸·줄 (secret 칸은 가려서 보임)
   info: {
     cats: [
-      { id: 'spend', name: '연구비 집행', color: '#5B9BEA', open: true },
       { id: 'staff', name: '인력', color: '#9D7BE0', open: true },
+      { id: 'spend', name: '연구비 집행', color: '#5B9BEA', open: true },
       { id: 'contact', name: '연락처·링크', color: '#2BB39A', open: true },
       { id: 'etc', name: '기타', color: '#8B93A1', open: true },
     ],

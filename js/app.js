@@ -113,6 +113,9 @@ function withDocs(v) {
     Object.assign(bk, { start: '2025-09', firstNo: 6, periods: { 6: bk.periods?.[f], 7: bk.periods?.[f + 1] } });
     for (const l of v.lines) if (l.grant === 'bk' && (l.n === f || l.n === f + 1)) l.n = 7; // 예산 항목은 지금 연차(7차)로
   }
+  // 예시 정보 탭 묶음: 인력을 맨 위로 (로그인 안 한 브라우저에 예시 순서 그대로 남아 있을 때만)
+  const ic = v.info?.cats;
+  if (!v.owner && ic?.map(c => c.id).join() === 'spend,staff,contact,etc') [ic[0], ic[1]] = [ic[1], ic[0]];
   v.lineCats ||= ['연구활동비', '연구재료비', '연구시설·장비비', '연구수당', '위탁연구개발비', '국제공동연구개발비', '기타', '간접비']; // 세목 (설정에서 고침)
   return v;
 }

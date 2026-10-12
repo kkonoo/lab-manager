@@ -11,7 +11,7 @@ function noteMeta(n) {
 
 function renderInfo() {
   const { cats, notes } = db.info;
-  if (!notes.some(n => n.id === selNote)) selNote = notes[0]?.id ?? null;
+  if (!notes.some(n => n.id === selNote)) selNote = (cats.flatMap(c => notes.filter(n => n.cat === c.id))[0] || notes[0])?.id ?? null; // 처음엔 맨 위 묶음의 첫 노트
   const list = [];
   for (const c of cats) {
     const ns = notes.filter(n => n.cat === c.id);
