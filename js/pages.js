@@ -166,12 +166,17 @@ function pageBook(B) {
   }
   function editGroup(g) {
     const n = g ? items().filter(p => p.group === g.id).length : 0;
-    const del = g ? h('button', 'btn danger small', '이 묶음 지우기') : null;
+    const del = g ? h('button', 'btn danger small', n ? `이 묶음 지우기 (안의 ${B.noun} ${n}개도)` : '이 묶음 지우기') : null;
     if (del) {
       del.type = 'button';
-      del.disabled = n > 0;
-      del.title = n ? `안의 ${B.noun}${eul(B.noun)} 지우거나 다른 묶음으로 옮긴 뒤 지울 수 있어요` : '';
-      del.onclick = () => { db.stock[B.groups] = groups().filter(x => x !== g); dlg.close(); save(); };
+      del.onclick = () => { // 안에 페이지가 있으면 물어보고 같이 지움
+        if (n && !confirm(`'${g.name}' 묶음과 안의 ${B.noun} ${n}개를 모두 지울까요? 되돌릴 수 없어요.`)) return;
+        for (const p of items().filter(p => p.group === g.id)) B.onRemove?.(p);
+        db.stock[B.items] = items().filter(p => p.group !== g.id);
+        db.stock[B.groups] = groups().filter(x => x !== g);
+        dlg.close();
+        save();
+      };
     }
     ask(g ? `${B.noun} 묶음 고치기` : `새 ${B.noun} 묶음`, [{ key: 'name', label: '이름', value: g?.name ?? '', required: true, placeholder: B.groupPh },
       { key: 'color', label: '색', type: 'color', value: g?.color || newColor(groups().map(x => x.color)) }], v => {
