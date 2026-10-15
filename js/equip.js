@@ -58,7 +58,7 @@ const EQUIP = pageBook({
 function renderEquip() { EQUIP.render(); }
 
 // ---------- 공동기기 목록 넣기 (PI): 학교·병원 홈페이지의 공동기기 정보를 기기 탭에 묶음째 ----------
-// 목록 하나 = 묶음 하나 { group: 묶음 이름, src: 출처, kind·place·owner: 기기마다 없을 때 쓸 구분·위치·담당자,
+// 목록 하나 = 묶음 하나 { group: 묶음 이름, src: 출처, kind·owner: 기기마다 없을 때 쓸 구분·담당자,
 //   items: [{ name, desc: 뭐 하는 기기인지 한 줄, model, maker, place: 방 (목록에 보임), spot: 세부 위치 (본문 정보에), owner, kind, how: 이용 방법, uses: [활용분야] }] }
 // 홈페이지에 적힌 그대로 (빈 값은 뺌). 정보만 넣음 (사용 신청·예약은 홈페이지에서)
 // 이름은 '영어 (홈페이지 한글 이름)' — 좁은 목록에서도 영어가 먼저 보이게. 같은 영어 이름이 여럿이면 모델(또는 구입 연도)을 붙임
@@ -67,7 +67,7 @@ function renderEquip() { EQUIP.render(); }
 //     기기 상세 페이지(mode=view, idx)의 예약방법까지. 이름 끝이 '-학정동'이면 학정동 묶음(이름에선 뺌), 나머지는 동인동.
 //     담당자는 동인동·학정동 모두 한 사람 (홈페이지엔 교실 교수 메일 등이 섞여 있음). 구분은 '공동기기실 장비'(기본) / '연구기기'(kind)
 //     학정동은 다 의생명1호관이라 묶음 이름에 건물을 쓰고 위치는 호수만
-//   경북대병원 생명의학연구원 Core lab https://bmri.knuh.kr/content/06application/10_01.php (2026.10)
+//   경북대병원 생명의학연구원 Core lab https://bmri.knuh.kr/content/06application/10_01.php (2026.10) — 다 연구원 안이라 위치는 비움 (묶음 이름으로)
 const SHARED_EQUIPS = [
   { group: '동인동 공동기기', src: '의대 연구기기현황', kind: '공동기기실 장비', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr', items: [
     { name: 'NanoDrop (분광광도계)', desc: '1–2 µL만으로 핵산·단백질 농도와 순도(흡광도)를 재는 분광광도계', model: 'Nano Drop Ultra', maker: 'thermo', place: 'N402' },
@@ -139,7 +139,7 @@ const SHARED_EQUIPS = [
     { name: 'Pyrosequencer PyroMark (DNA 서열분석기)', desc: '짧은 DNA 서열을 읽어 메틸화·SNP·돌연변이를 정량하는 파이로시퀀서', model: 'PyroMark Q48', maker: 'QIAGEN', place: '606호' },
     { name: 'Plate reader FlexStation 3 (형광리더기)', desc: '96·384-well 플레이트의 흡광·형광·발광을 재는 리더 (피펫 내장 — 시약을 넣으며 바로 측정)', model: 'FlexStation 3', maker: 'Molecular Device/US', place: '606호' },
   ] },
-  { group: '생명의학연구원', src: '경북대병원 생명의학연구원 Core lab', place: '생명의학연구원', owner: '김효정 053-200-4603 knuhcorelab@knuh-ext.kr', items: [
+  { group: '생명의학연구원', src: '경북대병원 생명의학연구원 Core lab', owner: '김효정 053-200-4603 knuhcorelab@knuh-ext.kr', items: [
     { name: 'Confocal microscope LSM 800 Airyscan (고감도 고해상력 공초점 현미경)', desc: '형광 시료를 층층이 고해상도로 찍는 공초점 현미경 (Airyscan 초해상)', model: 'LSM 800 with AiryScan', maker: 'Carl Zeiss/독일', uses: ['다중 형광 염색한 세포·조직의 2D 고해상도 고배율 이미징·정량분석', '3D 형광 이미징', '장시간 생세포 이미징', '칼슘 인디케이터로 세포 내 칼슘 이온 이미징', '레이저로 특정 단백질 자극 후 시간에 따른 변화 분석'] },
     { name: 'Spectrophotometer DS-11 (나노분광분석기)', desc: '소량으로 핵산·단백질을 정량하는 분광광도계 (NanoDrop과 같은 용도)', model: 'DS-11', maker: 'DeNovix/USA', uses: ['UV·가시광선 전 파장으로 핵산·단백질 정량'] },
     { name: 'Isothermal amplifier (등온 핵산 증폭기)', desc: '온도를 오르내리지 않고 한 온도에서 핵산을 증폭·검출하는 장치', model: 'MXM-100', maker: '엠모니터/대한민국', uses: ['소량의 핵산 검출·분석', '부대장비 없이 빠르게 표적 유전물질 검출'] },
@@ -230,7 +230,7 @@ function sharedEquipImport() {
         if (db.stock.equips.some(e => e.group === g.id && e.name === name)) continue;
         const fam = SHARED_FAMILIES.find(f => f.some(([g, n]) => g === L.group && n === name)) || [];
         const refs = fam.filter(([g, n]) => g !== L.group || n !== name).map(([, n, line]) => `- ${n} — ${line}`);
-        db.stock.equips.push({ id: uid(), group: g.id, name, where: own || L.place || undefined, owner, updatedAt: isoToday(),
+        db.stock.equips.push({ id: uid(), group: g.id, name, where: own || undefined, owner, updatedAt: isoToday(),
           memo: [model, maker].filter(Boolean).join(' · ') || undefined,
           // 위치(방)·담당은 제목 줄 칸, 모델·제작사는 한 줄 메모에 있어서 본문 정보엔 세부 위치·구분만
           note: [desc, (spot || kind) && '## 정보', spot && `- 위치: ${own} ${spot}`, kind && `- 구분: ${kind}`,
