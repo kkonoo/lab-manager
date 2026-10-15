@@ -46,8 +46,8 @@ const EQUIP = pageBook({
     return [text('where', '위치', '눌러서 위치 고치기 (예: N469 — 신관은 N+방 번호)'), text('owner', '담당', '눌러서 담당자 고치기 (예: 홍길동 010-0000-0000)')];
   },
   printMeta: e => [e.where ? `위치 ${e.where}` : null, e.owner ? `담당 ${e.owner}` : null],
-  // 묶음 안은 늘 위치 → 이름 가나다순 (끌어서 바꾸기 없음). 위치는 방 번호 순(N107 < N138 < N402)에 이름 있는 곳은 뒤로, 위치 없는 기기는 맨 뒤
-  sort: (a, b) => !a.where - !b.where || (a.where || '').localeCompare(b.where || '', 'en', { numeric: true }) || a.name.localeCompare(b.name, 'ko', { numeric: true }),
+  // 묶음 안은 늘 이름 abc순 (끌어서 바꾸기 없음). 영어 이름이 먼저, 한글 이름은 뒤에. 숫자는 크기대로 (freezer 1 < 2)
+  sort: (a, b) => a.name.localeCompare(b.name, 'en', { numeric: true }),
   below: e => [equipPhotos(e)],
   onRemove: e => { for (const ph of e.photos || []) if (ph.store === 'fs') window.cloud?.photo?.del(ph.id).catch(() => {}); }, // 앱 안 사진도 같이 지움 (Drive 사진은 폴더에 남음)
   printBody: e => { // 앱 안 사진은 화면에서 이미 읽은 것만
