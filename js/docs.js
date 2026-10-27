@@ -104,7 +104,7 @@ function formGroupSelect(f) {
 function formTodo(f) {
   return [h('div', 'panel todo-card',
     h('div', 'note-head', h('span', 'todo-emoji', f.emoji), h('h2', null, f.title), h('span', 'tag', f.note ? '안내' : '준비 중'), formGroupSelect(f)),
-    h('p', null, f.note || '아직 양식을 옮기지 않았어요. 원본을 보고 HTML 양식으로 옮기면, 여기서 내용을 채우고 A4 그대로 PDF로 저장할 수 있어요.'),
+    f.note ? docView(f.note, () => {}) : h('p', null, '아직 양식을 옮기지 않았어요. 원본을 보고 HTML 양식으로 옮기면, 여기서 내용을 채우고 A4 그대로 PDF로 저장할 수 있어요.'), // 안내는 노트처럼 (## 소제목 · - 목록)
     h('div', 'hint', '원본 파일'), h('code', 'src-path', f.src))];
 }
 
@@ -441,7 +441,10 @@ function tripSteps(t) {
       cb.checked = !!t.checks[key(ii)];
       cb.onchange = () => { t.checks[key(ii)] = cb.checked; save(); };
       let action = null;
-      if (it.form) {
+      if (it.form && !pagesOf(form(it.form)).length) { // 채울 양식 없는 안내 (예: 결과보고서 등록요령)
+        action = h('button', 'btn small', '안내');
+        action.onclick = () => { selForm = it.form; selDoc = null; render(); };
+      } else if (it.form) {
         const ds = db.docs.filter(d => d.trip === t.id && d.tpl === it.form).sort(byRecent);
         action = h('button', cls('btn small', !ds.length && 'make'), ds.length ? '열기' : '+ 만들기');
         action.title = ds.length ? `수정 ${fmtTime(ds[0].updatedAt)}` : '출장 정보를 채워서 새로 만들어요';

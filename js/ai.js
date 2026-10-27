@@ -1,6 +1,6 @@
 'use strict';
 // ---------- 서류 자동 채우기 (Claude API) ----------
-// 서류 화면의 '✨ 자동 채우기' → 메모·붙여 넣은 글·첨부(PDF·사진)를 Claude에게 보내 빈 칸을 채우고, 메모가 바꾸라고 한 칸은 고침 (↶ 되돌리기)
+// 서류 화면의 '✨ 자동 채우기' → 메모·붙여 넣은 글·첨부(PDF·사진·한글 hwpx)를 Claude에게 보내 빈 칸을 채우고, 메모가 바꾸라고 한 칸은 고침 (↶ 되돌리기)
 // API 키는 각자 자기 Anthropic 키를 설정에서 넣음. db.aiKey (내 계정 데이터 users/{uid}/admin/aiKey — 본인만 읽음) → 로그인한 PC·폰에서 같이 씀
 // 내보내기 JSON엔 안 넣음 (app.js exportData). 지울 땐 ''로 둠 — 칸을 없애면 다른 기기에 지운 게 안 넘어감 (sync.js apply)
 // 요청은 브라우저에서 api.anthropic.com 으로 바로 감 (SDK의 dangerouslyAllowBrowser — 키는 본인 계정·기기에만 있으니 괜찮음)
@@ -61,14 +61,14 @@ function aiFill(f, d) {
   const files = h('input');
   files.type = 'file';
   files.multiple = true;
-  files.accept = 'application/pdf,image/*';
+  files.accept = 'application/pdf,image/*,.hwpx';
   ask(`✨ 자동 채우기 — ${f.title}`, [
     { key: 'note', label: '자료 (메모 · 메일·안내문을 붙여 넣기 · 고칠 것)', type: 'textarea', rows: 7, placeholder: '예: 5/15 10시 세미나실 랩미팅, 참석 홍길동·박박사, scRNA 1차 분석 결과 공유\n예: 의학연구 기법 및 기기 50명으로 바뀜' },
   ], v => {
     const note = v.note.trim(), list = [...files.files];
     if (!note && !list.length) return alert('메모를 쓰거나 파일을 붙여야 채울 수 있어요.');
     runAiFill(f, d, fields, note, list);
-  }, [h('label', 'field', '첨부 (PDF · 사진, 여러 개 가능)', files),
+  }, [h('label', 'field', '첨부 (PDF · 사진 · 한글 hwpx, 여러 개 가능)', files),
     h('p', 'hint', `빈 칸${empty ? ` ${empty}개` : ''}를 채우고, 메모에서 바꾸라고 한 칸은 그 부분만 고쳐요. 자료에 없는 숫자·날짜·이름은 지어내지 않아요. 바뀐 칸은 ↶ 되돌리기로 돌릴 수 있어요.`),
     h('p', 'hint', '환자 정보·미발표 데이터처럼 밖으로 보내면 안 되는 내용은 넣지 않아요.')]);
 }
@@ -87,10 +87,40 @@ function aiUndoBtn(d) {
   return b;
 }
 
-// 첨부 → Claude 내용 블록. 사진은 긴 변 2000px JPEG로 줄임 (폰 사진·HEIC도 브라우저가 열 수 있으면 됨)
+// 한글 hwpx = ZIP 안의 Contents/section*.xml → 글 (표는 한 줄에 '| 칸 | 칸 |', 칸 안 여러 줄은 ' / '로). 라이브러리 없이 브라우저 DecompressionStream으로 풂
+async function hwpxText(file) {
+  const buf = new Uint8Array(await file.arrayBuffer()), v = new DataView(buf.buffer), utf8 = new TextDecoder();
+  let e = buf.length - 22;
+  while (e >= 0 && v.getUint32(e, true) !== 0x06054b50) e--; // ZIP 끝 (중앙 디렉터리 위치)
+  if (e < 0) throw new Error(`'${file.name}'을(를) 열지 못했어요 (hwpx 파일이 아니에요).`);
+  const secs = [];
+  for (let i = 0, p = v.getUint32(e + 16, true); i < v.getUint16(e + 10, true); i++) {
+    const method = v.getUint16(p + 10, true), size = v.getUint32(p + 20, true), n = v.getUint16(p + 28, true), at = v.getUint32(p + 42, true);
+    const name = utf8.decode(buf.subarray(p + 46, p + 46 + n));
+    p += 46 + n + v.getUint16(p + 30, true) + v.getUint16(p + 32, true);
+    if (!/^Contents\/section\d+\.xml$/.test(name)) continue;
+    const from = at + 30 + v.getUint16(at + 26, true) + v.getUint16(at + 28, true), raw = buf.subarray(from, from + size);
+    const data = method ? await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer() : raw;
+    secs.push([+name.match(/\d+/)[0], utf8.decode(data)]);
+  }
+  if (!secs.length) throw new Error(`'${file.name}'에서 글을 찾지 못했어요.`);
+  const text = el => {
+    const k = el.localName;
+    if (k === 't') return el.textContent;
+    if (k === 'tbl') return `\n${[...el.children].filter(r => r.localName === 'tr').map(r => `| ${[...r.children].filter(c => c.localName === 'tc').map(c => text(c).trim().replace(/\s*\n\s*/g, ' / ')).join(' | ')} |`).join('\n')}\n`;
+    const s = [...el.children].map(text).join('');
+    return k === 'p' ? `${s}\n` : s;
+  };
+  return secs.sort((a, b) => a[0] - b[0]).map(([, xml]) => text(new DOMParser().parseFromString(xml, 'application/xml').documentElement))
+    .join('\n').replace(/[ \t]+/g, ' ').replace(/^ | $/gm, '').replace(/\n\s*\n+/g, '\n').trim();
+}
+
+// 첨부 → Claude 내용 블록. 사진은 긴 변 2000px JPEG로 줄임 (폰 사진·HEIC도 브라우저가 열 수 있으면 됨). 한글 hwpx는 글만 뽑아 보냄
 const asBase64 = blob => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = () => no(r.error); r.readAsDataURL(blob); });
 async function aiBlock(file) {
   if (file.type === 'application/pdf') return { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: await asBase64(file) }, title: file.name };
+  if (/\.hwpx$/i.test(file.name)) return { type: 'text', text: `[첨부 한글 문서: ${file.name}]\n${await hwpxText(file)}` };
+  if (/\.hwp$/i.test(file.name)) throw new Error(`'${file.name}'은(는) 예전 한글 파일(.hwp)이라 못 읽어요. 한글에서 hwpx나 PDF로 저장해서 붙여요.`);
   const img = new Image(), url = URL.createObjectURL(file);
   try {
     await new Promise((ok, no) => { img.onload = ok; img.onerror = () => no(new Error(`'${file.name}'을(를) 열지 못했어요`)); img.src = url; });
@@ -101,8 +131,8 @@ async function aiBlock(file) {
   return { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.9).split(',')[1] } };
 }
 
-const AI_SYSTEM = `너는 한국 대학교 교수(연구책임자)의 행정 서류 작성을 돕는다. 사용자가 준 자료(메모·붙여 넣은 글·첨부 PDF·사진)를 보고 양식 칸에 넣을 값을 정한다.
-- 빈 칸은 자료로 채운다.
+const AI_SYSTEM = `너는 한국 대학교 교수(연구책임자)의 행정 서류 작성을 돕는다. 사용자가 준 자료(메모·붙여 넣은 글·첨부 PDF·사진·한글 문서)를 보고 양식 칸에 넣을 값을 정한다.
+- 빈 칸은 자료로 채운다. 첨부가 같은 서류를 이미 채운 문서면 그 내용을 맞는 칸에 그대로 옮긴다.
 - 이미 적힌 칸은 자료가 바꾸라고 하거나 자료와 다를 때만 고친다 (예: "○○ 과목 50명 됨" → 그 과목 줄의 인원만 50명으로). 고칠 땐 칸 전체의 새 값을 쓰되, 바뀌는 부분 말고는 한 글자도 바꾸지 않는다.
 - 바꿀 것 없는 칸은 fields 에 넣지 않는다.
 - 자료가 "○○ 칸 써 줘"처럼 부탁이면 그 부탁을 따른다.
