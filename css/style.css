@@ -445,12 +445,9 @@ tfoot td.name { background: var(--surface-2); }
   .stock-layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
   .stock-layout > .splitter { display: none; }
 }
-/* 재고 묶음은 음영 없이 줄 모양 + 이름 앞 색 점 (다른 탭의 접는 묶음 막대와 다름) */
-.cat-head.pick { width: 100%; margin-top: 0; padding: 10px 14px 10px 20px; border: none; background: transparent; color: var(--text); font-family: inherit; font-size: calc(15px * var(--fs)); font-weight: 400; text-align: left; }
+.cat-head.pick { width: 100%; margin-top: 6px; border: none; color: var(--text); font-family: inherit; text-align: left; } /* 모양은 다른 탭 묶음 막대와 같은 음영 */
 .note-row + .cat-head.pick { margin-top: 14px; } /* 살 것·주문 기록… 과 묶음 사이 */
-.cat-head.pick .cat-name::before { content: ""; display: inline-block; width: 10px; height: 10px; margin: 0 14px 0 6px; border-radius: 3px; background: var(--c); } /* 색 점·이름을 위 줄의 아이콘·이름 자리에 맞춤 */
-.cat-head.pick:hover { background: var(--surface); }
-.cat-head.pick.on { background: var(--surface); box-shadow: var(--shadow); font-weight: 600; } /* 고른 묶음 = 위 줄(살 것 등)과 같은 모양 */
+.cat-head.pick.on { background: var(--surface); box-shadow: var(--shadow); } /* 고른 묶음 = 위 줄(살 것 등)과 같은 흰 칸 */
 .stock-main > .stock-sec + .stock-sec { margin-top: 14px; }
 /* 서류 왼쪽 묶음 막대: 끌어서 순서 바꾸기 (놓을 자리에 선) */
 .cat-head.static.drag { cursor: grab; }
