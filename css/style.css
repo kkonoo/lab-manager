@@ -445,9 +445,10 @@ tfoot td.name { background: var(--surface-2); }
   .stock-layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
   .stock-layout > .splitter { display: none; }
 }
-.cat-head.pick { width: 100%; margin-top: 0; padding: 10px 14px 10px 20px; border: none; color: var(--text); font-family: inherit; font-size: calc(15px * var(--fs)); font-weight: 400; text-align: left; }
+/* 재고 묶음은 음영 없이 줄 모양 + 이름 앞 색 점 (다른 탭의 접는 묶음 막대와 다름) */
+.cat-head.pick { width: 100%; margin-top: 0; padding: 10px 14px 10px 20px; border: none; background: transparent; color: var(--text); font-family: inherit; font-size: calc(15px * var(--fs)); font-weight: 400; text-align: left; }
 .note-row + .cat-head.pick { margin-top: 14px; } /* 살 것·주문 기록… 과 묶음 사이 */
-.cat-head.pick .cat-name::before { margin: 0 14px 0 6px; } /* 색 점·이름을 위 줄의 아이콘·이름 자리에 맞춤 */
+.cat-head.pick .cat-name::before { content: ""; display: inline-block; width: 10px; height: 10px; margin: 0 14px 0 6px; border-radius: 3px; background: var(--c); } /* 색 점·이름을 위 줄의 아이콘·이름 자리에 맞춤 */
 .cat-head.pick:hover { background: var(--surface); }
 .cat-head.pick.on { background: var(--surface); box-shadow: var(--shadow); font-weight: 600; } /* 고른 묶음 = 위 줄(살 것 등)과 같은 모양 */
 .stock-main > .stock-sec + .stock-sec { margin-top: 14px; }
@@ -555,17 +556,16 @@ tfoot td.name { background: var(--surface-2); }
 }
 .note-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; min-width: 0; } /* 글씨를 키워도 목록 칸 밖으로 안 나감 */
 .note-list-title { margin: 0 8px 8px; font-size: calc(26px * var(--fs)); font-weight: 800; letter-spacing: -0.03em; }
-/* 묶음 막대: 바탕은 칠하지 않고 묶음 색은 이름 앞 점 하나로 (한 화면에 색이 여러 덩어리로 보이지 않게) */
+/* 묶음 막대: 묶음 색을 옅은 음영으로만 (칩과 같은 --tint — 한 화면에 진한 색 덩어리가 여러 개 보이지 않게) */
 .cat-head {
   --c: var(--faint);
   display: flex; align-items: center; gap: 8px; margin-top: 14px; padding: 8px 10px 8px 12px;
-  border-radius: 10px; background: transparent;
+  border-radius: 10px; background: color-mix(in srgb, var(--c) var(--tint), transparent);
   font-size: calc(14px * var(--fs)); font-weight: 700; cursor: pointer; user-select: none;
 }
-.cat-head:hover { background: color-mix(in srgb, var(--c) 14%, transparent); }
+.cat-head:hover { background: color-mix(in srgb, var(--c) calc(var(--tint) + 10%), transparent); }
 .cat-head .caret { width: 10px; font-size: calc(10px * var(--fs)); color: var(--muted); }
 .cat-head .cat-name { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.cat-head .cat-name::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 9px; border-radius: 3px; background: var(--c); }
 .cat-head .cat-count { font-weight: 500; color: var(--muted); }
 .cat-add { width: 26px; height: 26px; border: none; border-radius: 7px; background: transparent; font-size: calc(18px * var(--fs)); line-height: 1; color: var(--muted); cursor: pointer; }
 .cat-add:hover { background: color-mix(in srgb, var(--c) 30%, transparent); color: var(--text); }
