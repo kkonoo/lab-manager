@@ -6,7 +6,8 @@
 <title>랩 매니저</title>
 <meta name="description" content="연구실 매니저 — 프로토콜·재고(학생과 같이) + 과제·인건비·세목 예산·서류">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#F5F4F0">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1B1B1E" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/app-192.png">
 <link rel="apple-touch-icon" href="icons/app-maskable-192.png">
@@ -16,7 +17,7 @@
 <body data-tab="home">
 
 <header class="topbar">
-  <h1 class="app-title">랩 매니저</h1>
+  <h1 class="app-title"><img src="icons/app-192.png" alt="">랩 매니저</h1>
   <!-- 모드: 행정(PI만) │ 연구(학생과 같이 씀). 탭은 지금 모드 것만 보임 (app.js render) -->
   <div class="seg mode-seg" id="modeSeg">
     <button type="button" data-mode="admin">행정</button>
