@@ -277,7 +277,7 @@ function fillPaper(papers, d, f) {
 
 // 자동 계산 값 (출장 날짜·출장국·내 정보 등). 계산할 게 없으면 '' → 빈 칸 안내 글이 보임
 function autoValue(kind, d, trip) {
-  const p = db.profile, tf = trip?.fields || {}, now = new Date();
+  const p = db.profile, tf = trip?.fields || {}, now = new Date(), g = trip?.fund ? grant(trip.fund) : null; // g = 출장 경비를 대는 재원
   const ymd = s => (s ? s.split('-').map(Number) : null);
   const A = ymd(trip?.from), B = ymd(trip?.to);
   const days = A && B ? Math.round((Date.UTC(B[0], B[1] - 1, B[2]) - Date.UTC(A[0], A[1] - 1, A[2])) / 864e5) + 1 : 0;
@@ -295,7 +295,11 @@ function autoValue(kind, d, trip) {
     case 'country': return (tf['출장국'] || '').replace(/\s*\(.*\)\s*$/, '');
     case 'country-org': return tf['출장국'] ? tf['출장국'] + (tf['방문기관'] ? ` [방문(파견)기관 : ${tf['방문기관']}]` : '') : '';
     case 'title': return tf['학술회의명'] || trip?.title || '';
-    case 'grant': { const g = trip?.fund && grant(trip.fund); return g ? g.full || g.name : ''; }
+    case 'grant': return g ? g.full || g.name : '';
+    case 'grant-title': return g?.title || ''; // 경비지원 확인서의 연구과제 칸
+    case 'grant-period': return g?.start ? `${g.start.replace('-', '.')} ~ ${(g.end || '').replace('-', '.')}` : '';
+    case 'grant-role': return g?.kind === '과제' ? (g.role === '책임' ? '연구책임자' : '공동연구원') : '';
+    case 'grant-pi': return g?.kind === '과제' && g.role === '책임' ? p.name || '' : '';
     case 'today-ko': return `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일`;
     case 'today-dot': return `${now.getFullYear()}. ${now.getMonth() + 1}. ${now.getDate()}.`;
     case 'today-us': return `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/${now.getFullYear()}`; // 영문 레터 MM/DD/YYYY

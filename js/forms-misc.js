@@ -46,7 +46,18 @@
   window.FORMS.list.push(
     { id: 'minutes', group: 'meeting', emoji: '🗒️', title: '회의록', src: '연구소 회의록 양식 (hwp)',
       file: '회의록_{회의 날짜}', pages: [minutes],
-      hint: '노란 칸을 눌러 써요 · 참석자 수는 성명 칸을 세어 채워져요 · 지난 회의록 내용을 가져오려면 ‘+ 새로 만들기’에서 골라요' },
+      hint: '노란 칸을 눌러 써요 · 참석자 수는 성명 칸을 세어 채워져요 · 지난 회의록 내용을 가져오려면 ‘+ 새로 만들기’에서 골라요',
+      // hwpx는 원본(forms/minutes.hwpx)에 채움: 표 0 = 제목, 표 1 = 본문 19행×5열 (참석자 5~14행, 회의내용 16행, 맨 아래 빈 줄에 기관장)
+      hwpx: { src: 'forms/minutes.hwpx', fill: (T, v, list) => {
+        T.set(1, 0, 1, [v('회의 날짜'), v('회의 시간')].filter(Boolean).join(' '));
+        T.set(1, 1, 1, v('회의목적'));
+        T.set(1, 2, 1, v('회의장소'));
+        T.set(1, 3, 1, v('회의비') && `${v('회의비')} 원`);
+        T.set(1, 4, 0, v('참석 인원') && `( ${v('참석 인원')} 명)`, 1);
+        T.grid(1, 5, 14, list(i => ['소속', '직급', '성명', '역할'].map(k => `참석자${i}:${k}`)), [1, 2, 3, 4]);
+        T.set(1, 16, 1, v('회의내용'));
+        T.set(1, 18, 0, v('기관장') && `기관장 : ${v('기관장')} (인)`);
+      } } },
     { id: 'letter', group: 'etc', emoji: '✉️', title: '영문 레터', src: '경북대 레터헤드 레터 (docx)', paper: 'letter',
       file: 'letter_{제목}', carry: { 'TEL': 'TEL' }, pages: [letter],
       hint: '노란 칸을 눌러 써요 · 이름·직함·주소는 내 정보의 영문 칸 · 서명은 내 정보의 서명 이미지 · TEL은 한 번 쓰면 다음 레터에 이어져요',

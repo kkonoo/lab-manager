@@ -1,7 +1,7 @@
 // 출장 서류 양식 — 원본: 학교 공무국외출장 서식(hwpx·hwp·xlsx)의 표 구조를 그대로 옮김
 // 출장 하나(db.trips)에 서류 여러 장이 붙음. 칸 표시는 forms.js와 같고, 추가로
 //   data-trip  : 출장 정보에 같이 저장되는 칸 (계획서에 쓴 출장 목적이 귀국신고서에도 그대로)
-//   data-auto  : 비어 있으면 출장 정보로 계산해 보여 줌 (period-ko·period-dot·period-nights·period-md·country·country-org·grant·today-ko·age·mileage-total)
+//   data-auto  : 비어 있으면 출장 정보로 계산해 보여 줌 (period-ko·period-dot·period-nights·period-md·country·country-org·grant·grant-title·grant-period·grant-role·grant-pi·today-ko·age·mileage-total)
 //   class="choice" data-options="a|b|c" : □/☑ 고르기 (data-multi 면 여러 개)
 //   data-sign  : 서명 자리 (내 정보의 서명 이미지, 없으면 '(서명)')
 (() => {
@@ -110,6 +110,31 @@ ${fill('외교부 협조', 'data-trip data-ph="※ 재외공관 협조여부와 
   <div>직위 : ${line('확인자 직위', 'data-profile="rank"')}</div>
   <div>성명 : ${line('확인자 성명', 'data-profile="name"')}<span data-stamp></span></div>
 </div>`;
+
+  // ---------- 경비지원 확인서 (산학협력단) — 여비를 산단 연구비로 쓸 때 출장 전에 냄. 과제 칸은 출장 정보의 재원으로 ----------
+  const fund = `
+<h1 class="spaced">경비지원 확인서</h1>
+<table class="f-tbl">${cols(pct([6388, 15730, 7453, 18376]))}
+  <tr><td colspan="4" class="sec-cell">■ 국외여행 개요</td></tr>
+  <tr class="h35"><td class="label">소 속</td><td>${fill('소속', 'data-profile="dept"', 'fill center')}</td><td class="label">직 급</td><td>${fill('직급', 'data-profile="rank"', 'fill center')}</td></tr>
+  <tr class="h35"><td class="label">성 명</td><td>${fill('성명', 'data-profile="name"', 'fill center')}</td><td class="label">여 행 국</td><td>${fill('출장국', 'data-trip', 'fill center')}</td></tr>
+  <tr style="height:29mm"><td class="label">여행목적<br><span class="small">(학술회의명 등)</span></td><td>${fill('출장 목적', 'data-trip', 'fill center')}</td>
+    <td class="label">출장기간</td><td>${fill('출장 기간', 'data-auto="period-ko" data-ph="20  년  월  일 - 20  년  월  일 (  일간)"', 'fill center')}</td></tr>
+</table>
+<table class="f-tbl join">${cols(pct([4609, 5741, 7086, 11015, 7507, 6789, 5200]))}
+  <tr><td colspan="7" class="sec-cell">■ 연구과제 현황</td></tr>
+  <tr>${['연구<br>책임자', '전담기관', '사업명', '연구과제명', '연구기간', '참여구분', '국외여비<br>계상여부'].map(k => `<td class="label small">${k}</td>`).join('')}</tr>
+  <tr style="height:33mm"><td>${fill('연구책임자', 'data-auto="grant-pi"', 'fill center small')}</td><td>${fill('전담기관', 'data-ph="경북대학교 산학협력단"', 'fill center small')}</td>
+    <td>${fill('사업명', 'data-auto="grant"', 'fill center small')}</td><td>${fill('연구과제명', 'data-auto="grant-title"', 'fill center small')}</td><td>${fill('연구기간', 'data-auto="grant-period"', 'fill center small')}</td>
+    <td class="center small"><span class="choice" data-f="참여구분" data-options="연구책임자|공동연구원" data-auto="grant-role"></span></td><td>${fill('국외여비 계상여부', 'data-ph="O / X"', 'fill center')}</td></tr>
+  <tr><td colspan="7" class="decl">
+    <p>공무국외여행으로 인한 여행경비는 상기 연구과제에서 부담하고자 하오니 확인하여 주시기 바랍니다.</p>
+    <div class="date-line">${line('신청 날짜', 'data-auto="today-ko" data-ph="20   년   월   일"')}</div>
+    <div class="sign-row"><div>신청자 : ${line('신청자 소속', 'data-profile="dept"')} ${line('신청자 직급', 'data-profile="rank"')} ${line('신청자 성명', 'data-profile="name"')}<span data-stamp></span></div></div>
+    <div class="sign-row"><div>경북대학교산학협력단장 (인)</div></div>
+  </td></tr>
+  <tr><td colspan="7" class="small">※ 산학협력단 : 연구자(출장자)의 신청에 의하여 해당연구과제에 국외여비 계상 및 참여여부 등을 확인함</td></tr>
+</table>`;
 
   // ---------- 공무국외출장 귀국신고서 [별지 제4-2호] ----------
   const ret = `
@@ -256,16 +281,84 @@ ${fill('외교부 협조', 'data-trip data-ph="※ 재외공관 협조여부와 
     '- 기관관리자가 등록을 확인해야 게시판에 공개됨',
   ].join('\n');
 
+  // hwpx 저장은 원본(forms/*.hwpx)에 채움 — 표 번호·칸 주소는 원본 그대로 (hwpx.js hwpxTemplate)
+  // 계획서: 표 0 = 개요 17행×10열 (출장자 9~16행), 1 = 일정 (1~3행), 2 = 경비 (사람마다 같은 칸에 줄로), 3 = 서약서 상자
+  const planHwpx = { src: 'forms/trip-plan.hwpx', fill: (T, v, list) => {
+    ['출장 목적', '출장 동기', '건전학회 여부', '출장 기간', '출장국 표기'].forEach((k, r) => T.set(0, r, 1, v(k)));
+    T.set(0, 5, 1, v('가족 동반'));
+    T.check(0, 5, 6, v('가족 동반 사유'));
+    T.edit(0, 5, 6, T.after([/(\(사유:)\s*/, v('가족 동반 기타 사유')]));
+    T.check(0, 6, 6, v('가족 경비 지출'));
+    T.grid(0, 9, 16, list(i => ['소속', '직급', '성명', '성별', '연령', '금액', '부담기관'].map(c => `출장자${i} ${c}`)), [1, 3, 4, 5, 7, 8, 9]);
+    T.grid(1, 1, 3, list(i => ['날짜', '출발지', '도착지', '방문기관', '업무', '접촉인물'].map(c => `일정${i} ${c}`)), [0, 1, 2, 3, 4, 5]);
+    const cost = list(i => ['성명', '계', '항공운임', '일비', '숙박비', '식비', '준비금', '교육비', '기타'].map(c => `경비${i} ${c}`));
+    for (let c = 0; c < 9; c++) T.set(2, 2, c, cost.map(p => p[c]).join('\n'));
+    T.top(/^4\. 출장효과/, v('출장 효과'), 1);
+    T.top(/^5\. 외교통상부 협조/, v('외교부 협조'), 1);
+    T.set(3, 0, 0, v('서약 날짜'), 19);
+    T.edit(3, 0, 0, T.after([/(소\s+속\s+:)\s*/, v('서약자 소속')], [/(직급\(위\)\s+:)\s*/, v('서약자 직급')], [/(성\s+명\s+:)\s*/, v('서약자 성명')]));
+  } };
+  // 경비지원 확인서: 표 0 = 10행×10열 (연구과제 6행, 신청 날짜 7행, 신청자 8행)
+  const fundHwpx = { src: 'forms/trip-fund.hwpx', fill: (T, v) => {
+    T.set(0, 1, 2, v('소속'));
+    T.set(0, 1, 7, v('직급'));
+    T.set(0, 2, 2, v('성명'));
+    T.set(0, 2, 7, v('출장국'));
+    T.set(0, 3, 2, v('출장 목적'));
+    T.set(0, 3, 7, v('출장 기간'));
+    [['연구책임자', 0], ['전담기관', 1], ['사업명', 3], ['연구과제명', 5], ['연구기간', 7], ['국외여비 계상여부', 9]].forEach(([k, c]) => T.set(0, 6, c, v(k)));
+    T.edit(0, 6, 8, s => (v('참여구분') && s.includes(v('참여구분')) ? s.replace('( )', '(O)') : s));
+    T.set(0, 7, 0, v('신청 날짜'), 4);
+    T.edit(0, 8, 4, T.after([/(신청자 :)\s*/, [v('신청자 소속'), v('신청자 직급'), v('신청자 성명')].filter(Boolean).join('   ')]));
+  } };
+  // 귀국신고서: 원본 앞쪽 '귀국 보고서 작성 요령'은 빼고 신고서 쪽만. 표 0 = 12행×7열 (일정 6~8행)
+  const retHwpx = { src: 'forms/trip-return.hwpx', fill: (T, v, list) => {
+    T.from(/별지 제4-2호/);
+    T.set(0, 0, 2, v('소속'));
+    T.set(0, 0, 5, v('직급'));
+    T.set(0, 1, 2, v('성명') && `${v('성명')}          (인)`);
+    T.set(0, 1, 5, v('출장국'));
+    T.set(0, 2, 2, v('출장 목적'));
+    T.set(0, 2, 5, v('당초 승인기간'));
+    T.set(0, 3, 5, v('실제 출장기간'));
+    T.grid(0, 6, 8, list(i => ['일자', '출장국', '수행내역', '특이사항', '비고'].map(c => `귀국일정${i} ${c}`)), [0, 1, 2, 4, 6]);
+    ['연구 발표 내용', '주요활동 내역', '기타'].forEach((k, i) => T.set(0, 9 + i, 0, v(k), 2)); // 칸 제목 줄 아래에
+    T.top(/^20\s+년/, v('신고 날짜'));
+    T.top(/^직\s+명/, T.after([/(직\s+명\s+:)\s*/, v('신고자 직명')], [/(성\s+명\s+:)\s*/, v('신고자 성명')]));
+  } };
+  // 항공마일리지 신고서: 표 0 = 13행×8열. 금액·마일리지는 원본처럼 단위를 붙임
+  const mileageHwpx = { src: 'forms/trip-mileage.hwpx', fill: (T, v) => {
+    const unit = (x, u) => (x && !x.endsWith(u) ? `${x} ${u}` : x);
+    T.set(0, 0, 1, v('소속'));
+    T.set(0, 0, 5, v('직급'));
+    T.set(0, 0, 7, v('성명'));
+    T.set(0, 1, 2, v('여행 일시'));
+    T.set(0, 2, 2, v('출장국'));
+    T.check(0, 3, 2, v('적용 등급'));
+    T.set(0, 4, 2, unit(v('정액운임'), '원'));
+    T.set(0, 5, 2, unit(v('청구금액'), '원'));
+    T.set(0, 6, 2, unit(v('기존 마일리지'), '마일'));
+    T.set(0, 7, 4, v('이용 항공사'));
+    T.set(0, 8, 4, v('누적 마일리지'));
+    T.check(0, 9, 4, v('활용방법'));
+    T.set(0, 10, 4, v('사용 마일리지'));
+    T.set(0, 11, 2, unit(v('총 마일리지'), '마일'));
+    T.set(0, 12, 0, v('신고 날짜'), 2);
+    T.edit(0, 12, 0, T.after([/(성 명)\s*/, v('신고인 성명')]));
+  } };
+
   const P = SRC;
   window.FORMS.list.push(
     { id: 'trip-plan', group: 'trip', trip: true, emoji: '✈️', title: '국외출장계획서 & 서약서', src: P + '국외출장계획서 & 서약서 서식.hwpx',
-      file: '{출장자1 성명}_국외출장계획서_{학술회의명}', pages: [...plan.split('<!--page-->'), oath] }, // 계획서 2쪽 + 서약서
+      file: '{출장자1 성명}_국외출장계획서_{학술회의명}', pages: [...plan.split('<!--page-->'), oath], hwpx: planHwpx }, // 계획서 2쪽 + 서약서
     { id: 'trip-check', group: 'trip', trip: true, emoji: '🔍', title: '부실학회 점검 체크리스트', src: SRC + '공무국외출장 신청서류(서식).hwpx', file: '{확인자 성명}_부실학회_점검_체크리스트', pages: [checklist] },
-    { id: 'trip-return', group: 'trip', trip: true, emoji: '🛬', title: '귀국신고서', src: P + '1. 귀국신고서.hwp', file: '{성명}_귀국신고서', pages: [ret] },
+    { id: 'trip-fund', group: 'trip', trip: true, emoji: '💰', title: '경비지원 확인서', src: P + '경비지원 확인서.hwpx', file: '{성명}_경비지원_확인서', pages: [fund], hwpx: fundHwpx,
+      carry: { '전담기관': '전담기관' }, hint: '노란 칸을 눌러 써요 · 연구과제 칸은 출장 정보의 ‘경비 부담 (재원)’으로 채워져요 · 전담기관은 한 번 쓰면 다음 확인서에 이어져요' },
+    { id: 'trip-return', group: 'trip', trip: true, emoji: '🛬', title: '귀국신고서', src: P + '1. 귀국신고서.hwp', file: '{성명}_귀국신고서', pages: [ret], hwpx: retHwpx },
     { id: 'trip-btis', group: 'trip', emoji: '📝', title: '결과보고서 등록요령', src: P + '2. 공무국외출장결과보고서 등록요령.hwpx', note: btis },
     { id: 'trip-confirm', group: 'trip', trip: true, emoji: '🗂️', title: '국외출장연수정보시스템 등록확인서', src: P + '3.국외출장연수정보시스템 등록확인서.xlsx', file: '{여행자1}_국외출장연수정보시스템_등록확인서', pages: [confirm] },
     { id: 'trip-mileage', group: 'trip', trip: true, emoji: '🎫', title: '항공마일리지 신고서', src: P + '4.항공마일리지 신고서.hwp', file: '{성명}_항공마일리지_신고서',
-      carry: { '기존 마일리지': '총 마일리지' }, pages: [mileage] }, // 새로 만들 때 지난 신고서의 총 마일리지를 기존 마일리지로
+      carry: { '기존 마일리지': '총 마일리지' }, pages: [mileage], hwpx: mileageHwpx }, // 새로 만들 때 지난 신고서의 총 마일리지를 기존 마일리지로
     { id: 'trip-result', group: 'trip', trip: true, emoji: '📑', title: '국제학술회의 참가 결과보고서', src: SRC + '공무국외출장 신청서류(서식).hwpx', file: '{참가자 성명}_국제학술회의_참가_결과보고서',
       defaults: { '참가 결과': '1. 동 회의에 참가 수행한 사람\n\n2. 동 회의 분야의 학술적 의의 및 연구동향\n\n3. 기타 참고사항\n' }, pages: [result] },
     { id: 'lecture', group: 'trip', trip: 'optional', emoji: '🎤', title: '외부강의·회의 신고서', src: SRC + '외부강의신고서양식.hwp', file: '{성명}_외부강의_신고서_{요청 기관명}', pages: [lecture] },
@@ -278,7 +371,7 @@ ${fill('외교부 협조', 'data-trip data-ph="※ 재외공관 협조여부와 
     { title: '출장 가기 전', abroad: true, items: [
       { text: '국외출장계획서 & 서약서', form: 'trip-plan' },
       { text: '부실학회 점검 체크리스트', sub: '국가R&D 지원으로 해외학회 갈 때', form: 'trip-check' },
-      { text: '경비확인지원서 → 산단 제출' },
+      { text: '경비지원 확인서 → 산단 제출', sub: '여비를 산단 연구비로 쓸 때', form: 'trip-fund' },
       { text: '학회 등록 영수증, 관련 메일(초청메일)' },
       { text: '항공권 이티켓' },
       { text: '학과 회의록', sub: '국가R&D 지원으로 해외학회 갈 때' },

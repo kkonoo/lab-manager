@@ -12,7 +12,7 @@ const xmlText = s => String(s).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]
 async function saveHwpx(f, d) {
   try {
     const name = docFileName(f, d) || d.title;
-    const blob = await zipFiles(hwpxParts([...document.querySelectorAll('#docMain .paper')], d.title));
+    const blob = await zipFiles(f.hwpx ? await hwpxFromTemplate(f) : hwpxParts([...document.querySelectorAll('#docMain .paper')], d.title));
     const a = h('a');
     a.href = URL.createObjectURL(blob);
     a.download = `${name}.hwpx`;
@@ -22,6 +22,106 @@ async function saveHwpx(f, d) {
     console.error(e);
     alert(`hwpx로 저장하지 못했어요: ${e.message}`);
   }
+}
+
+// ---------- 원본 hwpx를 틀로: forms/*.hwpx(빈 원본)의 칸에 화면의 값을 넣음 → 글꼴·선·칸 크기가 원본 그대로 ----------
+// 양식의 hwpx = { src, fill(T, v, list) }. v(칸 이름) = 화면에 보이는 값(자동 계산·내 정보 포함, 칸이 없으면 null),
+// list(i => [칸 이름…]) = 되풀이 줄의 값 목록, T = 틀 고치기 (hwpxTemplate). 값이 빈 칸은 원본 글(빈칸·'원' 등)을 그대로 둠
+const HPNS = 'http://www.hancom.co.kr/hwpml/2011/paragraph';
+async function hwpxFromTemplate(f) {
+  const res = await fetch(f.hwpx.src);
+  if (!res.ok) throw new Error(`원본 양식(${f.hwpx.src})을 못 불러왔어요.`);
+  const files = (await unzipFiles(await res.arrayBuffer())).filter(([n]) => n !== 'Preview/PrvImage.png'); // 미리보기 그림은 빈 양식이라 뺌
+  const sec = files.find(([n]) => n === 'Contents/section0.xml');
+  const doc = new DOMParser().parseFromString(new TextDecoder().decode(sec[1]), 'application/xml');
+  f.hwpx.fill(hwpxTemplate(doc), docValue, docList);
+  sec[1] = XML + new XMLSerializer().serializeToString(doc).replace(/^<\?xml[^>]*\?>/, '');
+  return files;
+}
+function docValue(k) {
+  const el = document.querySelector(`#docMain .paper [data-f="${CSS.escape(k)}"]`);
+  if (!el) return null;
+  if (el.classList.contains('choice')) { const o = el.dataset.options.split('|'); return [...el.querySelectorAll('.opt')].flatMap((x, i) => (x.classList.contains('on') ? [o[i]] : [])).join('|'); }
+  return (el.tagName === 'INPUT' ? el.value : el.innerText).trim();
+}
+function docList(keys) { // 칸이 없는 줄에서 끝, 끝의 빈 줄은 뺌
+  const out = [];
+  for (let i = 1; docValue(keys(i)[0]) != null; i++) out.push(keys(i).map(docValue));
+  while (out.length && out.at(-1).every(x => !x)) out.pop();
+  return out;
+}
+// 틀 고치기. 표 번호 ti = 문서 순서 (0부터), r·c = 원본 칸 주소 (병합 칸은 왼쪽 위). 고친 문단은 줄 배치(linesegarray)를 지워 한글이 다시 계산
+function hwpxTemplate(doc) {
+  const kids = (el, n) => [...el.children].filter(x => x.localName === n), kid = (el, n) => kids(el, n)[0];
+  const tops = () => kids(doc.documentElement, 'p'), tbl = ti => doc.getElementsByTagNameNS(HPNS, 'tbl')[ti];
+  const addr = tc => +kid(tc, 'cellAddr').getAttribute('rowAddr');
+  const added = []; // 표마다 늘린 줄 [[원본 행, 줄 수]] → 원본 행 번호를 지금 행 번호로
+  const now = (ti, r) => r + (added[ti] || []).reduce((a, [at, n]) => a + (r > at ? n : 0), 0);
+  const cellNow = (ti, r, c) => kids(tbl(ti), 'tr').flatMap(tr => kids(tr, 'tc')).find(tc => addr(tc) === r && +kid(tc, 'cellAddr').getAttribute('colAddr') === c);
+  const cell = (ti, r, c) => cellNow(ti, now(ti, r), c);
+  const paras = tc => kids(kid(tc, 'subList'), 'p');
+  const text = p => kids(p, 'run').flatMap(r => kids(r, 't')).map(t => [...t.childNodes].map(x => (x.nodeType === 3 ? x.data : x.localName === 'fwSpace' ? '\u3000' : ' ')).join('')).join('');
+  const put = (p, s) => { // 문단 글을 s로 — 글이 가장 많던 run의 글자 모양으로 (앞의 빈칸 한 칸만 다른 글꼴인 경우가 있음)
+    const runs = kids(p, 'run'), len = x => kids(x, 't').reduce((a, t) => a + t.textContent.length, 0), r = runs.reduce((a, x) => (len(x) > len(a) ? x : a), runs[0]);
+    for (const x of runs) for (const t of kids(x, 't')) t.remove();
+    for (const x of runs) if (x !== r && !x.children.length) x.remove();
+    const t = doc.createElementNS(HPNS, 'hp:t');
+    t.textContent = s;
+    r.append(t);
+    kid(p, 'linesegarray')?.remove();
+  };
+  const lines = (list, i, value) => { // list[i]부터 줄마다 한 문단 (모자라면 앞 문단을 복제)
+    let p = list[Math.min(i, list.length - 1)];
+    value.split('\n').forEach((s, k) => {
+      if (k || i >= list.length) { const q = p.cloneNode(true); p.after(q); p = q; }
+      put(p, s);
+    });
+  };
+  const has = x => x != null && String(x).trim() !== '';
+  const fill = (tc, value, at) => { if (has(value)) lines(paras(tc), at, String(value).replace(/\n+$/, '')); };
+  const width = x => [...x].reduce((a, ch) => a + (ch.charCodeAt(0) > 0x2e80 ? 2 : 1), 0); // 한글은 빈칸 두 개 너비로
+  const grow = (el, k, d) => el.setAttribute(k, +el.getAttribute(k) + d);
+  const T = {
+    set(ti, r, c, value, at = 0) { fill(cell(ti, r, c), value, at); }, // 칸의 at번째 문단부터
+    edit(ti, r, c, fn) { for (const p of paras(cell(ti, r, c))) { const s = text(p), t = fn(s); if (t !== s) put(p, t); } },
+    top(re, value, offset = 0) { // 본문 문단 (re에 맞는 문단 + offset). value가 함수면 그 문단 글을 고침
+      const ps = tops(), i = ps.findIndex(p => re.test(text(p)));
+      if (i < 0) return;
+      if (typeof value === 'function') { const s = text(ps[i + offset]), t = value(s); if (t !== s) put(ps[i + offset], t); } else if (has(value)) lines(ps, i + offset, String(value).replace(/\n+$/, ''));
+    },
+    // '성 명 :          (인)' → '성 명 : 홍길동    (인)' — re = /(칸 이름)\s*/, 뒤 빈칸은 값 너비만큼만 줄임
+    after: (...pairs) => s => pairs.reduce((s, [re, x]) => (has(x) ? s.replace(re, (m, label) => `${label} ${x}${' '.repeat(Math.max(1, m.length - label.length - 1 - width(x)))}`) : s), s),
+    check(ti, r, c, picked) { const os = String(picked || '').split('|').filter(Boolean); T.edit(ti, r, c, s => os.reduce((s, o) => s.replace(`□ ${o}`, `☑ ${o}`).replace(`${o} □`, `${o} ☑`), s)); },
+    rows(ti, tr, n) { // 원본 tr행을 n번 복제해 바로 뒤에 (아래 행 주소·위에서 걸친 칸·표 크기를 맞춤). 그 뒤 원본 행 번호는 알아서 밀림
+      if (n <= 0) return;
+      const r = now(ti, tr), t = tbl(ti), row = kids(t, 'tr').find(tr => addr(kid(tr, 'tc')) === r), h = +kid(kid(row, 'tc'), 'cellSz').getAttribute('height');
+      for (const tc of kids(t, 'tr').flatMap(tr => kids(tr, 'tc'))) {
+        const a = addr(tc), span = kid(tc, 'cellSpan');
+        if (a > r) grow(kid(tc, 'cellAddr'), 'rowAddr', n);
+        else if (a < r && a + +span.getAttribute('rowSpan') > r) { grow(span, 'rowSpan', n); grow(kid(tc, 'cellSz'), 'height', n * h); }
+      }
+      for (let k = n; k > 0; k--) {
+        const q = row.cloneNode(true);
+        for (const tc of kids(q, 'tc')) { kid(tc, 'cellAddr').setAttribute('rowAddr', r + k); for (const p of paras(tc)) put(p, ''); }
+        row.after(q);
+      }
+      grow(t, 'rowCnt', n);
+      grow(kid(t, 'sz'), 'height', n * h);
+      (added[ti] ||= []).push([tr, n]);
+    },
+    grid(ti, first, last, items, cols) { // first~last행에 한 줄씩. 모자라면 끝에서 둘째 행을 복제 (마지막 행 아래 굵은 선은 그대로)
+      T.rows(ti, last - 1, items.length - (last - first + 1));
+      items.forEach((row, i) => row.forEach((x, j) => fill(cellNow(ti, now(ti, first) + i, cols[j]), x, 0)));
+    },
+    from(re) { // re에 맞는 문단 앞(앞쪽 안내 쪽 등)을 지움. 쪽 설정(첫 문단의 secPr run)은 그 문단으로 옮김
+      const ps = tops(), i = ps.findIndex(p => re.test(text(p)));
+      if (i <= 0) return;
+      ps[i].prepend(kids(ps[0], 'run').find(x => kid(x, 'secPr')));
+      ps[i].setAttribute('pageBreak', '0');
+      for (const p of ps.slice(0, i)) p.remove();
+    },
+  };
+  return T;
 }
 
 // 종이들 → hwpx 안 파일 [이름, 내용]
@@ -206,7 +306,7 @@ function hwpxParts(papers, title) {
   ];
 }
 
-// ZIP 만들기 (라이브러리 없이). 첫 파일(mimetype)은 압축 없이, 나머지는 브라우저 CompressionStream으로 deflate
+// ZIP 만들기·풀기 (라이브러리 없이, 브라우저 CompressionStream·DecompressionStream). 만들 때 첫 파일(mimetype)은 압축 없이
 const CRC_TABLE = Array.from({ length: 256 }, (_, n) => { for (let k = 0; k < 8; k++) n = n & 1 ? 0xedb88320 ^ (n >>> 1) : n >>> 1; return n >>> 0; });
 const crc32 = b => { let c = ~0; for (const x of b) c = CRC_TABLE[(c ^ x) & 255] ^ (c >>> 8); return ~c >>> 0; };
 const le = parts => { // [[값, 바이트 수]] → 리틀 엔디언 바이트
@@ -219,8 +319,8 @@ async function zipFiles(files) {
   const enc = new TextEncoder(), t = new Date(), out = [], dir = [];
   const time = (t.getHours() << 11) | (t.getMinutes() << 5) | (t.getSeconds() >> 1), date = ((t.getFullYear() - 1980) << 9) | ((t.getMonth() + 1) << 5) | t.getDate();
   let at = 0;
-  for (const [i, [name, text]] of files.entries()) {
-    const raw = enc.encode(text), nm = enc.encode(name), method = i ? 8 : 0;
+  for (const [i, [name, body]] of files.entries()) { // body = 글 또는 바이트
+    const raw = typeof body === 'string' ? enc.encode(body) : body, nm = enc.encode(name), method = i ? 8 : 0;
     const data = method ? new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer()) : raw;
     const common = [[method, 2], [time, 2], [date, 2], [crc32(raw), 4], [data.length, 4], [raw.length, 4], [nm.length, 2]];
     out.push(le([[0x04034b50, 4], [20, 2], [0, 2], ...common, [0, 2]]), nm, data);
@@ -229,4 +329,19 @@ async function zipFiles(files) {
   }
   const size = dir.reduce((a, b) => a + b.length, 0);
   return new Blob([...out, ...dir, le([[0x06054b50, 4], [0, 2], [0, 2], [files.length, 2], [files.length, 2], [size, 4], [at, 4], [0, 2]])], { type: 'application/hwp+zip' });
+}
+async function unzipFiles(buf, keep = () => true) { // → [[이름, 바이트]] (ZIP 안 순서대로, keep(이름)인 것만)
+  const b = new Uint8Array(buf), v = new DataView(b.buffer), utf8 = new TextDecoder(), out = [];
+  let e = b.length - 22;
+  while (e >= 0 && v.getUint32(e, true) !== 0x06054b50) e--; // ZIP 끝 (중앙 디렉터리 위치)
+  if (e < 0) throw new Error('ZIP 파일이 아니에요.');
+  for (let i = 0, p = v.getUint32(e + 16, true); i < v.getUint16(e + 10, true); i++) {
+    const method = v.getUint16(p + 10, true), size = v.getUint32(p + 20, true), n = v.getUint16(p + 28, true), at = v.getUint32(p + 42, true);
+    const name = utf8.decode(b.subarray(p + 46, p + 46 + n));
+    p += 46 + n + v.getUint16(p + 30, true) + v.getUint16(p + 32, true);
+    if (!keep(name)) continue;
+    const from = at + 30 + v.getUint16(at + 26, true) + v.getUint16(at + 28, true), raw = b.subarray(from, from + size);
+    out.push([name, method ? new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer()) : raw]);
+  }
+  return out;
 }

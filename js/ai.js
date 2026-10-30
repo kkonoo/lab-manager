@@ -87,22 +87,12 @@ function aiUndoBtn(d) {
   return b;
 }
 
-// 한글 hwpx = ZIP 안의 Contents/section*.xml → 글 (표는 한 줄에 '| 칸 | 칸 |', 칸 안 여러 줄은 ' / '로). 라이브러리 없이 브라우저 DecompressionStream으로 풂
+// 한글 hwpx = ZIP 안의 Contents/section*.xml → 글 (표는 한 줄에 '| 칸 | 칸 |', 칸 안 여러 줄은 ' / '로). ZIP은 hwpx.js unzipFiles로 풂
 async function hwpxText(file) {
-  const buf = new Uint8Array(await file.arrayBuffer()), v = new DataView(buf.buffer), utf8 = new TextDecoder();
-  let e = buf.length - 22;
-  while (e >= 0 && v.getUint32(e, true) !== 0x06054b50) e--; // ZIP 끝 (중앙 디렉터리 위치)
-  if (e < 0) throw new Error(`'${file.name}'을(를) 열지 못했어요 (hwpx 파일이 아니에요).`);
-  const secs = [];
-  for (let i = 0, p = v.getUint32(e + 16, true); i < v.getUint16(e + 10, true); i++) {
-    const method = v.getUint16(p + 10, true), size = v.getUint32(p + 20, true), n = v.getUint16(p + 28, true), at = v.getUint32(p + 42, true);
-    const name = utf8.decode(buf.subarray(p + 46, p + 46 + n));
-    p += 46 + n + v.getUint16(p + 30, true) + v.getUint16(p + 32, true);
-    if (!/^Contents\/section\d+\.xml$/.test(name)) continue;
-    const from = at + 30 + v.getUint16(at + 26, true) + v.getUint16(at + 28, true), raw = buf.subarray(from, from + size);
-    const data = method ? await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer() : raw;
-    secs.push([+name.match(/\d+/)[0], utf8.decode(data)]);
-  }
+  let secs;
+  try {
+    secs = (await unzipFiles(await file.arrayBuffer(), n => /^Contents\/section\d+\.xml$/.test(n))).map(([n, b]) => [+n.match(/\d+/)[0], new TextDecoder().decode(b)]);
+  } catch { throw new Error(`'${file.name}'을(를) 열지 못했어요 (hwpx 파일이 아니에요).`); }
   if (!secs.length) throw new Error(`'${file.name}'에서 글을 찾지 못했어요.`);
   const text = el => {
     const k = el.localName;
