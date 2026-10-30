@@ -836,10 +836,14 @@ th:hover .icon-mini, .icon-mini.on { opacity: .75; }
   .paper { height: 297mm; min-height: 0; margin: 0 !important; overflow: hidden; box-shadow: none; break-inside: avoid; break-after: page; }
   .paper:last-child { break-after: auto; }
   .paper-in { zoom: var(--print-zoom, 1); }
+  /* 여러 장이어도 되는 서류 (귀국신고서): 줄이지 않고 다음 쪽으로. 쪽마다 여백은 이름 붙인 쪽(flow)으로 */
+  .paper.flow { page: flow; height: auto; padding: 0; overflow: visible; break-inside: auto; }
+  .paper.flow tr { break-inside: avoid; }
   .paper [data-ph]:empty::before { content: none; }
   .paper .stamp { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 @page { size: A4; margin: 0; }
+@page flow { size: A4; margin: 17mm 16mm 14mm; } /* .paper 여백과 같게 */
 
 /* 프로토콜 인쇄 (app.js printProtocol) — 화면엔 안 보이고, 인쇄할 때 이것만 나옴. 여백은 이름 붙인 쪽(proto)으로 따로 */
 #protoPrint { display: none; }

@@ -48,7 +48,7 @@
 <div class="sec">2. 출장일정</div>
 <table class="f-tbl">${cols(pct([60, 69, 71, 71, 96, 87]))}
   <tr class="th"><td class="label">년 월 일<br>(요 일)</td><td class="label">출 발 지</td><td class="label">도 착 지</td><td class="label">방 문 기 관</td><td class="label">업무수행 내용</td><td class="label">접촉예정인물</td></tr>
-  ${rep(4, i => `<tr>${['날짜', '출발지', '도착지', '방문기관', '업무', '접촉인물'].map(c => `<td>${fill(`일정${i} ${c}`, '', 'fill small')}</td>`).join('')}</tr>`)}
+  <tr data-rows="일정" data-min="3">${['날짜', '출발지', '도착지', '방문기관', '업무', '접촉인물'].map(c => `<td>${fill(c, '', 'fill small')}</td>`).join('')}</tr>
 </table>
 <div class="note-sm">* 출장일정, 방문예정지 및 방문기관 등을 구체적으로 명시하되 2인 이상이 동행하는 경우는 개인별업무수행 내용을 구체적으로 명시</div>
 <div class="sec">3. 출장경비 <span class="note-sm">* 등급별로 표시바람</span></div>
@@ -149,7 +149,7 @@ ${fill('외교부 협조', 'data-trip data-ph="※ 재외공관 협조여부와 
 <table class="f-tbl join">${cols(pct([41, 65, 163, 119, 48]))}
   <tr><td colspan="5" class="sec-cell">1. 일 정</td></tr>
   <tr><td class="label">일 자</td><td class="label">출 장 국</td><td class="label">수 행 내 역</td><td class="label">특 이 사 항</td><td class="label">비 고</td></tr>
-  ${rep(4, i => `<tr>${['일자', '출장국', '수행내역', '특이사항', '비고'].map(c => `<td>${fill(`귀국일정${i} ${c}`, '', 'fill small')}</td>`).join('')}</tr>`)}
+  <tr data-rows="귀국일정" data-min="3">${['일자', '출장국', '수행내역', '특이사항', '비고'].map(c => `<td>${fill(c, '', 'fill small')}</td>`).join('')}</tr>
   <tr><td colspan="5"><div class="sec-cell">2. 연구(발표)내용</div>${fill('연구 발표 내용', 'data-ph="발표 제목·형식(구두/포스터)·주요 내용"', 'fill tall')}</td></tr>
   <tr><td colspan="5"><div class="sec-cell">3. 주요활동 내역<span class="small">(공식접촉기관 및 인사, 업무수행내용, 기타 활동사항을 간략히 기록)</span></div>${fill('주요활동 내역', '', 'fill tall')}</td></tr>
   <tr><td colspan="5"><div class="sec-cell">4. 기 타</div>${fill('기타', '', 'fill')}</td></tr>
@@ -290,7 +290,9 @@ ${fill('외교부 협조', 'data-trip data-ph="※ 재외공관 협조여부와 
     T.edit(0, 5, 6, T.after([/(\(사유:)\s*/, v('가족 동반 기타 사유')]));
     T.check(0, 6, 6, v('가족 경비 지출'));
     T.grid(0, 9, 16, list(i => ['소속', '직급', '성명', '성별', '연령', '금액', '부담기관'].map(c => `출장자${i} ${c}`)), [1, 3, 4, 5, 7, 8, 9]);
-    T.grid(1, 1, 3, list(i => ['날짜', '출발지', '도착지', '방문기관', '업무', '접촉인물'].map(c => `일정${i} ${c}`)), [0, 1, 2, 3, 4, 5]);
+    const plan = list(i => ['날짜', '출발지', '도착지', '방문기관', '업무', '접촉인물'].map(c => `일정${i}:${c}`)); // 하루 한 줄 — 원본 3줄보다 많으면 늘리고 쪽에서 나뉘게
+    if (plan.length > 3) T.flow(1);
+    T.grid(1, 1, 3, plan, [0, 1, 2, 3, 4, 5]);
     const cost = list(i => ['성명', '계', '항공운임', '일비', '숙박비', '식비', '준비금', '교육비', '기타'].map(c => `경비${i} ${c}`));
     for (let c = 0; c < 9; c++) T.set(2, 2, c, cost.map(p => p[c]).join('\n'));
     T.top(/^4\. 출장효과/, v('출장 효과'), 1);
@@ -321,7 +323,8 @@ ${fill('외교부 협조', 'data-trip data-ph="※ 재외공관 협조여부와 
     T.set(0, 2, 2, v('출장 목적'));
     T.set(0, 2, 5, v('당초 승인기간'));
     T.set(0, 3, 5, v('실제 출장기간'));
-    T.grid(0, 6, 8, list(i => ['일자', '출장국', '수행내역', '특이사항', '비고'].map(c => `귀국일정${i} ${c}`)), [0, 1, 2, 4, 6]);
+    T.flow(0); // 여러 장이어도 됨 — 일정이 길면 다음 쪽으로
+    T.grid(0, 6, 8, list(i => ['일자', '출장국', '수행내역', '특이사항', '비고'].map(c => `귀국일정${i}:${c}`)), [0, 1, 2, 4, 6]);
     ['연구 발표 내용', '주요활동 내역', '기타'].forEach((k, i) => T.set(0, 9 + i, 0, v(k), 2)); // 칸 제목 줄 아래에
     T.top(/^20\s+년/, v('신고 날짜'));
     T.top(/^직\s+명/, T.after([/(직\s+명\s+:)\s*/, v('신고자 직명')], [/(성\s+명\s+:)\s*/, v('신고자 성명')]));
@@ -354,7 +357,7 @@ ${fill('외교부 협조', 'data-trip data-ph="※ 재외공관 협조여부와 
     { id: 'trip-check', group: 'trip', trip: true, emoji: '🔍', title: '부실학회 점검 체크리스트', src: SRC + '공무국외출장 신청서류(서식).hwpx', file: '{확인자 성명}_부실학회_점검_체크리스트', pages: [checklist] },
     { id: 'trip-fund', group: 'trip', trip: true, emoji: '💰', title: '경비지원 확인서', src: P + '경비지원 확인서.hwpx', file: '{성명}_경비지원_확인서', pages: [fund], hwpx: fundHwpx,
       carry: { '전담기관': '전담기관' }, hint: '노란 칸을 눌러 써요 · 연구과제 칸은 출장 정보의 ‘경비 부담 (재원)’으로 채워져요 · 전담기관은 한 번 쓰면 다음 확인서에 이어져요' },
-    { id: 'trip-return', group: 'trip', trip: true, emoji: '🛬', title: '귀국신고서', src: P + '1. 귀국신고서.hwp', file: '{성명}_귀국신고서', pages: [ret], hwpx: retHwpx },
+    { id: 'trip-return', group: 'trip', trip: true, emoji: '🛬', title: '귀국신고서', src: P + '1. 귀국신고서.hwp', file: '{성명}_귀국신고서', pages: [ret], hwpx: retHwpx, flow: true }, // flow: 넘치면 줄이지 않고 다음 쪽으로
     { id: 'trip-btis', group: 'trip', emoji: '📝', title: '결과보고서 등록요령', src: P + '2. 공무국외출장결과보고서 등록요령.hwpx', note: btis },
     { id: 'trip-confirm', group: 'trip', trip: true, emoji: '🗂️', title: '국외출장연수정보시스템 등록확인서', src: P + '3.국외출장연수정보시스템 등록확인서.xlsx', file: '{여행자1}_국외출장연수정보시스템_등록확인서', pages: [confirm] },
     { id: 'trip-mileage', group: 'trip', trip: true, emoji: '🎫', title: '항공마일리지 신고서', src: P + '4.항공마일리지 신고서.hwp', file: '{성명}_항공마일리지_신고서',
@@ -409,9 +412,9 @@ ${fill('외교부 협조', 'data-trip data-ph="※ 재외공관 협조여부와 
   window.FORMS.tripDocs = [
     { id: 'd-plan-ex', tpl: 'trip-plan', trip: 't-ex', year: 2026, title: '예시 국제학회 (베를린) — 국외출장계획서 & 서약서', fields: {
       '출장국 표기': '독일(베를린)', '가족 동반': '무',
-      '일정1 날짜': '2026.6.1(월)', '일정1 출발지': '대구→인천공항', '일정1 도착지': '독일 베를린', '일정1 방문기관': '-', '일정1 업무': '이동, 학회 등록', '일정1 접촉인물': '-',
-      '일정2 날짜': '2026.6.2(화)–6.4(목)', '일정2 출발지': '베를린', '일정2 도착지': '베를린', '일정2 방문기관': '학회장', '일정2 업무': '학회 참석·포스터 발표', '일정2 접촉인물': '학회 참가 연구자',
-      '일정3 날짜': '2026.6.5(금)', '일정3 출발지': '베를린', '일정3 도착지': '대구', '일정3 방문기관': '-', '일정3 업무': '귀국', '일정3 접촉인물': '-',
+      '일정1:날짜': '2026.6.1(월)', '일정1:출발지': '대구→인천공항', '일정1:도착지': '독일 베를린', '일정1:방문기관': '-', '일정1:업무': '이동, 학회 등록', '일정1:접촉인물': '-',
+      '일정2:날짜': '2026.6.2(화)–6.4(목)', '일정2:출발지': '베를린', '일정2:도착지': '베를린', '일정2:방문기관': '학회장', '일정2:업무': '학회 참석·포스터 발표', '일정2:접촉인물': '학회 참가 연구자',
+      '일정3:날짜': '2026.6.5(금)', '일정3:출발지': '베를린', '일정3:도착지': '대구', '일정3:방문기관': '-', '일정3:업무': '귀국', '일정3:접촉인물': '-',
     } },
   ];
 })();

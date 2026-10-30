@@ -69,6 +69,16 @@ function withDocs(v) {
   }
   if (!v.buySeed) { v.buySeed = true; v.docs.push(...structuredClone(window.FORMS.buyDocs)); } // 구매 규격서 처음 → 예시 (2606 비품 규격서)
   if (!v.miscSeed) { v.miscSeed = true; v.docs.push(...structuredClone(window.FORMS.miscDocs)); } // 회의록·레터 처음 → 원본에 있던 내용
+  for (const d of v.docs) { // 일정 표 4줄 고정 → 줄을 늘리는 표로: '일정1 날짜' → '일정1:날짜' (계획서), '귀국일정1 일자' → '귀국일정1:일자'
+    const tag = { 'trip-plan': '일정', 'trip-return': '귀국일정' }[d.tpl];
+    if (tag) for (const k of Object.keys(d.fields)) {
+      const m = k.match(new RegExp(`^${tag}(\\d+) (.+)$`));
+      if (!m) continue;
+      d.fields[`${tag}${m[1]}:${m[2]}`] = d.fields[k];
+      delete d.fields[k];
+      d.fields['#' + tag] = Math.max(+d.fields['#' + tag] || 0, +m[1]);
+    }
+  }
   for (const g of v.grants) if (g.overview && !g.finalGoal) { g.finalGoal = g.overview; delete g.overview; } // 과제 개요 → 최종 목표
   if (!v.stock) { v.stock = structuredClone(window.SEED.stock); v.orders = []; } // 재고 처음 → 묶음과 예시 품목
   if (!v.stock.places) { // 보관 위치가 글로만 있던 저장본 → 위치 목록으로 (이름이 같으면 그 위치, 없으면 새로)

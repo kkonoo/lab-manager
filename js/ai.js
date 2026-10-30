@@ -51,6 +51,17 @@ function aiFormFields(d) {
   }
   return out;
 }
+// 줄을 늘릴 수 있는 표 (docs.js expandRows가 줄에 data-rep): 이름 → { cols: 칸 이름들, n: 지금 줄 수 }
+const AI_MAX_ROWS = 40;
+function aiRepTables() {
+  const out = new Map();
+  for (const tr of document.querySelectorAll('#docMain .paper tr[data-rep]')) {
+    const t = out.get(tr.dataset.rep) || { cols: [...tr.querySelectorAll('[data-f]')].map(el => el.dataset.f.replace(/^.*?\d+:/, '')), n: 0 };
+    t.n++;
+    out.set(tr.dataset.rep, t);
+  }
+  return out;
+}
 
 function aiFill(f, d) {
   if (!aiKey()) {
@@ -131,6 +142,7 @@ const AI_SYSTEM = `너는 한국 대학교 교수(연구책임자)의 행정 서
 - 목적·내용·분석·본문 같은 서술 칸이 비어 있으면 자료와 양식에 이미 적힌 내용을 바탕으로 초안을 써 넣는다. 칸의 안내 글(예: "1) …", "- 구체적으로 5줄 이상", 300자 이상)이 있으면 그 형식·분량을 따른다.
 - 새로 쓰는 한국어는 공문서 문체(개조식, "…함", "…임")로, 영문 레터 칸은 영어로 쓴다.
 - 여러 줄은 줄바꿈(\\n)으로 나눈다.
+- 일정 표는 하루에 한 줄씩 쓴다. 여러 날을 한 줄에 구간(예: 10.20~10.22)으로 묶지 않는다. 줄이 모자라면 '줄을 늘릴 수 있는 표'의 번호를 이어 써서 줄을 늘린다. 이미 구간으로 묶여 적힌 일정은 하루씩 나눠 다시 쓴다.
 - 고르기 칸은 보기 가운데 하나를 그대로 쓴다. 여러 개 고르는 칸은 보기를 |로 잇는다.
 - fields 의 name 은 '양식 칸' 목록의 이름을 따옴표 없이 그대로 쓴다.
 - note 에는 못 채운 칸과 그 까닭, 사용자가 확인할 점을 한두 문장으로 쓴다 (없으면 빈 글).`;
@@ -152,7 +164,8 @@ async function runAiFill(f, d, fields, note, files) {
     const formText = [...document.querySelectorAll('#docMain .paper')].map(p => p.innerText).join('\n').replace(/[ \t]+/g, ' ').replace(/\n\s*\n+/g, '\n').slice(0, 20000);
     for (const el of ctl) el.style.display = '';
     const list = [...fields].map(([k, x]) => `- "${k}"${x.ph ? ` (안내: ${x.ph.replace(/\n/g, ' / ')})` : ''}${x.options ? ` (고르기: ${x.options.join(' | ')}${x.multi ? ', 여러 개 가능' : ''})` : ''}: ${x.shown ? JSON.stringify(x.shown) : '(비어 있음)'}`).join('\n');
-    const prompt = `서류: ${f.title}${f.src ? ` (원본: ${f.src})` : ''}\n오늘: ${isoToday()} · 문서 연도: ${d.year ?? ''}\n\n[지금 양식에 보이는 글]\n${formText}\n\n[양식 칸 — 이름: 지금 값]\n${list}\n\n[자료]\n${note || '(첨부 파일을 봐요)'}`;
+    const reps = aiRepTables(), repList = [...reps].map(([tag, t]) => `- ${tag}: 지금 ${t.n}줄 (칸: ${t.cols.join(', ')}). 줄이 더 필요하면 "${tag}${t.n + 1}:${t.cols[0]}"처럼 번호를 이어 써요 (${AI_MAX_ROWS}줄까지)`).join('\n');
+    const prompt = `서류: ${f.title}${f.src ? ` (원본: ${f.src})` : ''}\n오늘: ${isoToday()} · 문서 연도: ${d.year ?? ''}\n\n[지금 양식에 보이는 글]\n${formText}\n\n[양식 칸 — 이름: 지금 값]\n${list}${repList ? `\n\n[줄을 늘릴 수 있는 표]\n${repList}` : ''}\n\n[자료]\n${note || '(첨부 파일을 봐요)'}`;
     const blocks = await Promise.all(files.map(aiBlock)), names = files.map(x => x.name), skipped = [];
     const { default: Anthropic } = await import(AI_SDK);
     const client = new Anthropic({ apiKey: aiKey(), dangerouslyAllowBrowser: true });
@@ -188,11 +201,13 @@ async function runAiFill(f, d, fields, note, files) {
     // 다른 모델로 넘어갔으면(fallback) 앞 모델의 글이 남을 수 있어서 마지막 글 블록
     const { fields: out = [], note: why = '' } = JSON.parse(res.content.filter(b => b.type === 'text').at(-1)?.text || '{}');
     // 그대로인 값·답이 오기 전에 직접 고친 칸은 건너뜀. 고르기 칸은 보기에 있는 값만
-    const trip = tripOf(d), unknown = [], prev = [];
+    const trip = tripOf(d), unknown = [], prev = [], grow = new Map(); // grow: 늘릴 표 → 줄 수
     let filled = 0, fixed = 0;
     for (const { name: raw, value } of out) {
       const name = String(raw ?? '').trim().replace(/^["'“”‘’]+|["'“”‘’]+$/g, '').trim(); // 목록에 "이름"으로 보여 줘서 따옴표째 답할 때
-      const x = fields.get(name);
+      let x = fields.get(name);
+      const m = !x && name.match(/^(.+?)(\d+):(.+)$/), rt = m && reps.get(m[1]), add = rt && rt.cols.includes(m[3]) && +m[2] > rt.n && +m[2] <= AI_MAX_ROWS;
+      if (add) x = { shown: '', options: null, shared: false, before: JSON.stringify([d.fields[name], trip?.fields[name]]) }; // 새 줄의 칸
       if (!x) { unknown.push(name); continue; }
       let v = String(value ?? '').trim();
       if (x.options) v = v.split('|').map(o => o.trim()).filter(o => x.options.includes(o)).slice(0, x.multi ? undefined : 1).join('|');
@@ -200,7 +215,9 @@ async function runAiFill(f, d, fields, note, files) {
       prev.push([name, d.fields[name], trip?.fields[name]]);
       if (x.shared && trip) { trip.fields[name] = v; delete d.fields[name]; } else d.fields[name] = v; // 출장 정보 칸은 출장에 (docs.js fillPaper write와 같이)
       if (x.shown) fixed++; else filled++;
+      if (add) grow.set(m[1], Math.max(grow.get(m[1]) || 0, +m[2]));
     }
+    for (const [tag, n] of grow) { prev.push(['#' + tag, d.fields['#' + tag], undefined]); d.fields['#' + tag] = n; } // 줄 수 (↶ 되돌리기로 같이 돌아감)
     if (unknown.length) console.warn('자동 채우기: 양식에 없는 칸 이름', unknown);
     const skipNote = skipped.length ? `${skipped.map(n => `'${n}'`).join(', ')}은(는) Claude가 못 읽는 PDF라 빼고 채웠어요 (암호·문서보안이 걸렸거나 깨진 파일). ${PDF_TIP}` : '';
     if (!prev.length) throw new Error([unknown.length ? `Claude가 답한 칸 이름이 양식과 안 맞았어요 (${unknown.slice(0, 5).join(', ')})` : '자료에서 채우거나 고칠 내용을 찾지 못했어요.', skipNote, why.trim()].filter(Boolean).join('\n\n'));

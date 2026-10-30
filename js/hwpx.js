@@ -113,6 +113,11 @@ function hwpxTemplate(doc) {
       T.rows(ti, last - 1, items.length - (last - first + 1));
       items.forEach((row, i) => row.forEach((x, j) => fill(cellNow(ti, now(ti, first) + i, cols[j]), x, 0)));
     },
+    flow(ti) { // 표가 쪽을 넘으면 나뉘게. 글자처럼 취급하던 표는 떠 있는 표로 (원본처럼 가운데)
+      const t = tbl(ti), pos = kid(t, 'pos');
+      t.setAttribute('pageBreak', 'CELL');
+      if (pos.getAttribute('treatAsChar') === '1') for (const [k, v] of [['treatAsChar', '0'], ['horzRelTo', 'COLUMN'], ['horzAlign', 'CENTER'], ['horzOffset', '0']]) pos.setAttribute(k, v);
+    },
     from(re) { // re에 맞는 문단 앞(앞쪽 안내 쪽 등)을 지움. 쪽 설정(첫 문단의 secPr run)은 그 문단으로 옮김
       const ps = tops(), i = ps.findIndex(p => re.test(text(p)));
       if (i <= 0) return;

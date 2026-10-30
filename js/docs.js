@@ -145,7 +145,7 @@ function docPage(f) {
   status.id = 'docStatus';
   const n = f.repeat ? repN(d, f.repeat) : 1; // 품목마다 한 쪽씩
   const sheets = Array.from({ length: n }, (_, i) => pagesOf(f).map(html => {
-    const paper = h('div', cls('paper', f.paper)); // f.paper: 종이 모양 (예: letter = 레터헤드 배경)
+    const paper = h('div', cls('paper', f.paper, f.flow && 'flow')); // f.paper: 종이 모양 (예: letter = 레터헤드 배경), f.flow: 여러 장이어도 됨
     paper.innerHTML = `<div class="paper-in">${html.replaceAll('{year}', d.year ?? '')}</div>`;
     if (f.repeat) for (const el of paper.querySelectorAll('[data-f]:not([data-all])')) { el.dataset.base = el.dataset.f; el.dataset.f = `${f.repeat}${i + 1}:${el.dataset.f}`; }
     expandRows(paper, d);
@@ -199,6 +199,7 @@ function expandRows(paper, d) {
     tr.replaceWith(...Array.from({ length: rows }, (_, r) => {
       const row = tr.cloneNode(true);
       row.removeAttribute('data-rows');
+      row.dataset.rep = tag; // 자동 채우기가 줄을 늘릴 수 있게 (ai.js)
       for (const el of row.querySelectorAll('[data-f]')) el.dataset.f = `${tag}${r + 1}:${el.dataset.f}`;
       for (const el of row.querySelectorAll('[data-n]')) el.textContent = r + 1;
       const x = h('button', 'row-x', '×');
@@ -320,6 +321,7 @@ function autoValue(kind, d, trip) {
 // 넘치면 인쇄할 때만 그 비율로 줄임 (--print-zoom). 글자 수 표시줄은 인쇄에 안 나오니 빼고 잼
 const MM = 96 / 25.4;
 function fitPaper(paper) {
+  if (paper.classList.contains('flow')) return 1; // 여러 장이어도 되는 서류는 줄이지 않고 다음 쪽으로
   const inner = paper.querySelector('.paper-in');
   if (!inner || !inner.offsetHeight) return null; // 탭이 안 보이면 못 잼
   const cs = getComputedStyle(paper), pageH = 297 * MM - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom); // 종이마다 여백이 다를 수 있음 (레터)
