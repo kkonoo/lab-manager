@@ -1,5 +1,5 @@
 'use strict';
-// ---------- 서류: 양식(forms.js·forms-trip.js)에 내용을 채워 A4로 보고 PDF로 저장 ----------
+// ---------- 서류: 양식(forms.js·forms-trip.js)에 내용을 채워 A4로 보고 PDF·한글(hwpx)로 저장 ----------
 // 문서 = { id, tpl, year, title, trip, fields: { 칸 이름: 값 }, updatedAt }. 양식은 여러 장(pages)일 수 있음
 // 칸에 쓰는 대로 바로 저장만 하고 다시 그리지 않음 (커서 유지)
 // 빈 칸에 보이는 값: 문서에 쓴 값 → 출장 정보(data-trip) → 내 정보(data-profile) → 자동 계산(data-auto) → 양식 기본값
@@ -125,6 +125,11 @@ function docPage(f) {
   if (back) back.onclick = () => { selForm = TRIPS; selTrip = trip.id; render(); };
   const print = h('button', 'btn primary', '🖨 인쇄 / PDF 저장');
   print.onclick = () => printDoc(f, d);
+  const hwpx = f.paper ? null : h('button', 'btn small', '📄 hwpx 저장'); // 한글 파일로 (hwpx.js). 레터는 레터헤드 배경을 못 옮겨서 뺌
+  if (hwpx) {
+    hwpx.title = '한글에서 열어 고칠 수 있는 파일로 내려받아요 (표·글 그대로, 도장·서명 그림은 빠져요)';
+    hwpx.onclick = () => saveHwpx(f, d);
+  }
   const auto = h('button', 'btn small', aiBusy === d.id ? '✨ 채우는 중…' : '✨ 자동 채우기'); // 빈 칸을 Claude로 (ai.js)
   auto.disabled = !!aiBusy;
   auto.title = '메모·안내문·PDF·사진을 주면 빈 칸을 채워요 (설정에 각자의 API 키)';
@@ -161,7 +166,7 @@ function docPage(f) {
       return [h('div', 'paper-tag', h('b', null, `${f.repeat} ${i + 1}`), h('span', 'hint', `/ ${n}`), dup, drop), ...ps];
     });
   }
-  return [bar, h('div', 'doc-bar doc-tools', back, print, auto, aiUndoBtn(d), addItem, rename, del, fit, status, h('span', 'hint', f.hint || (trip ? '노란 칸을 눌러 써요 · 출장 정보는 다른 서류에도 같이 들어가요' : '노란 칸을 눌러 바로 써요'))),
+  return [bar, h('div', 'doc-bar doc-tools', back, print, hwpx, auto, aiUndoBtn(d), addItem, rename, del, fit, status, h('span', 'hint', f.hint || (trip ? '노란 칸을 눌러 써요 · 출장 정보는 다른 서류에도 같이 들어가요' : '노란 칸을 눌러 바로 써요'))),
     h('div', 'paper-wrap', wrap)];
 }
 
@@ -364,14 +369,17 @@ function newDoc(f, docs) {
   });
 }
 
-// PDF 저장: 브라우저 인쇄 창에서 'PDF로 저장'. 파일 이름은 양식의 file 규칙대로 제안
-function printDoc(f, d) {
+// 저장할 파일 이름 (PDF·hwpx): 양식의 file 규칙대로
+function docFileName(f, d) {
   const read = k => { const el = document.querySelector(`.paper [data-f="${CSS.escape(k)}"], .paper [data-base="${CSS.escape(k)}"]`); return el ? (el.tagName === 'INPUT' ? el.value : el.innerText) : ''; };
   const n = f.repeat ? repN(d, f.repeat) : 1; // 품목이 여럿이면 첫 품목 이름 뒤에 '외 N종'
-  const name = ((f.file || d.title).replaceAll('{year}', d.year ?? '').replace(/\{([^}]+)\}/g, (_, k) => read(k).trim()) + (n > 1 ? ` 외 ${n - 1}종` : ''))
+  return ((f.file || d.title).replaceAll('{year}', d.year ?? '').replace(/\{([^}]+)\}/g, (_, k) => read(k).trim()) + (n > 1 ? ` 외 ${n - 1}종` : ''))
     .replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+}
+// PDF 저장: 브라우저 인쇄 창에서 'PDF로 저장'. 파일 이름은 인쇄 창이 문서 제목으로 제안
+function printDoc(f, d) {
   const old = document.title;
-  document.title = name || d.title;
+  document.title = docFileName(f, d) || d.title;
   fitAll();
   window.print();
   setTimeout(() => { document.title = old; }, 1000);

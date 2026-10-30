@@ -1,7 +1,7 @@
 // 서류 양식. 원본(hwp·docx 등)을 보고 하나씩 HTML로 옮김 — html 이 없으면 '준비 중'으로 보임
 // 칸 표시: data-f="칸 이름" (input 또는 contenteditable), data-profile="name" 이면 내 정보로 미리 채움,
 //          data-count="300" 이면 글자 수를 셈, data-ph="..." 는 빈 칸 안내 글, data-stamp 는 도장 자리
-// {year} 는 문서 연도로 바뀜. file = PDF 저장할 때 제안할 파일 이름 ({칸 이름}·{year} 사용)
+// {year} 는 문서 연도로 바뀜. file = PDF·hwpx로 저장할 때 제안할 파일 이름 ({칸 이름}·{year} 사용)
 window.FORMS = {
   groups: [['yearly', '매년'], ['trip', '출장'], ['buy', '구매'], ['meeting', '회의'], ['etc', '기타']],
 
