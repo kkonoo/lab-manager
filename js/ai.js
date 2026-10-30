@@ -115,6 +115,7 @@ async function hwpxText(file) {
     .join('\n').replace(/[ \t]+/g, ' ').replace(/^ | $/gm, '').replace(/\n\s*\n+/g, '\n').trim();
 }
 
+const PDF_TIP = '화면을 캡처해 사진으로 붙이거나, 열 수 있으면 인쇄 → ‘PDF로 저장’으로 다시 만들어 붙여요.';
 // 첨부 → Claude 내용 블록. 사진은 긴 변 2000px JPEG로 줄임 (폰 사진·HEIC도 브라우저가 열 수 있으면 됨). 한글 hwpx는 글만 뽑아 보냄
 const asBase64 = blob => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = () => no(r.error); r.readAsDataURL(blob); });
 async function aiBlock(file) {
@@ -162,11 +163,11 @@ async function runAiFill(f, d, fields, note, files) {
     for (const el of ctl) el.style.display = '';
     const list = [...fields].map(([k, x]) => `- "${k}"${x.ph ? ` (안내: ${x.ph.replace(/\n/g, ' / ')})` : ''}${x.options ? ` (고르기: ${x.options.join(' | ')}${x.multi ? ', 여러 개 가능' : ''})` : ''}: ${x.shown ? JSON.stringify(x.shown) : '(비어 있음)'}`).join('\n');
     const prompt = `서류: ${f.title}${f.src ? ` (원본: ${f.src})` : ''}\n오늘: ${isoToday()} · 문서 연도: ${d.year ?? ''}\n\n[지금 양식에 보이는 글]\n${formText}\n\n[양식 칸 — 이름: 지금 값]\n${list}\n\n[자료]\n${note || '(첨부 파일을 봐요)'}`;
-    const blocks = await Promise.all(files.map(aiBlock));
+    const blocks = await Promise.all(files.map(aiBlock)), names = files.map(x => x.name), skipped = [];
     const { default: Anthropic } = await import(AI_SDK);
     const client = new Anthropic({ apiKey: aiKey(), dangerouslyAllowBrowser: true });
     let res;
-    try {
+    for (;;) try {
       res = await client.beta.messages.create({
         model: AI_MODEL, max_tokens: 16000,
         betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default', // 안전 분류기가 거절하면 서버가 다른 모델로 다시 돌림
@@ -174,7 +175,17 @@ async function runAiFill(f, d, fields, note, files) {
         system: AI_SYSTEM,
         messages: [{ role: 'user', content: [...blocks, { type: 'text', text: prompt }] }],
       });
+      break;
     } catch (e) {
+      // Claude가 못 읽는 PDF(암호·문서보안·깨진 파일)는 빼고 다시 보냄 — 오류에 몇 번째 첨부인지 나옴 ('messages.0.content.7.pdf…: The PDF specified was not valid')
+      const m = e instanceof Anthropic.BadRequestError && /messages\.0\.content\.(\d+)\.pdf/.exec(e.error?.error?.message || e.message), i = m ? +m[1] : -1;
+      if (i >= 0 && i < blocks.length) {
+        if (blocks.length < 2 && !note) throw new Error(`'${names[i]}'은(는) Claude가 못 읽는 PDF예요 (암호·문서보안이 걸렸거나 깨진 파일). ${PDF_TIP}`);
+        skipped.push(names[i]);
+        blocks.splice(i, 1);
+        names.splice(i, 1);
+        continue;
+      }
       if (e instanceof Anthropic.AuthenticationError) throw new Error('API 키가 맞지 않아요. 설정 → AI 자동 채우기에서 키를 확인해요.');
       if (e instanceof Anthropic.PermissionDeniedError) throw new Error('이 API 키로는 쓸 수 없어요 (권한 없음).');
       if (e instanceof Anthropic.RateLimitError) throw new Error('요청이 많아요. 잠시 뒤에 다시 눌러요.');
@@ -201,13 +212,17 @@ async function runAiFill(f, d, fields, note, files) {
       if (x.shown) fixed++; else filled++;
     }
     if (unknown.length) console.warn('자동 채우기: 양식에 없는 칸 이름', unknown);
-    if (!prev.length) throw new Error([unknown.length ? `Claude가 답한 칸 이름이 양식과 안 맞았어요 (${unknown.slice(0, 5).join(', ')})` : '자료에서 채우거나 고칠 내용을 찾지 못했어요.', why.trim()].filter(Boolean).join('\n\n'));
+    const skipNote = skipped.length ? `${skipped.map(n => `'${n}'`).join(', ')}은(는) Claude가 못 읽는 PDF라 빼고 채웠어요 (암호·문서보안이 걸렸거나 깨진 파일). ${PDF_TIP}` : '';
+    if (!prev.length) throw new Error([unknown.length ? `Claude가 답한 칸 이름이 양식과 안 맞았어요 (${unknown.slice(0, 5).join(', ')})` : '자료에서 채우거나 고칠 내용을 찾지 못했어요.', skipNote, why.trim()].filter(Boolean).join('\n\n'));
     aiUndo = { doc: d.id, prev };
     d.updatedAt = new Date().toISOString();
     aiBusy = null;
     save();
     const st = $('docStatus');
-    if (st && selDoc === d.id) { st.textContent = `✨ ${[filled && `${filled}칸 채움`, fixed && `${fixed}칸 고침`].filter(Boolean).join(' · ')} — 내용을 꼭 확인해요`; st.title = why.trim(); } // 못 채운 칸 설명은 마우스를 올리면
+    if (st && selDoc === d.id) { // 못 채운 칸 설명·뺀 PDF 안내는 마우스를 올리면
+      st.textContent = `✨ ${[filled && `${filled}칸 채움`, fixed && `${fixed}칸 고침`, skipped.length && `못 읽은 PDF ${skipped.length}개 뺌 (${skipped.join(', ')})`].filter(Boolean).join(' · ')} — 내용을 꼭 확인해요`;
+      st.title = [skipNote, why.trim()].filter(Boolean).join('\n\n');
+    }
   } catch (e) {
     aiBusy = null;
     render();
