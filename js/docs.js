@@ -447,9 +447,11 @@ function tripInfo(t) {
 
 function tripSteps(t) {
   t.checks ||= {};
-  return window.FORMS.tripSteps.map((s, si) => [s, si]).filter(([s]) => !s.abroad || t.kind !== '국내').map(([s, si]) => {
+  const shown = x => !x.abroad || t.kind !== '국내'; // abroad: 국외 출장에만 (단계 전체 또는 한 줄)
+  return window.FORMS.tripSteps.map((s, si) => [s, si]).filter(([s]) => shown(s)).map(([s, si]) => {
     const key = ii => `${si}-${ii}`;
-    const items = s.items.map((it, ii) => {
+    const list = s.items.map((it, ii) => [it, ii]).filter(([it]) => shown(it)); // 숨긴 줄이 있어도 체크는 원래 순서 번호로
+    const items = list.map(([it, ii]) => {
       const cb = h('input');
       cb.type = 'checkbox';
       cb.checked = !!t.checks[key(ii)];
@@ -471,8 +473,8 @@ function tripSteps(t) {
       }
       return h('div', cls('step-item', cb.checked && 'done'), h('label', 'step-check', cb, h('span', null, it.text, it.sub ? h('small', null, it.sub) : null)), action);
     });
-    const done = s.items.filter((_, ii) => t.checks[key(ii)]).length;
-    return h('div', 'panel step-panel', h('div', 'panel-head', h('h2', null, s.title), h('span', 'hint', `${done} / ${s.items.length}`)), items);
+    const done = list.filter(([, ii]) => t.checks[key(ii)]).length;
+    return h('div', 'panel step-panel', h('div', 'panel-head', h('h2', null, s.title), h('span', 'hint', `${done} / ${list.length}`)), items);
   });
 }
 
