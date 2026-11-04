@@ -79,6 +79,15 @@ function withDocs(v) {
       d.fields['#' + tag] = Math.max(+d.fields['#' + tag] || 0, +m[1]);
     }
   }
+  if (!v.paySteps2) { // 여비 정산 체크리스트 8줄 → 6줄: 출장명령서는 출장 공문에, 지급요구서는 여비산출명세서에 합침. 예전 체크를 새 줄 번호로 (둘 중 하나라도 체크면 체크)
+    v.paySteps2 = true;
+    const to = [0, 1, 2, 2, 1, 3, 4, 5]; // 영수증, 공문, 지급요구서, 여비산출명세서, 출장명령서, 증빙, 외부강의, 국외출장보고서
+    for (const t of v.trips) {
+      const c = t.checks || {}, on = to.map((_, i) => c['2-' + i]);
+      to.forEach((_, i) => delete c['2-' + i]);
+      on.forEach((x, i) => { if (x) c['2-' + to[i]] = true; });
+    }
+  }
   for (const g of v.grants) if (g.overview && !g.finalGoal) { g.finalGoal = g.overview; delete g.overview; } // 과제 개요 → 최종 목표
   if (!v.stock) { v.stock = structuredClone(window.SEED.stock); v.orders = []; } // 재고 처음 → 묶음과 예시 품목
   if (!v.stock.places) { // 보관 위치가 글로만 있던 저장본 → 위치 목록으로 (이름이 같으면 그 위치, 없으면 새로)
