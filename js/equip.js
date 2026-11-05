@@ -63,6 +63,7 @@ function renderEquip() { EQUIP.render(); }
 // 홈페이지에 적힌 그대로 (빈 값은 뺌). 정보만 넣음 (사용 신청·예약은 홈페이지에서)
 // 이름은 '영어 (홈페이지 한글 이름)' — 좁은 목록에서도 영어가 먼저 보이게. 같은 영어 이름이 여럿이면 모델(또는 구입 연도)을 붙임
 // 같은 묶음에 같은 이름이 있으면 건너뜀 → 목록을 늘린 뒤 다시 넣어도 새것만 들어감
+// 이름을 바꾼 뒤 다시 넣어도 두 개가 되지 않게 예전 이름으로 들어간 기기는 같은 기기로 알아봄 (sharedEquipPlan) — 묶음 이름을 바꿨으면 was 에 예전 이름
 //   의대 연구기기현황 https://med.knu.ac.kr/pages/sub.htm?nav_code=knu1670414710 (2026.10, 69개 — 목록에 두 번 올라간 3개는 하나로 = 66개)
 //     기기 상세 페이지(mode=view, idx)의 예약방법까지. 이름 끝이 '-학정동'이면 학정동 묶음(이름에선 뺌), 나머지는 동인동.
 //     담당자는 동인동·학정동 모두 한 사람 (홈페이지엔 교실 교수 메일 등이 섞여 있음). 구분은 '공동기기실 장비'(기본) / '연구기기'(kind)
@@ -123,7 +124,7 @@ const SHARED_EQUIPS = [
     { name: 'HPLC (고속액체크로마토그라프)', desc: '물질을 분리·정제하는 HPLC', model: 'Delta 600', maker: 'Waters', place: '사이클로트론실', kind: '연구기기' },
     { name: 'Cryostat CM1850 (냉동조직박절기)', desc: '냉동 조직을 얇게 잘라 절편을 만드는 기본형 크라이오스탯', model: 'CM1850', maker: 'Leica', place: 'N147', kind: '연구기기' },
   ] },
-  { group: '학정동 공동기기 (의생명1호관)', src: '의대 연구기기현황', kind: '공동기기실 장비', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr', items: [
+  { group: '학정동 공동기기 (의생명1호관)', was: ['학정동 공동기기'], src: '의대 연구기기현황', kind: '공동기기실 장비', owner: '정지연 053-420-4989 jiyean98@knu.ac.kr', items: [
     { name: 'Thermal cycler (PCR 기기)', desc: '유전자를 증폭하는 PCR 기기 (thermal cycler)', place: '606호' },
     { name: 'Autoclave (고압멸균기)', desc: '고온·고압 증기로 기구·배지·폐기물을 멸균', place: '606호' },
     { name: 'Blood freezer 2 (혈액냉동고)', desc: '혈액·검체를 얼려 보관하는 냉동고', maker: 'carrier', place: '416호' },
@@ -212,38 +213,75 @@ function sharedEquipButton() {
   b.onclick = sharedEquipImport;
   return b;
 }
+// 목록의 기기마다 { it, cur: 지금 이름 그대로 있는 기기, same: 예전 이름으로 들어간 같은 기기들 }
+// 같은 기기 = 지금 목록에 없는 이름인데 모델·제작사(한 줄 메모)와 본문 맨 위 한 줄(뭐 하는 기기인지)이 같음.
+// 그것까지 같은 기기가 목록에 여럿이면(혈액냉동고 1·2) 이름의 숫자도 같아야 (예: '조직파쇄기' → 'TissueLyser (조직파쇄기)')
+function sharedEquipPlan(L) {
+  const S = db.stock, ids = new Set(S.equipGroups.filter(x => x.name === L.group || L.was?.includes(x.name)).map(x => x.id));
+  const key = (memo, desc) => `${(memo || '').toLowerCase()}|${desc}`, keyOf = it => key([it.model, it.maker].filter(Boolean).join(' · '), it.desc);
+  const nums = s => (s.match(/\d+/g) || []).join(',');
+  const names = new Set(L.items.map(it => it.name)), keys = L.items.map(keyOf), taken = new Set();
+  const stale = S.equips.filter(e => ids.has(e.group) && !names.has(e.name));
+  return L.items.map((it, i) => {
+    const k = keys[i], twin = keys.filter(x => x === k).length > 1;
+    const same = stale.filter(e => !taken.has(e) && key(e.memo, (e.note || '').split('\n')[0]) === k && (!twin || nums(e.name) === nums(it.name)));
+    same.forEach(e => taken.add(e));
+    return { it, cur: S.equips.find(e => ids.has(e.group) && e.name === it.name), same };
+  });
+}
 function sharedEquipImport() {
   const boxes = SHARED_EQUIPS.map(L => {
-    const cb = h('input');
+    const cb = h('input'), old = sharedEquipPlan(L).reduce((a, x) => a + x.same.length, 0);
     cb.type = 'checkbox';
     cb.checked = true;
-    return [L, cb, h('label', 'step-check', cb, h('span', null, `${L.group} (${L.items.length}개)`, h('small', null, L.src)))];
+    return [L, cb, h('label', 'step-check', cb, h('span', null, `${L.group} (${L.items.length}개)`,
+      h('small', null, L.src, old ? ` · 예전 이름으로 들어간 ${old}개는 새 이름으로 합쳐요` : ''))), old];
   });
   ask('공동기기 목록 넣기', [], () => {
-    let added = 0;
+    let changed = 0;
     for (const [L, cb] of boxes) {
       if (!cb.checked) continue;
-      const groups = db.stock.equipGroups;
+      const S = db.stock, groups = S.equipGroups, plan = sharedEquipPlan(L);
+      const olds = groups.filter(x => L.was?.includes(x.name));
       let g = groups.find(x => x.name === L.group);
+      if (!g && olds.length) { g = olds.shift(); g.name = L.group; changed++; } // 묶음 이름만 바뀜 → 그 묶음을 새 이름으로
       if (!g) groups.push(g = { id: uid(), name: L.group, color: newColor(groups.map(x => x.color)) });
-      for (const { name, desc = '', model = '', maker = '', place: own = '', spot = '', owner = L.owner, kind = L.kind, how = '', uses = [] } of L.items) {
-        if (db.stock.equips.some(e => e.group === g.id && e.name === name)) continue;
+      for (const { it, cur, same } of plan) {
+        const { name, desc = '', model = '', maker = '', place: own = '', spot = '', owner = L.owner, kind = L.kind, how = '', uses = [] } = it;
+        const memo = [model, maker].filter(Boolean).join(' · ') || undefined;
+        let e = cur;
+        if (e && e.group !== g.id) { e.group = g.id; changed++; } // 예전 이름 묶음에 있던 것
+        if (!e && same.length) { // 예전 이름 기기 하나를 새 이름으로 (본문·사진·담당은 그대로)
+          e = same.shift();
+          Object.assign(e, { name, group: g.id, where: own || undefined, memo, updatedAt: isoToday() });
+          changed++;
+        }
+        for (const x of same) { // 새 이름 기기가 이미 있으면 예전 것은 빼고 사진만 옮김
+          const have = new Set((e.photos || []).map(ph => ph.id));
+          const moved = (x.photos || []).filter(ph => !have.has(ph.id));
+          if (moved.length) { e.photos = [...(e.photos || []), ...moved]; e.updatedAt = isoToday(); }
+          S.equips = S.equips.filter(y => y !== x);
+          changed++;
+        }
+        if (e) continue;
         const fam = SHARED_FAMILIES.find(f => f.some(([g, n]) => g === L.group && n === name)) || [];
         const refs = fam.filter(([g, n]) => g !== L.group || n !== name).map(([, n, line]) => `- ${n} — ${line}`);
-        db.stock.equips.push({ id: uid(), group: g.id, name, where: own || undefined, owner, updatedAt: isoToday(),
-          memo: [model, maker].filter(Boolean).join(' · ') || undefined,
+        S.equips.push({ id: uid(), group: g.id, name, where: own || undefined, owner, updatedAt: isoToday(), memo,
           // 위치(방)·담당은 제목 줄 칸, 모델·제작사는 한 줄 메모에 있어서 본문 정보엔 세부 위치·구분만
           note: [desc, (spot || kind) && '## 정보', spot && `- 위치: ${own} ${spot}`, kind && `- 구분: ${kind}`,
             how ? '## 이용' : '', ...how.split(', ').filter(Boolean).map(x => `- ${x}`),
             uses.length ? '## 활용' : '', ...uses.map(u => `- ${u}`),
             refs.length ? '## 참고 — 같은 종류' : '', ...refs].filter(Boolean).join('\n') });
-        added++;
+        changed++;
       }
+      const empty = olds.filter(x => !S.equips.some(e => e.group === x.id)); // 예전 이름 묶음이 비었으면 묶음도 뺌
+      S.equipGroups = groups.filter(x => !empty.includes(x));
     }
     save();
-    if (!added) alert('고른 목록은 이미 다 들어 있어요.');
+    if (!changed) alert('고른 목록은 이미 다 들어 있어요.');
   }, [h('p', 'hint', '고른 목록을 묶음째 넣어요 (위치·모델·제작사·담당·이용 방법·활용분야). 같은 묶음에 같은 이름이 있으면 건너뛰어요.'),
     ...boxes.map(([, , el]) => el),
+    boxes.some(([, , , old]) => old) ? h('p', 'hint', '이름을 ‘영어 (한글)’로 바꾸기 전에 넣은 기기는 같은 기기로 알아보고 하나로 합쳐요. 예전 기기에 넣은 사진은 새 이름 기기로 옮겨요.') : null,
     h('p', 'hint', '사용 신청·예약은 각 홈페이지에서 해요. 랩 멤버도 같이 봐요.')]);
 }
 
