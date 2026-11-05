@@ -44,7 +44,7 @@
 <div class="lt-foot">${fill('주소', 'data-profile="enAddr" data-ph="Address (내 정보 → 영문 주소)"')}<b>TEL. ${span('TEL', 'data-ph="82-10-0000-0000"')} E-mail. ${span('E-mail', 'data-profile="email"')}</b></div>`;
 
   window.FORMS.list.push(
-    { id: 'minutes', group: 'meeting', emoji: '🗒️', title: '회의록', src: '연구소 회의록 양식 (hwp)',
+    { id: 'minutes', group: 'meeting', emoji: '🗒️', title: '회의록', src: '연구소 회의록 양식 (hwp)', fund: true, aiPrev: 3,
       file: '회의록_{회의 날짜}', pages: [minutes],
       hint: '노란 칸을 눌러 써요 · 참석자 수는 성명 칸을 세어 채워져요 · 지난 회의록 내용을 가져오려면 ‘+ 새로 만들기’에서 골라요',
       // hwpx는 원본(forms/minutes.hwpx)에 채움: 표 0 = 제목, 표 1 = 본문 19행×5열 (참석자 5~14행, 회의내용 16행, 맨 아래 빈 줄에 기관장)

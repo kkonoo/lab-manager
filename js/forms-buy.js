@@ -68,12 +68,12 @@ ${secs([['3. Remarks', 'Remarks', '1) (예) 납품 후 검수과정에 하자가
 
   const hint = '노란 칸을 눌러 써요 · 연구소·교수명·전화는 내 정보에서 채워져요';
   window.FORMS.list.push(
-    { id: 'buy-spec', group: 'buy', emoji: '🪑', title: '비품 규격서', src: SRC + '물품구매서식.hwp', repeat: '품목',
+    { id: 'buy-spec', group: 'buy', emoji: '🪑', title: '비품 규격서', src: SRC + '물품구매서식.hwp', repeat: '품목', fund: true,
       file: '{사용 교수명}_비품규격서_{품명 한글}', defaults: { '납품 가능': '가능', '비고': '-' }, pages: [spec],
       // 재고 탭 주문에서 만들 때 채울 칸 (o = 주문 + 품목의 제조사·Cat. No.)
       fromOrder: o => ({ '#품목': 1, '품목1:품명 한글': o.name, '품목1:구매희망 모델': o.catNo, '품목1:생산국/제조회사': o.maker, '품목1:수량/단위': o.qty }),
       hint: hint + ' (모든 품목 쪽에 같이)' },
-    { id: 'buy-supply', group: 'buy', emoji: '📦', title: '소모품 규격서', src: SRC + '물품구매서식.hwp',
+    { id: 'buy-supply', group: 'buy', emoji: '📦', title: '소모품 규격서', src: SRC + '물품구매서식.hwp', fund: true,
       file: '{사용 교수명}_소모품규격서_{품명 한글}', pages: [supply], hint,
       fromOrder: o => ({ '품명 한글': o.name, '세부규격1:품명': o.name, '세부규격1:규격': [o.maker, o.catNo].filter(Boolean).join(' '), '세부규격1:수량': o.qty }),
       defaults: { '구매희망 모델': '세부규격 참조', '구매희망 생산국': '세부규격 참조', '수량/단위': '세부규격 참조', '대비모델': '-', '대비 생산국': '-', '납품 가능': '가능', '비고': '-' } },

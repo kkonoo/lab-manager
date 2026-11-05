@@ -376,6 +376,8 @@ tfoot td.name { background: var(--surface-2); }
   resize: vertical; overflow: hidden; outline: none;
 }
 .ov-edit:focus { border-color: var(--accent); }
+.ov-ai { margin: 0 0 12px; } /* 과제 개요 ✨ 자동 채우기 결과 */
+.ov-ai-why { display: block; margin-top: 2px; white-space: pre-line; }
 .ptable .prow { cursor: pointer; }
 .ptable .prow:hover td { background: var(--surface-2); }
 .ptable .prow.on td { background: var(--accent-soft); }

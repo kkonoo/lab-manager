@@ -2,6 +2,7 @@
 // 칸 표시: data-f="칸 이름" (input 또는 contenteditable), data-profile="name" 이면 내 정보로 미리 채움,
 //          data-count="300" 이면 글자 수를 셈, data-ph="..." 는 빈 칸 안내 글, data-stamp 는 도장 자리
 // {year} 는 문서 연도로 바뀜. file = PDF·hwpx로 저장할 때 제안할 파일 이름 ({칸 이름}·{year} 사용)
+// fund = 연구비를 쓰는 서류라 재원을 고름 (문서의 grant — ✨ 자동 채우기가 그 과제 개요·일정을 같이 봄), aiPrev = 자동 채우기에 지난 문서 몇 개를 같이 보냄
 window.FORMS = {
   groups: [['yearly', '매년'], ['trip', '출장'], ['buy', '구매'], ['meeting', '회의'], ['etc', '기타']],
 

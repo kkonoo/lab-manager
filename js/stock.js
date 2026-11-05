@@ -146,7 +146,7 @@ function specButton(o, it) {
   b.onclick = () => {
     let d = doc;
     if (!d) {
-      d = makeDoc(f, { title: `${o.name} — ${f.title}` });
+      d = makeDoc(f, { title: `${o.name} — ${f.title}`, grant: lineOf(o.line)?.grant }); // 재원은 주문의 예산 항목에서
       for (const [k, v] of Object.entries(f.fromOrder({ ...o, maker: it?.maker, catNo: it?.catNo }))) if (v) d.fields[k] = v;
       o.doc = d.id;
     }

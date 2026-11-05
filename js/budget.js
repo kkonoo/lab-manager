@@ -90,7 +90,7 @@ function overviewPanel(g, ps) {
   fold.onclick = () => { g.ovOpen = !g.ovOpen; save(); };
   const head = h('div', 'panel-head', fold, h('h2', null, '과제 개요'),
     h('span', 'hint', closed ? preview(g.finalGoal) || '최종 목표 · 연차별 연구 내용' : ''),
-    h('span', 'spacer'), btn);
+    h('span', 'spacer'), aiGrantButtons(g), btn); // ✨ 협약서·신청서로 채우기 (ai.js)
   if (closed) {
     for (const el of [head.querySelector('h2'), head.querySelector('.hint')]) { el.style.cursor = 'pointer'; el.onclick = fold.onclick; } // 제목 줄을 눌러도 펼침
     return h('div', 'panel text-panel closed', head);
@@ -122,7 +122,8 @@ function overviewPanel(g, ps) {
           h('div', cls('ov-cell', now && 'now'), field(info.content, periodSet(pd.n, 'content'), '연구 내용')),
         ];
       }))) : null;
-  return h('div', 'panel text-panel', head, goal, years, editing ? h('p', 'hint', DOC_HINT) : null);
+  const ai = aiGrantUndo?.grant === g.id ? h('p', 'hint ov-ai', aiGrantUndo.msg, aiGrantUndo.why ? h('span', 'ov-ai-why', aiGrantUndo.why) : null) : null; // 방금 자동 채우기 결과
+  return h('div', 'panel text-panel', head, ai, goal, years, editing ? h('p', 'hint', DOC_HINT) : null);
 }
 
 // 연차별 예산: 줄을 누르면 아래에 그 연차를 펼침. 배정·계상액은 바로 고침

@@ -1,6 +1,7 @@
 'use strict';
 // ---------- 서류: 양식(forms.js·forms-trip.js)에 내용을 채워 A4로 보고 PDF·한글(hwpx)로 저장 ----------
-// 문서 = { id, tpl, year, title, trip, fields: { 칸 이름: 값 }, updatedAt }. 양식은 여러 장(pages)일 수 있음
+// 문서 = { id, tpl, year, title, trip, grant, fields: { 칸 이름: 값 }, updatedAt }. 양식은 여러 장(pages)일 수 있음
+// grant = 연구비를 쓰는 재원 (양식에 fund 가 있는 회의록·구매 규격서). 출장 서류는 출장의 '경비 부담 (재원)'(trip.fund)
 // 칸에 쓰는 대로 바로 저장만 하고 다시 그리지 않음 (커서 유지)
 // 빈 칸에 보이는 값: 문서에 쓴 값 → 출장 정보(data-trip) → 내 정보(data-profile) → 자동 계산(data-auto) → 양식 기본값
 let selForm = null, selDoc = null, selTrip = null;
@@ -8,6 +9,7 @@ const TRIPS = '__trips';
 const form = id => window.FORMS.list.find(f => f.id === id);
 const pagesOf = f => f.pages || (f.html ? [f.html] : []);
 const tripOf = d => (d?.trip && db.trips.find(t => t.id === d.trip)) || null;
+const docGrant = d => grant(tripOf(d)?.fund || d?.grant) || null; // 서류의 재원 (출장 서류는 출장 재원)
 const byRecent = (a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '');
 const fmtTime = iso => { const d = new Date(iso); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 const countChars = s => window.Intl?.Segmenter ? [...new Intl.Segmenter('ko', { granularity: 'grapheme' }).segment(s)].length : [...s].length;
@@ -134,6 +136,7 @@ function docPage(f) {
   auto.disabled = !!aiBusy;
   auto.title = '메모·안내문·PDF·사진을 주면 빈 칸을 채워요 (설정에 각자의 API 키)';
   auto.onclick = () => aiFill(f, d);
+  const fund = f.fund && !trip ? grantSelect(d.grant, v => { d.grant = v; d.updatedAt = new Date().toISOString(); save(); }) : null;
   const rename = h('button', 'btn small', '이름 바꾸기');
   rename.onclick = () => ask('문서 이름', [{ key: 'title', label: '이름', value: d.title, required: true }], v => { d.title = v.title.trim(); save(); });
   const del = h('button', 'btn danger small', '문서 지우기');
@@ -166,7 +169,7 @@ function docPage(f) {
       return [h('div', 'paper-tag', h('b', null, `${f.repeat} ${i + 1}`), h('span', 'hint', `/ ${n}`), dup, drop), ...ps];
     });
   }
-  return [bar, h('div', 'doc-bar doc-tools', back, print, hwpx, auto, aiUndoBtn(d), addItem, rename, del, fit, status, h('span', 'hint', f.hint || (trip ? '노란 칸을 눌러 써요 · 출장 정보는 다른 서류에도 같이 들어가요' : '노란 칸을 눌러 바로 써요'))),
+  return [bar, h('div', 'doc-bar doc-tools', back, fund, print, hwpx, auto, aiUndoBtn(d), addItem, rename, del, fit, status, h('span', 'hint', f.hint || (trip ? '노란 칸을 눌러 써요 · 출장 정보는 다른 서류에도 같이 들어가요' : '노란 칸을 눌러 바로 써요'))),
     h('div', 'paper-wrap', wrap)];
 }
 
@@ -345,7 +348,7 @@ function fitAll() {
 }
 
 // 새 문서. 출장 서류면 어느 출장인지 고르고, carry 규칙(예: 지난 총 마일리지 → 기존 마일리지)을 적용
-function makeDoc(f, { year = null, trip = null, title = '', src = null } = {}) {
+function makeDoc(f, { year = null, trip = null, title = '', src = null, grant: gid = null } = {}) {
   const t = trip ? db.trips.find(x => x.id === trip) : null;
   const fields = src ? structuredClone(src.fields) : {};
   if (src?.year && year) for (const k in fields) if (fields[k] === String(src.year)) fields[k] = String(year); // 예전 연도만 적힌 칸은 새 연도로
@@ -354,7 +357,7 @@ function makeDoc(f, { year = null, trip = null, title = '', src = null } = {}) {
     if (prev) for (const [to, from] of Object.entries(f.carry)) if (prev.fields[from] && !fields[to]) fields[to] = prev.fields[from];
   }
   const y = year ?? (t?.from ? +t.from.slice(0, 4) : TODAY.getFullYear());
-  const d = { id: uid(), tpl: f.id, year: y, trip: t?.id || null, fields, updatedAt: new Date().toISOString(),
+  const d = { id: uid(), tpl: f.id, year: y, trip: t?.id || null, grant: f.fund ? gid || src?.grant || null : null, fields, updatedAt: new Date().toISOString(),
     title: title || (t ? `${t.title} — ${f.title}` : f.yearly ? `${y}학년도 ${f.title}` : `${f.title} ${mDot(NOW)}`) };
   db.docs.push(d);
   return d;
@@ -367,12 +370,22 @@ function newDoc(f, docs) {
     f.yearly ? { key: 'year', label: '연도', type: 'number', value: docs.length ? Math.max(...docs.map(x => x.year || 0)) + 1 : y, required: true } : null,
     f.trip ? { key: 'trip', label: '어느 출장', type: 'select', options: f.trip === 'optional' ? [['', '출장 없이'], ...tripOpts] : [...tripOpts, ['', '출장 없이']], value: f.trip === 'optional' ? '' : trips[0]?.id ?? '' } : null,
     { key: 'title', label: '이름 (비우면 자동)', placeholder: f.yearly ? `예: ${y}학년도 ${f.title}` : f.trip ? '출장 이름 — 서류 이름' : `${f.title} ${mDot(NOW)}` },
+    f.fund ? { key: 'grant', label: '재원 (연구비를 쓰는 과제)', type: 'select', options: grantOptions(), value: docs.find(x => grant(x.grant))?.grant || '' } : null, // 기본은 지난 문서의 재원
     docs.length ? { key: 'copy', label: '내용 가져오기', type: 'select', options: [['', '빈 양식'], ...docs.map(x => [x.id, `${tripOf(x)?.title ?? x.title} 내용 복사`])], value: f.yearly ? docs[0].id : '' } : null,
   ].filter(Boolean), v => {
-    const d = makeDoc(f, { year: f.yearly ? +v.year : null, trip: v.trip || null, title: v.title.trim(), src: docs.find(x => x.id === v.copy) });
+    const d = makeDoc(f, { year: f.yearly ? +v.year : null, trip: v.trip || null, title: v.title.trim(), src: docs.find(x => x.id === v.copy), grant: v.grant || null });
     selDoc = d.id;
     save();
   });
+}
+
+// 재원 고르기: 출장 정보·새 문서·서류 도구 줄에서 같이 씀
+const grantOptions = () => [['', '재원 정하지 않음'], ...sortedGrants().map(g => [g.id, `${g.emoji} ${g.name}`])];
+function grantSelect(value, set) {
+  const s = h('select', 'note-cat', grantOptions().map(([v, l]) => { const o = h('option', null, l); o.value = v; o.selected = v === (value || ''); return o; }));
+  s.title = '이 서류의 연구비를 쓰는 재원 — ✨ 자동 채우기가 그 과제의 개요·일정을 같이 봐요';
+  s.onchange = () => set(s.value || null);
+  return s;
 }
 
 // 저장할 파일 이름 (PDF·hwpx): 양식의 file 규칙대로
@@ -441,7 +454,7 @@ function tripInfo(t) {
       input('출장국 (도시)', tf['출장국'], v => { tf['출장국'] = v; }),
       input('방문기관', tf['방문기관'], v => { tf['방문기관'] = v; }),
       input('학술회의명', tf['학술회의명'], v => { tf['학술회의명'] = v; }),
-      select('경비 부담 (재원)', [['', '정하지 않음'], ...sortedGrants().map(g => [g.id, `${g.emoji} ${g.name}`])], t.fund || '', v => { t.fund = v || null; }),
+      select('경비 부담 (재원)', grantOptions(), t.fund || '', v => { t.fund = v || null; }),
       input('출장 목적', tf['출장 목적'], v => { tf['출장 목적'] = v; }, 'text', true)));
 }
 
