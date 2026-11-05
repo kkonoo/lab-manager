@@ -88,6 +88,24 @@ function withDocs(v) {
       on.forEach((x, i) => { if (x) c['2-' + to[i]] = true; });
     }
   }
+  if (!v.tripNote2) { // 정보 탭 '출장 여비' 노트도 체크리스트처럼: 출장명령서는 출장 공문에, 지급요구서는 여비산출명세서에 합침 (예시 글 그대로인 줄만, 체크는 둘 중 하나라도 하면)
+    v.tripNote2 = true;
+    const n = v.info?.notes?.find(x => x.id === 'trip' && x.type === 'doc'), sn = window.SEED.info.notes.find(x => x.id === 'trip').text.split('\n');
+    if (n?.text) {
+      const at = s => sn.find(l => l.includes(s)), lines = n.text.split('\n'), find = s => lines.findIndex(l => l.replace(/\[[ x]\]/, '[ ]') === `- [ ] ${s}`);
+      const merge = (keep, drop, to) => { // keep 줄을 to 로 바꾸고 drop 줄은 뺌
+        const i = find(keep), j = find(drop);
+        if (i < 0 || j < 0) return;
+        lines[i] = to.replace('[ ]', /\[x\]/.test(lines[i] + lines[j]) ? '[x]' : '[ ]');
+        lines.splice(j, 1);
+      };
+      merge('출장 공문 — 여비지급: 예 / 회계구분·지급기관: **산단회계 또는 연구비** 중 선택', '출장명령서', at('출장 공문 (출장명령서)'));
+      merge('여비산출명세서 (IAMS에서 자동 출력)', '지급요구서', at('여비산출명세서 · 지급요구서'));
+      const r = find('영수증 (운임·숙박)');
+      if (r >= 0) lines[r] = at('영수증 (운임·숙박)').replace('[ ]', lines[r].includes('[x]') ? '[x]' : '[ ]');
+      n.text = lines.join('\n');
+    }
+  }
   for (const g of v.grants) if (g.overview && !g.finalGoal) { g.finalGoal = g.overview; delete g.overview; } // 과제 개요 → 최종 목표
   if (!v.stock) { v.stock = structuredClone(window.SEED.stock); v.orders = []; } // 재고 처음 → 묶음과 예시 품목
   if (!v.stock.places) { // 보관 위치가 글로만 있던 저장본 → 위치 목록으로 (이름이 같으면 그 위치, 없으면 새로)
