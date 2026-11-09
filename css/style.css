@@ -62,7 +62,7 @@ h2 { margin: 0; font-size: calc(15px * var(--fs)); font-weight: 700; letter-spac
   .topbar { position: sticky; top: 0; z-index: 20; }
   html { scroll-padding-top: 76px; } /* 서류 '쪽 더하기'로 내려갈 때 새 쪽 머리가 상단 바에 가리지 않게 */
 }
-.app-title { display: flex; align-items: center; gap: 8px; margin: 0 4px 0 0; font-size: calc(20px * var(--fs)); font-weight: 800; letter-spacing: -0.02em; white-space: nowrap; }
+.app-title { display: flex; align-items: center; gap: 8px; margin: 0 4px 0 0; font-size: calc(20px * var(--fs)); font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; }
 .app-title img { width: calc(30px * var(--fs)); height: calc(30px * var(--fs)); }
 .tools .icon-btn { width: 34px; height: auto; border: 1px solid var(--line); border-radius: 9px; font-size: calc(15px * var(--fs)); } /* ◐ 도 옆 '설정'과 같은 테두리 버튼으로 */
 .tools .icon-btn:hover { background: var(--surface-2); }
@@ -554,7 +554,7 @@ tfoot td.name { background: var(--surface-2); }
   .info-layout > .splitter { display: none; }
 }
 .note-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; min-width: 0; } /* 글씨를 키워도 목록 칸 밖으로 안 나감 */
-.note-list-title { margin: 0 8px 8px; font-size: calc(26px * var(--fs)); font-weight: 800; letter-spacing: -0.03em; }
+.note-list-title { margin: 0 8px 8px; font-size: calc(26px * var(--fs)); font-weight: 700; letter-spacing: -0.03em; }
 /* 묶음 막대: 묶음 색을 옅은 음영으로만 (칩과 같은 --tint — 한 화면에 진한 색 덩어리가 여러 개 보이지 않게) */
 .cat-head {
   --c: var(--faint);
