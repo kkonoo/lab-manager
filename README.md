@@ -91,7 +91,7 @@
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/serve.ps1
 ```
 
-http://localhost:8768 에서 열려요. 아이콘은 `tools/make-icons.ps1`, HWP 양식 구조 보기는 `tools/hwpdump.ps1`.
+http://localhost:8768 에서 열려요. 아이콘은 `tools/make-icons.py`(`icons/icon.svg`에서 그림), HWP 양식 구조 보기는 `tools/hwpdump.ps1`.
 
 | 파일 | 내용 |
 |---|---|
